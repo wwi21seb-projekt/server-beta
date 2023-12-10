@@ -1,0 +1,41 @@
+name: Continuous Deployment
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: '1.21.4'
+
+      - name: Run Tests
+        run: make test
+
+      - name: Build
+        run: |
+          make update
+          make build
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SERVER_SSH_PRIVATE }}" > ~/.ssh/id_rsa
+          echo "${{ secrets.SERVER_SSH_PUBLIC }}" > ~/.ssh/id_rsa.pub
+          chmod 600 ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa.pub
+          ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
+          
+      - name: Start application
+        run: |
+          scp ./bin/server-beta ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${{ secrets.SERVER_APP_PATH }}
+          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} 'systemctl restart server-beta && systemctl status server-beta'
