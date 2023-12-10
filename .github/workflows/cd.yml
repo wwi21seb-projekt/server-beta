@@ -37,5 +37,6 @@ jobs:
           
       - name: Start application
         run: |
+          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} 'systemctl stop server-beta'
           scp ./bin/server-beta ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${{ secrets.SERVER_APP_PATH }}
           ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} 'systemctl restart server-beta && systemctl status server-beta'
