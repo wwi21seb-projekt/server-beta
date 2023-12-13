@@ -8,7 +8,7 @@ import (
 func SyncDatabase() {
 	modelsToMigrate := []interface{}{
 		&models.User{},
-		&models.VerificationCode{},
+		&models.VerificationToken{},
 	}
 
 	for _, model := range modelsToMigrate {

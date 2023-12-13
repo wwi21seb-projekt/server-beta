@@ -4,22 +4,30 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/marcbudd/server-beta/internal/utils"
 	"net/http"
+	"strings"
 )
 
 // AuthorizeUser validates token and attaches username of user to request
 func AuthorizeUser(c *gin.Context) {
-	tokenString, err := c.Cookie("Authorization")
-	if err != nil {
+	authHeader := c.GetHeader("Authorization")
+	if authHeader == "" {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
 
-	user, err := utils.VerifyToken(tokenString)
+	const bearerSchema = "Bearer "
+	if !strings.HasPrefix(authHeader, bearerSchema) {
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+
+	tokenString := strings.TrimPrefix(authHeader, bearerSchema)
+	user, err := utils.VerifyAccessToken(tokenString)
 	if err != nil {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
 
 	c.Set("username", user.Username) // Attach username to request
-	c.Next()                         // Execute next function
+	c.Next()                         // Execute main function
 }

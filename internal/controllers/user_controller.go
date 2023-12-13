@@ -2,9 +2,9 @@ package controllers
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/marcbudd/server-beta/internal/errors"
 	"github.com/marcbudd/server-beta/internal/models"
 	"github.com/marcbudd/server-beta/internal/services"
-	"github.com/marcbudd/server-beta/internal/utils"
 	"net/http"
 )
 
@@ -15,35 +15,21 @@ func CreateUser(c *gin.Context) {
 
 	if c.Bind(&userCreateRequestDTO) != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "failed to read body",
+			"error": errors.INVALID_REQ_BODY,
 		})
 		return
 	}
 
-	// Create user
-	user, serviceErr := services.CreateUser(userCreateRequestDTO)
+	// Create userDto
+	userDto, serviceErr, httpStatus := services.CreateUser(userCreateRequestDTO)
 	if serviceErr != nil {
-		c.JSON(serviceErr.HTTPStatusCode(), gin.H{
-			"error": serviceErr.Error(),
+		c.JSON(httpStatus, gin.H{
+			"error": serviceErr,
 		})
 		return
 	}
 
-	// Generate a jwt token
-	tokenString, err := utils.GenerateJWTToken(user.Username)
-
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to create token",
-		})
-
-		return
-	}
-
-	// Respond
-	c.SetSameSite(http.SameSiteNoneMode)
-	c.SetCookie("Authorization", tokenString, 3600, "/", "", true, true)
-	c.JSON(http.StatusCreated, user)
+	c.JSON(httpStatus, userDto)
 
 }
 
@@ -55,32 +41,89 @@ func Login(c *gin.Context) {
 
 	if c.Bind(&userLoginRequestDTO) != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Failed to read body",
+			"error": errors.INVALID_REQ_BODY,
 		})
 		return
 	}
 
-	// Look up requested user
-	user, serviceErr := services.LoginUser(userLoginRequestDTO)
+	// Lookup requested user
+	loginResponseDto, serviceErr, httpStatus := services.LoginUser(userLoginRequestDTO)
 	if serviceErr != nil {
-		c.JSON(serviceErr.HTTPStatusCode(), gin.H{
-			"error": serviceErr.Error(),
-		})
-	}
-
-	// Generate a jwt token
-	tokenString, err := utils.GenerateJWTToken(user.Username)
-
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Failed to create token",
+		c.JSON(httpStatus, gin.H{
+			"error": serviceErr,
 		})
 		return
 	}
 
-	// Respond
-	c.SetSameSite(http.SameSiteNoneMode)
-	c.SetCookie("Authorization", tokenString, 3600*24, "/", "", true, true)
-	c.JSON(http.StatusNoContent, gin.H{})
+	c.JSON(httpStatus, loginResponseDto)
 
+}
+
+// VerifyUser verifies user with given six-digit code and resends a new token, if it is expired
+func VerifyUser(context *gin.Context) {
+
+	// Read body
+	var verificationTokenRequestDTO models.VerificationTokenRequestDTO
+
+	if context.Bind(&verificationTokenRequestDTO) != nil {
+		context.JSON(http.StatusBadRequest, gin.H{
+			"error": errors.INVALID_REQ_BODY,
+		})
+		return
+	}
+
+	// Read username from url
+	username := context.Param("username")
+	if username == "" {
+		context.JSON(http.StatusBadRequest, gin.H{
+			"error": errors.INVALID_URL_PARAMETER,
+		})
+		return
+	}
+
+	// Activate user
+	serviceErr, httpStatus := services.VerifyUser(username, verificationTokenRequestDTO.Token)
+	if serviceErr != nil {
+		context.JSON(httpStatus, gin.H{
+			"error": serviceErr,
+		})
+		return
+	}
+
+	context.JSON(httpStatus, gin.H{})
+}
+
+// ResendCode sends a new six-digit verification code to the user
+func ResendCode(context *gin.Context) {
+	// Read username from url
+	username := context.Param("username")
+	if username == "" {
+		context.JSON(http.StatusBadRequest, gin.H{
+			"error": errors.INVALID_URL_PARAMETER,
+		})
+		return
+	}
+
+	// Resend code
+	serviceErr, httpStatus := services.ResendVerificationToken(username)
+	if serviceErr != nil {
+		context.JSON(httpStatus, gin.H{
+			"error": serviceErr,
+		})
+		return
+	}
+
+	context.JSON(httpStatus, gin.H{})
+}
+
+func ValidateLogin(context *gin.Context) {
+	username, exists := context.Get("username")
+	if !exists {
+		context.JSON(http.StatusUnauthorized, gin.H{})
+		return
+	}
+
+	context.JSON(http.StatusOK, gin.H{
+		"username": username,
+	})
 }

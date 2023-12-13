@@ -35,6 +35,9 @@ func ValidatePassword(password string) bool {
 	if len(password) < 8 {
 		return false
 	}
+	if len(password) > 32 {
+		return false
+	}
 	var hasUpper, hasLower, hasNumber, hasSpecial bool
 	for _, c := range password {
 		switch {

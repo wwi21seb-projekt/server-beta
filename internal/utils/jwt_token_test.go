@@ -45,14 +45,14 @@ func TestVerifyToken(t *testing.T) {
 	tokenString, _ := GenerateJWTToken(testUser.Username)
 
 	// Test valid token
-	foundUser, err := VerifyToken(tokenString)
+	foundUser, err := VerifyAccessToken(tokenString)
 	assert.Nil(t, err)
 	assert.NotNil(t, foundUser)
 	assert.Equal(t, testUser.Username, foundUser.Username)
 
 	// Test invalid Token
 	//invalidToken := "invalid_token"
-	//foundUser, err := VerifyToken(invalidToken)
+	//foundUser, err := VerifyAccessToken(invalidToken)
 	//assert.NotNil(t, err)
 	//assert.Nil(t, foundUser.Username)
 }
