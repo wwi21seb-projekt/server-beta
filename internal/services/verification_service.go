@@ -11,6 +11,7 @@ import (
 	"time"
 )
 
+// SendVerificationToken deletes old tokens, generates a new six digit code and sends it to user via mail
 func SendVerificationToken(username string, email string) *errors.ServerBetaError {
 
 	// Delete old codes
@@ -46,6 +47,7 @@ func SendVerificationToken(username string, email string) *errors.ServerBetaErro
 	return nil
 }
 
+// ResendVerificationToken can be sent from controller to resend a six digit code via mail
 func ResendVerificationToken(username string) (*errors.ServerBetaError, int) {
 
 	// Get user

@@ -4,6 +4,7 @@ import (
 	"testing"
 )
 
+// TestHashPassword tests if HashPassword generates a hash to a given password
 func TestHashPassword(t *testing.T) {
 	password := "your_password"
 	hash, err := HashPassword(password)
@@ -16,6 +17,7 @@ func TestHashPassword(t *testing.T) {
 	}
 }
 
+// TestCheckPassword tests if CheckPassword succeeds for the right password and fails for the wrong one
 func TestCheckPassword(t *testing.T) {
 	password := "your_password"
 	hash, _ := HashPassword(password)

@@ -6,6 +6,7 @@ type ServerBetaError struct {
 	Code    string
 }
 
+// Custom error constants
 var (
 	INVALID_REQ_BODY = &ServerBetaError{
 		Message: "The request body is invalid.",

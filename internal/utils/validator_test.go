@@ -2,7 +2,7 @@ package utils
 
 import "testing"
 
-// TestValidateUsername tests the ValidateUsername function
+// TestValidateUsername tests the ValidateUsername function using multiple examples
 func TestValidateUsername(t *testing.T) {
 	testCases := []struct {
 		username string
@@ -24,7 +24,7 @@ func TestValidateUsername(t *testing.T) {
 	}
 }
 
-// TestValidateNickname tests the ValidateNickname function
+// TestValidateNickname tests the ValidateNickname function using multiple examples
 func TestValidateNickname(t *testing.T) {
 	testCases := []struct {
 		nickname string
@@ -45,7 +45,7 @@ func TestValidateNickname(t *testing.T) {
 	}
 }
 
-// TestValidateEmail tests the ValidateEmail function
+// TestValidateEmail tests the ValidateEmail function using multiple examples
 func TestValidateEmail(t *testing.T) {
 	testCases := []struct {
 		email    string
@@ -65,7 +65,7 @@ func TestValidateEmail(t *testing.T) {
 	}
 }
 
-// TestValidatePassword tests the ValidatePassword function
+// TestValidatePassword tests the ValidatePassword function using multiple examples
 func TestValidatePassword(t *testing.T) {
 	testCases := []struct {
 		password string

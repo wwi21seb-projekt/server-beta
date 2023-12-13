@@ -5,6 +5,7 @@ import (
 	"github.com/marcbudd/server-beta/internal/models"
 )
 
+// SyncDatabase synchronizes the database tables with the model definitions
 func SyncDatabase() {
 	modelsToMigrate := []interface{}{
 		&models.User{},

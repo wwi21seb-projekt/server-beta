@@ -9,6 +9,7 @@ import (
 	"os"
 )
 
+// SetupRouter can be used to configure the router: CORS, routes, etc.
 func SetupRouter() *gin.Engine {
 	r := gin.Default()
 

@@ -9,6 +9,7 @@ import (
 	"time"
 )
 
+// CreateUser can be called from the controller and saves the user to the db and returns response, error and status code
 func CreateUser(req models.UserCreateRequestDTO) (*models.UserResponseDTO, *errors.ServerBetaError, int) {
 	// Validate input
 	if !utils.ValidateUsername(req.Username) {
@@ -92,6 +93,7 @@ func CreateUser(req models.UserCreateRequestDTO) (*models.UserResponseDTO, *erro
 	return &response, nil, http.StatusCreated
 }
 
+// LoginUser can be called from the controller and verifies password and returns response, error and status code
 func LoginUser(req models.UserLoginRequestDTO) (*models.UserLoginResponseDTO, *errors.ServerBetaError, int) {
 
 	// Find user by username
@@ -147,6 +149,7 @@ func LoginUser(req models.UserLoginRequestDTO) (*models.UserLoginResponseDTO, *e
 
 }
 
+// VerifyUser can be called from the controller to verify user using token and returns response, error and status code
 func VerifyUser(username string, token string) (*errors.ServerBetaError, int) {
 
 	// Get user

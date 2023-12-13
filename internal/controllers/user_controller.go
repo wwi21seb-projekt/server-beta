@@ -116,6 +116,7 @@ func ResendCode(context *gin.Context) {
 	context.JSON(httpStatus, gin.H{})
 }
 
+// ValidateLogin is a test function to see whether the user is logged in
 func ValidateLogin(context *gin.Context) {
 	username, exists := context.Get("username")
 	if !exists {
