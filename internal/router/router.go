@@ -2,6 +2,7 @@ package router
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/marcbudd/server-beta/internal/controllers"
 	"net/http"
 	"os"
 )
@@ -27,6 +28,9 @@ func SetupRouter() *gin.Engine {
 		//Respond
 		context.JSON(http.StatusOK, number)
 	})
+
+	// Imprint
+	api.GET("/imprint", controllers.GetImprint)
 
 	return r
 }

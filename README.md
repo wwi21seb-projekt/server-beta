@@ -15,5 +15,5 @@ Second backend for group project
 git clone https://github.com/wwi21seb-projekt/server-beta.git
 cd server-beta
 make all
-.bin/server-beta
+./bin/server-beta
 ````
