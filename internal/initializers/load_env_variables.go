@@ -7,6 +7,7 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// LoadEnvVariables loads necessary environment variables (DB, Mail Server, etc.) from .env file
 func LoadEnvVariables() {
 
 	err := godotenv.Load()

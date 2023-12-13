@@ -1,13 +1,22 @@
 package initializers
 
-import "fmt"
+import (
+	"fmt"
+	"github.com/marcbudd/server-beta/internal/models"
+)
 
+// SyncDatabase synchronizes the database tables with the model definitions
 func SyncDatabase() {
-	// Sync Database tables with structs in model package
-	// err := DB.AutoMigrate(&models.User{})
-	// if err != nil {
-	// panic("Failed to auto-migrate database")
-	//}
+	modelsToMigrate := []interface{}{
+		&models.User{},
+		&models.VerificationToken{},
+	}
+
+	for _, model := range modelsToMigrate {
+		if err := DB.AutoMigrate(model); err != nil {
+			panic(fmt.Sprintf("Failed to auto-migrate %T: %v", model, err))
+		}
+	}
 
 	fmt.Println("Synchronizing database successful...")
 }
