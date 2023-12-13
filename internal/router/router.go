@@ -40,6 +40,10 @@ func SetupRouter() *gin.Engine {
 		context.JSON(http.StatusOK, number)
 	})
 
+  
+	// Imprint
+	api.GET("/imprint", controllers.GetImprint)
+  
 	// User
 	api.POST("/users", controllers.CreateUser)
 	api.POST("/users/login", controllers.Login)
