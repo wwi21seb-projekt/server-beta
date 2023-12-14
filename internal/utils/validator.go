@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"github.com/truemail-rb/truemail-go"
+	"os"
 	"regexp"
 	"unicode"
 )
@@ -20,14 +22,25 @@ func ValidateNickname(nickname string) bool {
 	return len(nickname) <= 25
 }
 
-// ValidateEmail validates if an email meets specifications
-func ValidateEmail(email string) bool {
+// ValidateEmailSyntax validates if an email meets specifications
+func ValidateEmailSyntax(email string) bool {
 	emailRegex := `^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`
 	match, _ := regexp.MatchString(emailRegex, email)
 	if match == false || len(email) > 128 {
 		return false
 	}
 	return true
+}
+
+// ValidateEmailExistance tries to reach out to email to see if it really exists
+func ValidateEmailExistance(email string) bool {
+	var configuration, _ = truemail.NewConfiguration(truemail.ConfigurationAttr{
+		VerifierEmail:         os.Getenv("EMAIL_ADDRESS"),
+		ValidationTypeDefault: "mx",
+		SmtpFailFast:          true,
+	})
+
+	return truemail.IsValid(email, configuration)
 }
 
 // ValidatePassword validates if a password meets specifications
