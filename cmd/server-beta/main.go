@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/marcbudd/server-beta/internal/initializers"
 	"github.com/marcbudd/server-beta/internal/router"
+	"github.com/marcbudd/server-beta/routines"
 	"os"
 )
 
@@ -31,6 +32,9 @@ func main() {
 	} else {
 		fmt.Println("Router started...")
 	}
+
+	// Start daily routines
+	go routines.StartDailyRoutines()
 
 	defer initializers.CloseDbConnection()
 }

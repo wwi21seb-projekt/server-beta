@@ -12,7 +12,6 @@ clean:
 
 update:
 	@echo "Updating dependencies..."
-	go get -u all
 	go mod tidy
 
 test:

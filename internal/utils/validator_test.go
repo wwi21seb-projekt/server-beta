@@ -45,7 +45,7 @@ func TestValidateNickname(t *testing.T) {
 	}
 }
 
-// TestValidateEmail tests the ValidateEmail function using multiple examples
+// TestValidateEmail tests the ValidateEmailSyntax function using multiple examples
 func TestValidateEmail(t *testing.T) {
 	testCases := []struct {
 		email    string
@@ -58,9 +58,9 @@ func TestValidateEmail(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		result := ValidateEmail(tc.email)
+		result := ValidateEmailSyntax(tc.email)
 		if result != tc.expected {
-			t.Errorf("ValidateEmail(%v): expected %v, got %v", tc.email, tc.expected, result)
+			t.Errorf("ValidateEmailSyntax(%v): expected %v, got %v", tc.email, tc.expected, result)
 		}
 	}
 }

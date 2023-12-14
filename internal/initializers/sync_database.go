@@ -9,7 +9,7 @@ import (
 func SyncDatabase() {
 	modelsToMigrate := []interface{}{
 		&models.User{},
-		&models.VerificationToken{},
+		&models.ActivationToken{},
 	}
 
 	for _, model := range modelsToMigrate {

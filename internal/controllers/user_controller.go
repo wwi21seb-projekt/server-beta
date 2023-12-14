@@ -15,7 +15,7 @@ func CreateUser(c *gin.Context) {
 
 	if c.Bind(&userCreateRequestDTO) != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": errors.INVALID_REQ_BODY,
+			"error": errors.BadRequest,
 		})
 		return
 	}
@@ -41,7 +41,7 @@ func Login(c *gin.Context) {
 
 	if c.Bind(&userLoginRequestDTO) != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": errors.INVALID_REQ_BODY,
+			"error": errors.BadRequest,
 		})
 		return
 	}
@@ -63,11 +63,11 @@ func Login(c *gin.Context) {
 func VerifyUser(context *gin.Context) {
 
 	// Read body
-	var verificationTokenRequestDTO models.VerificationTokenRequestDTO
+	var verificationTokenRequestDTO models.ActivationTokenRequestDTO
 
 	if context.Bind(&verificationTokenRequestDTO) != nil {
 		context.JSON(http.StatusBadRequest, gin.H{
-			"error": errors.INVALID_REQ_BODY,
+			"error": errors.BadRequest,
 		})
 		return
 	}
@@ -76,13 +76,13 @@ func VerifyUser(context *gin.Context) {
 	username := context.Param("username")
 	if username == "" {
 		context.JSON(http.StatusBadRequest, gin.H{
-			"error": errors.INVALID_URL_PARAMETER,
+			"error": errors.BadRequest,
 		})
 		return
 	}
 
 	// Activate user
-	serviceErr, httpStatus := services.VerifyUser(username, verificationTokenRequestDTO.Token)
+	serviceErr, httpStatus := services.ActivateUser(username, verificationTokenRequestDTO.Token)
 	if serviceErr != nil {
 		context.JSON(httpStatus, gin.H{
 			"error": serviceErr,
@@ -99,13 +99,13 @@ func ResendCode(context *gin.Context) {
 	username := context.Param("username")
 	if username == "" {
 		context.JSON(http.StatusBadRequest, gin.H{
-			"error": errors.INVALID_URL_PARAMETER,
+			"error": errors.BadRequest,
 		})
 		return
 	}
 
 	// Resend code
-	serviceErr, httpStatus := services.ResendVerificationToken(username)
+	serviceErr, httpStatus := services.ResendActivationToken(username)
 	if serviceErr != nil {
 		context.JSON(httpStatus, gin.H{
 			"error": serviceErr,

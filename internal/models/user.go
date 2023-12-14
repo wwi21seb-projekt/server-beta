@@ -8,7 +8,7 @@ type User struct {
 	Email        string    `gorm:"type:varchar(128);not_null;unique"`
 	PasswordHash string    `gorm:"type:varchar(80);not_null"`
 	CreatedAt    time.Time `gorm:"column:created_at;not_null"`
-	Verified     bool      `gorm:"not_null"`
+	Activated    bool      `gorm:"not_null"`
 }
 
 type UserCreateRequestDTO struct {

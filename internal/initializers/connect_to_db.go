@@ -55,7 +55,7 @@ func CloseDbConnection() {
 
 // CreateMockDB creates sets global DB variable to in-memory db for testing
 func CreateMockDB() {
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
 	if err != nil {
 		panic("failed to connect in-memory database")
 	}
