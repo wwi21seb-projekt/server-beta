@@ -8,8 +8,25 @@ import (
 	"net/http"
 )
 
+type UserControllerInterface interface {
+	CreateUser(c *gin.Context)
+	Login(c *gin.Context)
+	ActivateUser(c *gin.Context)
+	ResendActivationToken(c *gin.Context)
+	ValidateLogin(c *gin.Context)
+}
+
+type UserController struct {
+	userService services.UserServiceInterface
+}
+
+// NewUserController can be used as a constructor to return a new UserController "object"
+func NewUserController(userService services.UserServiceInterface) *UserController {
+	return &UserController{userService: userService}
+}
+
 // CreateUser creates a new user
-func CreateUser(c *gin.Context) {
+func (controller *UserController) CreateUser(c *gin.Context) {
 	// Read body
 	var userCreateRequestDTO models.UserCreateRequestDTO
 
@@ -21,7 +38,7 @@ func CreateUser(c *gin.Context) {
 	}
 
 	// Create userDto
-	userDto, serviceErr, httpStatus := services.CreateUser(userCreateRequestDTO)
+	userDto, serviceErr, httpStatus := controller.userService.CreateUser(userCreateRequestDTO)
 	if serviceErr != nil {
 		c.JSON(httpStatus, gin.H{
 			"error": serviceErr,
@@ -34,7 +51,7 @@ func CreateUser(c *gin.Context) {
 }
 
 // Login validates password of user and creates a jwt token
-func Login(c *gin.Context) {
+func (controller *UserController) Login(c *gin.Context) {
 
 	// Read body
 	var userLoginRequestDTO models.UserLoginRequestDTO
@@ -47,7 +64,7 @@ func Login(c *gin.Context) {
 	}
 
 	// Lookup requested user
-	loginResponseDto, serviceErr, httpStatus := services.LoginUser(userLoginRequestDTO)
+	loginResponseDto, serviceErr, httpStatus := controller.userService.LoginUser(userLoginRequestDTO)
 	if serviceErr != nil {
 		c.JSON(httpStatus, gin.H{
 			"error": serviceErr,
@@ -59,72 +76,72 @@ func Login(c *gin.Context) {
 
 }
 
-// VerifyUser verifies user with given six-digit code and resends a new token, if it is expired
-func VerifyUser(context *gin.Context) {
+// ActivateUser verifies user with given six-digit code and resends a new token, if it is expired
+func (controller *UserController) ActivateUser(c *gin.Context) {
 
 	// Read body
 	var verificationTokenRequestDTO models.ActivationTokenRequestDTO
 
-	if context.Bind(&verificationTokenRequestDTO) != nil {
-		context.JSON(http.StatusBadRequest, gin.H{
+	if c.Bind(&verificationTokenRequestDTO) != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
 			"error": errors.BadRequest,
 		})
 		return
 	}
 
 	// Read username from url
-	username := context.Param("username")
+	username := c.Param("username")
 	if username == "" {
-		context.JSON(http.StatusBadRequest, gin.H{
+		c.JSON(http.StatusBadRequest, gin.H{
 			"error": errors.BadRequest,
 		})
 		return
 	}
 
 	// Activate user
-	serviceErr, httpStatus := services.ActivateUser(username, verificationTokenRequestDTO.Token)
+	serviceErr, httpStatus := controller.userService.ActivateUser(username, verificationTokenRequestDTO.Token)
 	if serviceErr != nil {
-		context.JSON(httpStatus, gin.H{
+		c.JSON(httpStatus, gin.H{
 			"error": serviceErr,
 		})
 		return
 	}
 
-	context.JSON(httpStatus, gin.H{})
+	c.JSON(httpStatus, gin.H{})
 }
 
-// ResendCode sends a new six-digit verification code to the user
-func ResendCode(context *gin.Context) {
+// ResendActivationToken sends a new six-digit verification code to the user
+func (controller *UserController) ResendActivationToken(c *gin.Context) {
 	// Read username from url
-	username := context.Param("username")
+	username := c.Param("username")
 	if username == "" {
-		context.JSON(http.StatusBadRequest, gin.H{
+		c.JSON(http.StatusBadRequest, gin.H{
 			"error": errors.BadRequest,
 		})
 		return
 	}
 
 	// Resend code
-	serviceErr, httpStatus := services.ResendActivationToken(username)
+	serviceErr, httpStatus := controller.userService.ResendActivationToken(username)
 	if serviceErr != nil {
-		context.JSON(httpStatus, gin.H{
+		c.JSON(httpStatus, gin.H{
 			"error": serviceErr,
 		})
 		return
 	}
 
-	context.JSON(httpStatus, gin.H{})
+	c.JSON(httpStatus, gin.H{})
 }
 
-// ValidateLogin is a test function to see whether the user is logged in
-func ValidateLogin(context *gin.Context) {
-	username, exists := context.Get("username")
+// ValidateLogin is a test function to see whether the user is logged in and returns username
+func (controller *UserController) ValidateLogin(c *gin.Context) {
+	username, exists := c.Get("username")
 	if !exists {
-		context.JSON(http.StatusUnauthorized, gin.H{})
+		c.JSON(http.StatusUnauthorized, gin.H{})
 		return
 	}
 
-	context.JSON(http.StatusOK, gin.H{
+	c.JSON(http.StatusOK, gin.H{
 		"username": username,
 	})
 }

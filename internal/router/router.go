@@ -4,7 +4,10 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/marcbudd/server-beta/internal/controllers"
+	"github.com/marcbudd/server-beta/internal/initializers"
 	"github.com/marcbudd/server-beta/internal/middleware"
+	"github.com/marcbudd/server-beta/internal/repositories"
+	"github.com/marcbudd/server-beta/internal/services"
 	"net/http"
 	"os"
 )
@@ -28,6 +31,16 @@ func SetupRouter() *gin.Engine {
 		return nil
 	}
 
+	// Setup repositories, services, controllers
+	activationTokenRepo := repositories.NewActivationTokenRepository(initializers.DB)
+	userRepo := repositories.NewUserRepository(initializers.DB)
+
+	mailService := services.NewMailService()
+	userService := services.NewUserService(userRepo, activationTokenRepo, mailService)
+
+	imprintController := controllers.NewImprintController()
+	userController := controllers.NewUserController(userService)
+
 	// API Routes
 	api := r.Group("/api")
 
@@ -40,16 +53,15 @@ func SetupRouter() *gin.Engine {
 		context.JSON(http.StatusOK, number)
 	})
 
-  
 	// Imprint
-	api.GET("/imprint", controllers.GetImprint)
-  
+	api.GET("/imprint", imprintController.GetImprint)
+
 	// User
-	api.POST("/users", controllers.CreateUser)
-	api.POST("/users/login", controllers.Login)
-	api.POST("/users/:username/activate", controllers.VerifyUser)
-	api.DELETE("/users/:username/activate", controllers.ResendCode)
-	api.GET("/users/validate", middleware.AuthorizeUser, controllers.ValidateLogin)
+	api.POST("/users", userController.CreateUser)
+	api.POST("/users/login", userController.Login)
+	api.POST("/users/:username/activate", userController.ActivateUser)
+	api.DELETE("/users/:username/activate", userController.ResendActivationToken)
+	api.GET("/users/validate", middleware.AuthorizeUser, userController.ValidateLogin)
 
 	return r
 }

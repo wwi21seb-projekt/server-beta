@@ -2,8 +2,6 @@ package initializers
 
 import (
 	"fmt"
-	"github.com/marcbudd/server-beta/internal/models"
-	"gorm.io/driver/sqlite"
 	"os"
 
 	"gorm.io/driver/postgres"
@@ -51,19 +49,4 @@ func CloseDbConnection() {
 	}
 
 	fmt.Println("Connection to database closed...")
-}
-
-// CreateMockDB creates sets global DB variable to in-memory db for testing
-func CreateMockDB() {
-	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
-	if err != nil {
-		panic("failed to connect in-memory database")
-	}
-
-	err = db.AutoMigrate(&models.User{})
-	if err != nil {
-		panic("failed to migrate database")
-	}
-
-	DB = db
 }

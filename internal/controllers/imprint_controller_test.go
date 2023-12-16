@@ -10,9 +10,10 @@ import (
 
 // TestGetImprint tests the GetImprint function
 func TestGetImprint(t *testing.T) {
-	// Set up Gin
+	// Setup
 	router := gin.Default()
-	router.GET("/imprint", GetImprint)
+	imprintController := NewImprintController()
+	router.GET("/imprint", imprintController.GetImprint)
 
 	// Create a response recorder
 	w := httptest.NewRecorder()
