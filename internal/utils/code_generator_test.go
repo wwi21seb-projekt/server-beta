@@ -1,11 +1,14 @@
-package utils
+package utils_test
 
-import "testing"
+import (
+	"github.com/marcbudd/server-beta/internal/utils"
+	"testing"
+)
 
 // TestGenerateSixDigitCode tests if GenerateSixDigitCode returns a six digit code
 func TestGenerateSixDigitCode(t *testing.T) {
 	for i := 0; i < 1000; i++ {
-		code, err := GenerateSixDigitCode()
+		code, err := utils.GenerateSixDigitCode()
 		if err != nil {
 			t.Errorf("GenerateSixDigitCode() returned an error: %v", err)
 		}

@@ -15,5 +15,7 @@ Second backend for group project
 git clone https://github.com/wwi21seb-projekt/server-beta.git
 cd server-beta
 make all
-./bin/server-beta
+./bin/server-beta -port 8080
 ````
+
+If no port is specified, the server will run on the default port `:8080`.

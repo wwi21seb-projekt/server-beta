@@ -6,6 +6,8 @@ import (
 )
 
 type ActivationTokenRepositoryInterface interface {
+	CreateActivationToken(activationToken *models.ActivationToken) error
+	CreateActivationTokenTx(activationToken *models.ActivationToken, tx *gorm.DB) error
 	FindTokenByUsername(username string) ([]models.ActivationToken, error)
 	FindActivationToken(username, token string) (*models.ActivationToken, error)
 	DeleteActivationTokenByUsername(username string) error
@@ -18,6 +20,16 @@ type ActivationTokenRepository struct {
 // NewActivationTokenRepository can be used as a constructor to create a ActivationTokenRepository "object"
 func NewActivationTokenRepository(db *gorm.DB) *ActivationTokenRepository {
 	return &ActivationTokenRepository{DB: db}
+}
+
+func (repo *ActivationTokenRepository) CreateActivationToken(activationToken *models.ActivationToken) error {
+	err := repo.DB.Create(&activationToken).Error
+	return err
+}
+
+func (repo *ActivationTokenRepository) CreateActivationTokenTx(activationToken *models.ActivationToken, tx *gorm.DB) error {
+	err := tx.Create(&activationToken).Error
+	return err
 }
 
 func (repo *ActivationTokenRepository) FindTokenByUsername(username string) ([]models.ActivationToken, error) {

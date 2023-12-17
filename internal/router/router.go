@@ -8,6 +8,7 @@ import (
 	"github.com/marcbudd/server-beta/internal/middleware"
 	"github.com/marcbudd/server-beta/internal/repositories"
 	"github.com/marcbudd/server-beta/internal/services"
+	"github.com/marcbudd/server-beta/internal/utils"
 	"net/http"
 	"os"
 )
@@ -35,8 +36,9 @@ func SetupRouter() *gin.Engine {
 	activationTokenRepo := repositories.NewActivationTokenRepository(initializers.DB)
 	userRepo := repositories.NewUserRepository(initializers.DB)
 
+	validator := utils.NewValidator()
 	mailService := services.NewMailService()
-	userService := services.NewUserService(userRepo, activationTokenRepo, mailService)
+	userService := services.NewUserService(userRepo, activationTokenRepo, mailService, validator)
 
 	imprintController := controllers.NewImprintController()
 	userController := controllers.NewUserController(userService)
