@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/marcbudd/server-beta/internal/errors"
 	"github.com/marcbudd/server-beta/internal/models"
@@ -35,7 +34,6 @@ func (controller *UserController) CreateUser(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": errors.BadRequest,
 		})
-		fmt.Printf("Bind failed, %v\n", c.Bind(&userCreateRequestDTO))
 		return
 	}
 

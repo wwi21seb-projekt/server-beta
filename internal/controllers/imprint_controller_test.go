@@ -12,6 +12,7 @@ import (
 // TestGetImprint tests the GetImprint function
 func TestGetImprint(t *testing.T) {
 	// Setup
+	gin.SetMode(gin.TestMode)
 	router := gin.Default()
 	imprintController := controllers.NewImprintController()
 	router.GET("/imprint", imprintController.GetImprint)

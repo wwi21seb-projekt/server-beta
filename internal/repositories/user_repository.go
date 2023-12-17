@@ -6,7 +6,7 @@ import (
 )
 
 type UserRepositoryInterface interface {
-	FindUserByUsername(username string) (models.User, error)
+	FindUserByUsername(username string) (*models.User, error)
 	BeginTx() *gorm.DB
 	CommitTx(tx *gorm.DB) error
 	RollbackTx(tx *gorm.DB)
@@ -25,10 +25,10 @@ func NewUserRepository(db *gorm.DB) *UserRepository {
 	return &UserRepository{DB: db}
 }
 
-func (repo *UserRepository) FindUserByUsername(username string) (models.User, error) {
+func (repo *UserRepository) FindUserByUsername(username string) (*models.User, error) {
 	var user models.User
 	err := repo.DB.Where("username = ?", username).First(&user).Error
-	return user, err
+	return &user, err
 }
 
 func (repo *UserRepository) BeginTx() *gorm.DB {

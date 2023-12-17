@@ -11,9 +11,9 @@ type MockUserRepository struct {
 	mock.Mock
 }
 
-func (m *MockUserRepository) FindUserByUsername(username string) (models.User, error) {
+func (m *MockUserRepository) FindUserByUsername(username string) (*models.User, error) {
 	args := m.Called(username)
-	return args.Get(0).(models.User), args.Error(1)
+	return args.Get(0).(*models.User), args.Error(1)
 }
 
 func (m *MockUserRepository) BeginTx() *gorm.DB {

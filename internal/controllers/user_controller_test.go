@@ -225,6 +225,7 @@ func TestCreateUserUsernameExists(t *testing.T) {
 	assert.Equal(t, http.StatusConflict, w.Code) // Expect HTTP 409 Conflict status
 	var errorResponse errors.ErrorResponse
 	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
+	assert.NoError(t, err)
 
 	expectedCustomError := errors.UsernameTaken
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
@@ -289,6 +290,7 @@ func TestCreateEmailExists(t *testing.T) {
 	assert.Equal(t, http.StatusConflict, w.Code) // Expect HTTP 409 Conflict status
 	var errorResponse errors.ErrorResponse
 	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
+	assert.NoError(t, err)
 
 	expectedCustomError := errors.EmailTaken
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
@@ -345,6 +347,7 @@ func TestCreateUserEmailUnreachable(t *testing.T) {
 	assert.Equal(t, http.StatusUnprocessableEntity, w.Code) // Expect HTTP 422 Unprocessable Entity status
 	var errorResponse errors.ErrorResponse
 	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
+	assert.NoError(t, err)
 
 	expectedCustomError := errors.EmailUnreachable
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
@@ -411,6 +414,7 @@ func TestCreateUserInternalServerErrorDatabase(t *testing.T) {
 	assert.Equal(t, http.StatusInternalServerError, w.Code) // Expect HTTP 500 Internal Server Error status
 	var errorResponse errors.ErrorResponse
 	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
+	assert.NoError(t, err)
 
 	expectedCustomError := errors.DatabaseError
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
@@ -477,6 +481,7 @@ func TestCreateUserInternalServerErrorServer(t *testing.T) {
 	assert.Equal(t, http.StatusInternalServerError, w.Code) // Expect HTTP 500 Internal Server Error status
 	var errorResponse errors.ErrorResponse
 	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
+	assert.NoError(t, err)
 
 	expectedCustomError := errors.EmailNotSent
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
@@ -524,7 +529,7 @@ func TestLoginSuccess(t *testing.T) {
 	}
 
 	// Mock expectations
-	mockUserRepository.On("FindUserByUsername", username).Return(user, nil) // Find user successfully
+	mockUserRepository.On("FindUserByUsername", username).Return(&user, nil) // Find user successfully
 
 	// Setup HTTP request and recorder
 	requestBody, err := json.Marshal(userRequest)
@@ -554,6 +559,43 @@ func TestLoginSuccess(t *testing.T) {
 	mockActivationTokenRepository.AssertExpectations(t)
 }
 
+// TestLoginBadRequest tests if Login returns 400-Bad Request when request body is invalid
+func TestLoginBadRequest(t *testing.T) {
+	invalidBodies := []string{
+		`{"invalidField": "value"}`,    // invalid body
+		`{"password": "Password123!"}`, // no username
+		`{"username": "testUser"}`,     // no password
+	}
+
+	for _, body := range invalidBodies {
+		controller := controllers.NewUserController(nil)
+
+		gin.SetMode(gin.TestMode)
+		router := gin.Default()
+		router.POST("/users/login", controller.Login)
+
+		// Create request
+		req, err := http.NewRequest(http.MethodPost, "/users/login", bytes.NewBufferString(body))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		// Assertions
+		assert.Equal(t, http.StatusBadRequest, w.Code) // Expect HTTP 400 Bad Request status
+		var errorResponse errors.ErrorResponse
+		err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
+		assert.NoError(t, err)
+
+		expectedCustomError := errors.BadRequest
+		assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
+		assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
+	}
+}
+
 // TestLoginInvalidCredentialsUserNotFound tests if Login returns 401-Unauthorized when user cannot be found
 func TestLoginInvalidCredentialsUserNotFound(t *testing.T) {
 	// Setup mocks
@@ -580,7 +622,7 @@ func TestLoginInvalidCredentialsUserNotFound(t *testing.T) {
 	}
 
 	// Mock expectations
-	mockUserRepository.On("FindUserByUsername", username).Return(models.User{}, nil) // Do not find user
+	mockUserRepository.On("FindUserByUsername", username).Return(&models.User{}, nil) // Do not find user
 
 	// Setup HTTP request and recorder
 	requestBody, err := json.Marshal(userRequest)
@@ -601,6 +643,7 @@ func TestLoginInvalidCredentialsUserNotFound(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, w.Code) // Expect HTTP 401 Unauthorized status
 	var errorResponse errors.ErrorResponse
 	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
+	assert.NoError(t, err)
 
 	expectedCustomError := errors.InvalidCredentials
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
@@ -652,7 +695,7 @@ func TestLoginInvalidCredentialsPasswordIncorrect(t *testing.T) {
 	}
 
 	// Mock expectations
-	mockUserRepository.On("FindUserByUsername", username).Return(user, nil) // Find user successfully
+	mockUserRepository.On("FindUserByUsername", username).Return(&user, nil) // Find user successfully
 
 	// Setup HTTP request and recorder
 	requestBody, err := json.Marshal(userRequest)
@@ -673,6 +716,7 @@ func TestLoginInvalidCredentialsPasswordIncorrect(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, w.Code) // Expect HTTP 401 Unauthorized status
 	var errorResponse errors.ErrorResponse
 	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
+	assert.NoError(t, err)
 
 	expectedCustomError := errors.InvalidCredentials
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
@@ -733,7 +777,7 @@ func TestLoginUserNotActivated(t *testing.T) {
 	}
 
 	// Mock expectations
-	mockUserRepository.On("FindUserByUsername", username).Return(user, nil) // Find user successfully
+	mockUserRepository.On("FindUserByUsername", username).Return(&user, nil) // Find user successfully
 	mockActivationTokenRepository.On("FindTokenByUsername", username).Return(activationTokenList, nil)
 
 	// Setup HTTP request and recorder
@@ -755,6 +799,7 @@ func TestLoginUserNotActivated(t *testing.T) {
 	assert.Equal(t, http.StatusForbidden, w.Code) // Expect HTTP 403 Forbidden status
 	var errorResponse errors.ErrorResponse
 	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
+	assert.NoError(t, err)
 
 	expectedCustomError := errors.UserNotActivated
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
@@ -816,7 +861,7 @@ func TestLoginUserNotActivatedExpiredToken(t *testing.T) {
 	}
 
 	// Mock expectations
-	mockUserRepository.On("FindUserByUsername", username).Return(user, nil)                                               // Find user successfully
+	mockUserRepository.On("FindUserByUsername", username).Return(&user, nil)                                              // Find user successfully
 	mockActivationTokenRepository.On("FindTokenByUsername", username).Return(activationTokenList, nil)                    // Find expired token
 	mockActivationTokenRepository.On("DeleteActivationTokenByUsername", username).Return(nil)                             // Delete expired token successfully
 	mockActivationTokenRepository.On("CreateActivationToken", mock.AnythingOfType("*models.ActivationToken")).Return(nil) // Create new token successfully
@@ -841,8 +886,587 @@ func TestLoginUserNotActivatedExpiredToken(t *testing.T) {
 	assert.Equal(t, http.StatusForbidden, w.Code) // Expect HTTP 403 Forbidden status
 	var errorResponse errors.ErrorResponse
 	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
+	assert.NoError(t, err)
 
 	expectedCustomError := errors.UserNotActivated
+	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
+	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
+
+	// Verify that all expectations are met
+	mockUserRepository.AssertExpectations(t)
+	mockActivationTokenRepository.AssertExpectations(t)
+	mockMailService.AssertExpectations(t)
+}
+
+// TestActivateUserSuccess tests if ActivateUser returns 204-No Content when user is activated successfully
+func TestActivateUserSuccess(t *testing.T) {
+	// Setup mocks
+	mockUserRepository := new(repositories.MockUserRepository)
+	mockActivationTokenRepository := new(repositories.MockActivationTokenRepository)
+	mockMailService := new(services.MockMailService)
+
+	userService := services.NewUserService(
+		mockUserRepository,
+		mockActivationTokenRepository,
+		mockMailService,
+		nil,
+	)
+
+	userController := controllers.NewUserController(userService)
+
+	username := "testUser"
+	nickname := "Test User"
+	email := "somemail@domain.com"
+	password := "Password123!"
+	hashedPassword, err := utils.HashPassword(password)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	user := models.User{
+		Username:     username,
+		PasswordHash: hashedPassword,
+		Nickname:     nickname,
+		Email:        email,
+		Activated:    false,
+		CreatedAt:    time.Now(),
+	}
+
+	updatedUser := user
+	updatedUser.Activated = true
+
+	sixDigitToken := "123456"
+	activationToken := models.ActivationToken{
+		Id:             uuid.New(),
+		Username:       username,
+		User:           user,
+		Token:          sixDigitToken,
+		ExpirationTime: time.Now().Add(time.Minute * 15),
+	}
+
+	activationRequest := models.UserActivationRequestDTO{
+		Token: sixDigitToken,
+	}
+
+	// Mock expectations
+	mockUserRepository.On("FindUserByUsername", user.Username).Return(&user, nil)                                  // Find user successfully
+	mockActivationTokenRepository.On("FindActivationToken", username, sixDigitToken).Return(&activationToken, nil) // Find token successfully
+	mockActivationTokenRepository.On("DeleteActivationTokenByUsername", username).Return(nil)                      // Delete token successfully
+	mockUserRepository.On("UpdateUser", &updatedUser).Return(nil)                                                  // Activate user successfully
+	mockMailService.On("SendMail", email, mock.Anything, mock.Anything).Return(nil)                                // Send mail successfully
+
+	// Setup HTTP request and recorder
+	requestBody, err := json.Marshal(activationRequest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/users/%s/activate", username), bytes.NewBuffer(requestBody))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	// Act
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+	router.POST("/users/:username/activate", userController.ActivateUser)
+	router.ServeHTTP(w, req)
+
+	// Assert Response
+	assert.Equal(t, http.StatusNoContent, w.Code) // Expect HTTP 204 No Content status
+
+	// Verify that all expectations are met
+	mockUserRepository.AssertExpectations(t)
+	mockActivationTokenRepository.AssertExpectations(t)
+	mockMailService.AssertExpectations(t)
+
+}
+
+// TestActivateUserSuccess tests if ActivateUser returns 400-Bad Request when request body is invalid
+func TestActivateUserBadRequest(t *testing.T) {
+	invalidBodies := []string{
+		`{"invalidField": "value"}`, // invalid field
+		`{}`,                        // empty body
+	}
+
+	for _, body := range invalidBodies {
+		controller := controllers.NewUserController(nil)
+
+		gin.SetMode(gin.TestMode)
+		router := gin.Default()
+		router.POST("/users/:username/activate", controller.Login)
+
+		// Create request
+		req, err := http.NewRequest(http.MethodPost, "/users/testUser/activate", bytes.NewBufferString(body))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		// Assertions
+		assert.Equal(t, http.StatusBadRequest, w.Code) // Expect HTTP 400 Bad Request status
+		var errorResponse errors.ErrorResponse
+		err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
+		assert.NoError(t, err)
+
+		expectedCustomError := errors.BadRequest
+		assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
+		assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
+	}
+}
+
+// TestActivateUserAlreadyReported tests if ActivateUser returns 208-Already Reported when user is already activated
+func TestActivateUserAlreadyReported(t *testing.T) {
+	// Setup mocks
+	mockUserRepository := new(repositories.MockUserRepository)
+	mockActivationTokenRepository := new(repositories.MockActivationTokenRepository)
+
+	userService := services.NewUserService(
+		mockUserRepository,
+		mockActivationTokenRepository,
+		nil,
+		nil,
+	)
+
+	userController := controllers.NewUserController(userService)
+
+	username := "testUser"
+	nickname := "Test User"
+	email := "somemail@domain.com"
+	password := "Password123!"
+	hashedPassword, err := utils.HashPassword(password)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	user := models.User{
+		Username:     username,
+		PasswordHash: hashedPassword,
+		Nickname:     nickname,
+		Email:        email,
+		Activated:    true,
+		CreatedAt:    time.Now(),
+	}
+
+	sixDigitToken := "123456"
+
+	activationRequest := models.UserActivationRequestDTO{
+		Token: sixDigitToken,
+	}
+
+	// Mock expectations
+	mockUserRepository.On("FindUserByUsername", user.Username).Return(&user, nil) // Find user successfully
+
+	// Setup HTTP request and recorder
+	requestBody, err := json.Marshal(activationRequest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/users/%s/activate", username), bytes.NewBuffer(requestBody))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	// Act
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+	router.POST("/users/:username/activate", userController.ActivateUser)
+	router.ServeHTTP(w, req)
+
+	// Assert Response
+	assert.Equal(t, http.StatusAlreadyReported, w.Code) // Expect HTTP 208 Already Reported status
+	var errorResponse errors.ErrorResponse
+	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
+	assert.NoError(t, err)
+
+	expectedCustomError := errors.UserAlreadyActivated
+	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
+	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
+
+	// Verify that all expectations are met
+	mockUserRepository.AssertExpectations(t)
+	mockActivationTokenRepository.AssertExpectations(t)
+}
+
+// TestActivateUserNotFound tests if ActivateUser returns 404-Not Found when user cannot be found
+func TestActivateUserNotFound(t *testing.T) {
+	// Setup mocks
+	mockUserRepository := new(repositories.MockUserRepository)
+	mockActivationTokenRepository := new(repositories.MockActivationTokenRepository)
+	mockMailService := new(services.MockMailService)
+
+	userService := services.NewUserService(
+		mockUserRepository,
+		mockActivationTokenRepository,
+		mockMailService,
+		nil,
+	)
+
+	userController := controllers.NewUserController(userService)
+
+	username := "testUser"
+	sixDigitToken := "123456"
+	activationRequest := models.UserActivationRequestDTO{
+		Token: sixDigitToken,
+	}
+
+	// Mock expectations
+	mockUserRepository.On("FindUserByUsername", username).Return(&models.User{}, nil) // User not found
+
+	// Setup HTTP request and recorder
+	requestBody, err := json.Marshal(activationRequest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/users/%s/activate", username), bytes.NewBuffer(requestBody))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	// Act
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+	router.POST("/users/:username/activate", userController.ActivateUser)
+	router.ServeHTTP(w, req)
+
+	// Assert Response
+	assert.Equal(t, http.StatusNotFound, w.Code) // Expect HTTP 404 Not Found status
+	var errorResponse errors.ErrorResponse
+	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
+	assert.NoError(t, err)
+
+	expectedCustomError := errors.UserNotFound
+	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
+	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
+
+	// Verify that all expectations are met
+	mockUserRepository.AssertExpectations(t)
+	mockActivationTokenRepository.AssertExpectations(t)
+	mockMailService.AssertExpectations(t)
+}
+
+// TestActivateUserTokenNotFound tests if ActivateUser returns 404-Not Found when token cannot be found
+func TestActivateUserTokenNotFound(t *testing.T) {
+	// Setup mocks
+	mockUserRepository := new(repositories.MockUserRepository)
+	mockActivationTokenRepository := new(repositories.MockActivationTokenRepository)
+	mockMailService := new(services.MockMailService)
+
+	userService := services.NewUserService(
+		mockUserRepository,
+		mockActivationTokenRepository,
+		mockMailService,
+		nil,
+	)
+
+	userController := controllers.NewUserController(userService)
+
+	username := "testUser"
+	nickname := "Test User"
+	email := "somemail@domain.com"
+	password := "Password123!"
+	hashedPassword, err := utils.HashPassword(password)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	user := models.User{
+		Username:     username,
+		PasswordHash: hashedPassword,
+		Nickname:     nickname,
+		Email:        email,
+		Activated:    false,
+		CreatedAt:    time.Now(),
+	}
+
+	sixDigitToken := "123456"
+	activationRequest := models.UserActivationRequestDTO{
+		Token: sixDigitToken,
+	}
+
+	// Mock expectations
+	mockUserRepository.On("FindUserByUsername", username).Return(&user, nil)                                                // User found successfully
+	mockActivationTokenRepository.On("FindActivationToken", username, sixDigitToken).Return(&models.ActivationToken{}, nil) // Token not found
+
+	// Setup HTTP request and recorder
+	requestBody, err := json.Marshal(activationRequest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/users/%s/activate", username), bytes.NewBuffer(requestBody))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	// Act
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+	router.POST("/users/:username/activate", userController.ActivateUser)
+	router.ServeHTTP(w, req)
+
+	// Assert Response
+	assert.Equal(t, http.StatusNotFound, w.Code) // Expect HTTP 404 Not Found status
+	var errorResponse errors.ErrorResponse
+	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
+	assert.NoError(t, err)
+
+	expectedCustomError := errors.InvalidToken
+	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
+	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
+
+	// Verify that all expectations are met
+	mockUserRepository.AssertExpectations(t)
+	mockActivationTokenRepository.AssertExpectations(t)
+	mockMailService.AssertExpectations(t)
+}
+
+// TestActivateUserTokenExpired tests if ActivateUser returns 401-Unauthorized when token is expired
+func TestActivateUserTokenExpired(t *testing.T) {
+	// Setup mocks
+	mockUserRepository := new(repositories.MockUserRepository)
+	mockActivationTokenRepository := new(repositories.MockActivationTokenRepository)
+	mockMailService := new(services.MockMailService)
+
+	userService := services.NewUserService(
+		mockUserRepository,
+		mockActivationTokenRepository,
+		mockMailService,
+		nil,
+	)
+
+	userController := controllers.NewUserController(userService)
+
+	username := "testUser"
+	nickname := "Test User"
+	email := "somemail@domain.com"
+	password := "Password123!"
+	hashedPassword, err := utils.HashPassword(password)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	user := models.User{
+		Username:     username,
+		PasswordHash: hashedPassword,
+		Nickname:     nickname,
+		Email:        email,
+		Activated:    false,
+		CreatedAt:    time.Now(),
+	}
+
+	sixDigitToken := "123456"
+	activationToken := models.ActivationToken{
+		Id:             uuid.New(),
+		Username:       username,
+		User:           user,
+		Token:          sixDigitToken,
+		ExpirationTime: time.Now().Add(time.Minute * -15), // Expired token
+	}
+	activationRequest := models.UserActivationRequestDTO{
+		Token: sixDigitToken,
+	}
+
+	// Mock expectations
+	mockUserRepository.On("FindUserByUsername", username).Return(&user, nil)                                              // User found successfully
+	mockActivationTokenRepository.On("FindActivationToken", username, sixDigitToken).Return(&activationToken, nil)        // Token not found
+	mockActivationTokenRepository.On("DeleteActivationTokenByUsername", username).Return(nil)                             // Delete token successfully
+	mockActivationTokenRepository.On("CreateActivationToken", mock.AnythingOfType("*models.ActivationToken")).Return(nil) // Create new token successfully
+	mockMailService.On("SendMail", email, mock.Anything, mock.Anything).Return(nil)                                       // Send mail successfully
+
+	// Setup HTTP request and recorder
+	requestBody, err := json.Marshal(activationRequest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/users/%s/activate", username), bytes.NewBuffer(requestBody))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	// Act
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+	router.POST("/users/:username/activate", userController.ActivateUser)
+	router.ServeHTTP(w, req)
+
+	// Assert Response
+	assert.Equal(t, http.StatusUnauthorized, w.Code) // Expect HTTP 401 Unauthorized status
+	var errorResponse errors.ErrorResponse
+	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
+	assert.NoError(t, err)
+
+	expectedCustomError := errors.ActivationTokenExpired
+	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
+	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
+
+	// Verify that all expectations are met
+	mockUserRepository.AssertExpectations(t)
+	mockActivationTokenRepository.AssertExpectations(t)
+	mockMailService.AssertExpectations(t)
+}
+
+// TestResendActivationTokenSuccess tests if ResendToken returns 204-No Content when token is resent successfully
+func TestResendActivationTokenSuccess(t *testing.T) {
+	// Setup mocks
+	mockUserRepository := new(repositories.MockUserRepository)
+	mockActivationTokenRepository := new(repositories.MockActivationTokenRepository)
+	mockMailService := new(services.MockMailService)
+
+	userService := services.NewUserService(
+		mockUserRepository,
+		mockActivationTokenRepository,
+		mockMailService,
+		nil,
+	)
+
+	userController := controllers.NewUserController(userService)
+
+	username := "testUser"
+	nickname := "Test User"
+	email := "somemail@domain.com"
+	password := "Password123!"
+	hashedPassword, err := utils.HashPassword(password)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	user := models.User{
+		Username:     username,
+		PasswordHash: hashedPassword,
+		Nickname:     nickname,
+		Email:        email,
+		Activated:    false,
+		CreatedAt:    time.Now(),
+	}
+
+	// Mock expectations
+	mockUserRepository.On("FindUserByUsername", username).Return(&user, nil)                                              // Find user successfully
+	mockActivationTokenRepository.On("DeleteActivationTokenByUsername", username).Return(nil)                             // Delete token successfully
+	mockActivationTokenRepository.On("CreateActivationToken", mock.AnythingOfType("*models.ActivationToken")).Return(nil) // Create new token successfully
+	mockMailService.On("SendMail", email, mock.Anything, mock.Anything).Return(nil)                                       // Send mail successfully
+
+	// Setup HTTP request and recorder
+	req, _ := http.NewRequest(http.MethodDelete, fmt.Sprintf("/users/%s/resend", username), nil)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	// Act
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+	router.DELETE("/users/:username/resend", userController.ResendActivationToken)
+	router.ServeHTTP(w, req)
+
+	// Assert Response
+	assert.Equal(t, http.StatusNoContent, w.Code) // Expect HTTP 204 No Content status
+
+	// Verify that all expectations are met
+	mockUserRepository.AssertExpectations(t)
+	mockActivationTokenRepository.AssertExpectations(t)
+	mockMailService.AssertExpectations(t)
+}
+
+// TestResendActivationTokenAlreadyReported tests if ResendActivationToken returns 208-Already Reported when user is already activated
+func TestResendActivationTokenAlreadyReported(t *testing.T) {
+	// Setup mocks
+	mockUserRepository := new(repositories.MockUserRepository)
+	mockActivationTokenRepository := new(repositories.MockActivationTokenRepository)
+	mockMailService := new(services.MockMailService)
+
+	userService := services.NewUserService(
+		mockUserRepository,
+		mockActivationTokenRepository,
+		mockMailService,
+		nil,
+	)
+
+	userController := controllers.NewUserController(userService)
+
+	username := "testUser"
+	nickname := "Test User"
+	email := "somemail@domain.com"
+	password := "Password123!"
+	hashedPassword, err := utils.HashPassword(password)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	user := models.User{
+		Username:     username,
+		PasswordHash: hashedPassword,
+		Nickname:     nickname,
+		Email:        email,
+		Activated:    true,
+		CreatedAt:    time.Now(),
+	}
+
+	// Mock expectations
+	mockUserRepository.On("FindUserByUsername", username).Return(&user, nil) // Find user successfully
+
+	// Setup HTTP request and recorder
+	req, _ := http.NewRequest(http.MethodDelete, fmt.Sprintf("/users/%s/resend", username), nil)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	// Act
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+	router.DELETE("/users/:username/resend", userController.ResendActivationToken)
+	router.ServeHTTP(w, req)
+
+	// Assert Response
+	assert.Equal(t, http.StatusAlreadyReported, w.Code) // Expect HTTP 208 Already Reported status
+	var errorResponse errors.ErrorResponse
+	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
+	assert.NoError(t, err)
+
+	expectedCustomError := errors.UserAlreadyActivated
+	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
+	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
+
+	// Verify that all expectations are met
+	mockUserRepository.AssertExpectations(t)
+	mockActivationTokenRepository.AssertExpectations(t)
+	mockMailService.AssertExpectations(t)
+}
+
+// TestResendActivationTokenUserNotfound tests if ResendActivationToken returns 404-Not Found when user cannot be found
+func TestResendActivationTokenUserNotfound(t *testing.T) {
+	// Setup mocks
+	mockUserRepository := new(repositories.MockUserRepository)
+	mockActivationTokenRepository := new(repositories.MockActivationTokenRepository)
+	mockMailService := new(services.MockMailService)
+
+	userService := services.NewUserService(
+		mockUserRepository,
+		mockActivationTokenRepository,
+		mockMailService,
+		nil,
+	)
+
+	userController := controllers.NewUserController(userService)
+
+	username := "testUser"
+
+	// Mock expectations
+	mockUserRepository.On("FindUserByUsername", username).Return(&models.User{}, nil) // Find user successfully
+
+	// Setup HTTP request and recorder
+	req, _ := http.NewRequest(http.MethodDelete, fmt.Sprintf("/users/%s/resend", username), nil)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	// Act
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+	router.DELETE("/users/:username/resend", userController.ResendActivationToken)
+	router.ServeHTTP(w, req)
+
+	// Assert Response
+	assert.Equal(t, http.StatusNotFound, w.Code) // Expect HTTP 404 Not Found status
+	var errorResponse errors.ErrorResponse
+	err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expectedCustomError := errors.UserNotFound
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 

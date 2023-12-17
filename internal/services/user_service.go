@@ -78,13 +78,21 @@ func (service *UserService) CreateUser(req models.UserCreateRequestDTO) (*models
 
 	// Pessimistic Locking - Check if email or username is taken
 	emailExists, err := service.userRepo.CheckEmailExistsForUpdate(req.Email, tx)
-	if err != nil || emailExists {
+	if err != nil {
+		service.userRepo.RollbackTx(tx)
+		return nil, errors.DatabaseError, http.StatusInternalServerError
+	}
+	if emailExists {
 		service.userRepo.RollbackTx(tx)
 		return nil, errors.EmailTaken, http.StatusConflict
 	}
 
 	usernameExists, err := service.userRepo.CheckUsernameExistsForUpdate(req.Username, tx)
-	if err != nil || usernameExists {
+	if err != nil {
+		service.userRepo.RollbackTx(tx)
+		return nil, errors.DatabaseError, http.StatusInternalServerError
+	}
+	if usernameExists {
 		service.userRepo.RollbackTx(tx)
 		return nil, errors.UsernameTaken, http.StatusConflict
 	}
@@ -157,6 +165,9 @@ func (service *UserService) LoginUser(req models.UserLoginRequestDTO) (*models.U
 	// Find user by username
 	user, err := service.userRepo.FindUserByUsername(req.Username)
 	if err != nil {
+		return nil, errors.DatabaseError, http.StatusInternalServerError
+	}
+	if user.Username == "" {
 		return nil, errors.InvalidCredentials, http.StatusUnauthorized
 	}
 
@@ -215,10 +226,13 @@ func (service *UserService) ActivateUser(username string, token string) (*errors
 	// Get user
 	user, err := service.userRepo.FindUserByUsername(username)
 	if err != nil {
+		return errors.DatabaseError, http.StatusInternalServerError
+	}
+	if user.Username == "" {
 		return errors.UserNotFound, http.StatusNotFound
 	}
 
-	// If user is already activated --> send success
+	// If user is already activated --> send already reported
 	if user.Activated == true {
 		return errors.UserAlreadyActivated, http.StatusAlreadyReported
 	}
@@ -226,6 +240,9 @@ func (service *UserService) ActivateUser(username string, token string) (*errors
 	// Get token
 	activationToken, err := service.activationTokenRepo.FindActivationToken(username, token)
 	if err != nil {
+		return errors.DatabaseError, http.StatusInternalServerError
+	}
+	if activationToken.Token == "" {
 		return errors.InvalidToken, http.StatusNotFound
 	}
 
@@ -239,7 +256,7 @@ func (service *UserService) ActivateUser(username string, token string) (*errors
 
 	// Activate user
 	user.Activated = true
-	if err := service.userRepo.UpdateUser(&user); err != nil {
+	if err := service.userRepo.UpdateUser(user); err != nil {
 		return errors.DatabaseError, http.StatusInternalServerError
 	}
 
@@ -262,16 +279,10 @@ func (service *UserService) ActivateUser(username string, token string) (*errors
 // ResendActivationToken can be sent from controller to resend a six digit code via mail
 func (service *UserService) ResendActivationToken(username string) (*errors.CustomError, int) {
 
-	// Delete old codes
-	if err := service.activationTokenRepo.DeleteActivationTokenByUsername(username); err != nil {
-		return errors.DatabaseError, http.StatusInternalServerError
-	}
-
 	// Get user
-	var user models.User
 	user, err := service.userRepo.FindUserByUsername(username)
 	if err != nil {
-		return errors.UserNotFound, http.StatusNotFound
+		return errors.DatabaseError, http.StatusInternalServerError
 	}
 	if user.Username == "" {
 		return errors.UserNotFound, http.StatusNotFound
@@ -282,7 +293,12 @@ func (service *UserService) ResendActivationToken(username string) (*errors.Cust
 		return errors.UserAlreadyActivated, http.StatusAlreadyReported
 	}
 
-	// Else: Create and save code
+	// Else: Delete old codes
+	if err := service.activationTokenRepo.DeleteActivationTokenByUsername(username); err != nil {
+		return errors.DatabaseError, http.StatusInternalServerError
+	}
+
+	// Create and save new code
 	digits, err := utils.GenerateSixDigitCode()
 	if err != nil {
 		return errors.InternalServerError, http.StatusInternalServerError
