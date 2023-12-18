@@ -1,8 +1,9 @@
-package controllers
+package controllers_test
 
 import (
 	"encoding/json"
 	"github.com/gin-gonic/gin"
+	"github.com/marcbudd/server-beta/internal/controllers"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -10,9 +11,11 @@ import (
 
 // TestGetImprint tests the GetImprint function
 func TestGetImprint(t *testing.T) {
-	// Set up Gin
+	// Setup
+	gin.SetMode(gin.TestMode)
 	router := gin.Default()
-	router.GET("/imprint", GetImprint)
+	imprintController := controllers.NewImprintController()
+	router.GET("/imprint", imprintController.GetImprint)
 
 	// Create a response recorder
 	w := httptest.NewRecorder()

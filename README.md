@@ -15,5 +15,28 @@ Second backend for group project
 git clone https://github.com/wwi21seb-projekt/server-beta.git
 cd server-beta
 make all
-./bin/server-beta
+./bin/server-beta -port 8080
 ````
+
+If no port is specified, the server will run on the default port `:8080`.
+
+The user needs to have PostgreSQL installed and running. Additionally, the user needs to create an .env file with the following information:
+```
+JWT_SECRET=
+
+DB_HOST=
+DB_PORT=
+DB_SSL_MODE=
+DB_NAME=
+DB_USER=
+DB_PASSWORD=
+
+PROXY_HOST=
+
+EMAIL_HOST=
+EMAIL_PORT=
+EMAIL_ADDRESS=
+EMAIL_PASSWORD=
+
+GIN_MODE=
+```

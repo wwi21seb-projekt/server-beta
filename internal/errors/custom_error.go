@@ -1,9 +1,16 @@
 package errors
 
+import "fmt"
+
 // CustomError can be used to create custom errors
 type CustomError struct {
 	Message string `json:"message"`
 	Code    string `json:"code"`
+}
+
+// Error function to implement the error interface
+func (e *CustomError) Error() string {
+	return fmt.Sprintf("%v:%v: syntax error", e.Message, e.Code)
 }
 
 // ErrorResponse is used for testing to see if the right custom error was returned

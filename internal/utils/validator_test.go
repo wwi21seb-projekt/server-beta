@@ -1,9 +1,14 @@
-package utils
+package utils_test
 
-import "testing"
+import (
+	"github.com/marcbudd/server-beta/internal/utils"
+	"testing"
+)
 
 // TestValidateUsername tests the ValidateUsername function using multiple examples
 func TestValidateUsername(t *testing.T) {
+	validator := utils.NewValidator()
+
 	testCases := []struct {
 		username string
 		expected bool
@@ -17,7 +22,7 @@ func TestValidateUsername(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		result := ValidateUsername(tc.username)
+		result := validator.ValidateUsername(tc.username)
 		if result != tc.expected {
 			t.Errorf("ValidateUsername(%v): expected %v, got %v", tc.username, tc.expected, result)
 		}
@@ -26,6 +31,8 @@ func TestValidateUsername(t *testing.T) {
 
 // TestValidateNickname tests the ValidateNickname function using multiple examples
 func TestValidateNickname(t *testing.T) {
+	validator := utils.NewValidator()
+
 	testCases := []struct {
 		nickname string
 		expected bool
@@ -38,7 +45,7 @@ func TestValidateNickname(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		result := ValidateNickname(tc.nickname)
+		result := validator.ValidateNickname(tc.nickname)
 		if result != tc.expected {
 			t.Errorf("ValidateNickname(%v): expected %v, got %v", tc.nickname, tc.expected, result)
 		}
@@ -47,6 +54,8 @@ func TestValidateNickname(t *testing.T) {
 
 // TestValidateEmail tests the ValidateEmailSyntax function using multiple examples
 func TestValidateEmail(t *testing.T) {
+	validator := utils.NewValidator()
+
 	testCases := []struct {
 		email    string
 		expected bool
@@ -58,7 +67,7 @@ func TestValidateEmail(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		result := ValidateEmailSyntax(tc.email)
+		result := validator.ValidateEmailSyntax(tc.email)
 		if result != tc.expected {
 			t.Errorf("ValidateEmailSyntax(%v): expected %v, got %v", tc.email, tc.expected, result)
 		}
@@ -67,6 +76,8 @@ func TestValidateEmail(t *testing.T) {
 
 // TestValidatePassword tests the ValidatePassword function using multiple examples
 func TestValidatePassword(t *testing.T) {
+	validator := utils.NewValidator()
+
 	testCases := []struct {
 		password string
 		expected bool
@@ -81,7 +92,7 @@ func TestValidatePassword(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		result := ValidatePassword(tc.password)
+		result := validator.ValidatePassword(tc.password)
 		if result != tc.expected {
 			t.Errorf("ValidatePassword(%v): expected %v, got %v", tc.password, tc.expected, result)
 		}

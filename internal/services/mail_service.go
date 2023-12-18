@@ -6,8 +6,20 @@ import (
 	"os"
 )
 
+type MailServiceInterface interface {
+	SendMail(receiver string, subject string, body string) error
+}
+
+type MailService struct {
+}
+
+// NewMailService can be used as a constructor to generate a new MailService "object"
+func NewMailService() *MailService {
+	return &MailService{}
+}
+
 // SendMail sends a mail to a receiver with the given subject and body text
-func SendMail(receiver string, subject string, body string) error {
+func (service *MailService) SendMail(receiver string, subject string, body string) error {
 
 	from := os.Getenv("EMAIL_ADDRESS")
 	password := os.Getenv("EMAIL_PASSWORD")

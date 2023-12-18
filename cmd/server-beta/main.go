@@ -6,7 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/marcbudd/server-beta/internal/initializers"
 	"github.com/marcbudd/server-beta/internal/router"
-	"github.com/marcbudd/server-beta/routines"
+	"github.com/marcbudd/server-beta/internal/routines"
 	"os"
 )
 

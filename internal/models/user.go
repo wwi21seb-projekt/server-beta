@@ -28,6 +28,10 @@ type UserLoginResponseDTO struct {
 	RefreshToken string `json:"refresh_token"`
 }
 
+type UserActivationRequestDTO struct {
+	Token string `json:"token" binding:"required"`
+}
+
 type UserResponseDTO struct {
 	Username string `json:"username"`
 	Nickname string `json:"nickname"`

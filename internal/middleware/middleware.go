@@ -22,12 +22,12 @@ func AuthorizeUser(c *gin.Context) {
 	}
 
 	tokenString := strings.TrimPrefix(authHeader, bearerSchema)
-	user, err := utils.VerifyAccessToken(tokenString)
+	username, err := utils.VerifyAccessToken(tokenString)
 	if err != nil {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
 
-	c.Set("username", user.Username) // Attach username to request
-	c.Next()                         // Execute main function
+	c.Set("username", username) // Attach username to request
+	c.Next()                    // Execute main function
 }

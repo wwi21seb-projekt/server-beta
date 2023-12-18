@@ -8,10 +8,10 @@ require (
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/google/uuid v1.4.0
 	github.com/joho/godotenv v1.5.1
+	github.com/stretchr/testify v1.8.4
 	github.com/truemail-rb/truemail-go v1.1.2
 	golang.org/x/crypto v0.16.0
 	gorm.io/driver/postgres v1.5.4
-	gorm.io/driver/sqlite v1.5.4
 	gorm.io/gorm v1.25.5
 )
 
@@ -39,7 +39,6 @@ require (
 	github.com/kr/text v0.2.0 // indirect
 	github.com/leodido/go-urn v1.2.4 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
-	github.com/mattn/go-sqlite3 v1.14.17 // indirect
 	github.com/miekg/dns v1.1.50 // indirect
 	github.com/mocktools/go-smtp-mock/v2 v2.0.5 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
@@ -48,7 +47,6 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rogpeppe/go-internal v1.11.0 // indirect
 	github.com/stretchr/objx v0.5.0 // indirect
-	github.com/stretchr/testify v1.8.4 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.2.12 // indirect
 	golang.org/x/arch v0.6.0 // indirect
