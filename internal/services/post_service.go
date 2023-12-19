@@ -6,6 +6,7 @@ import (
 	"github.com/marcbudd/server-beta/internal/customerrors"
 	"github.com/marcbudd/server-beta/internal/models"
 	"github.com/marcbudd/server-beta/internal/repositories"
+	"github.com/marcbudd/server-beta/internal/utils"
 	"gorm.io/gorm"
 	"net/http"
 	"time"
@@ -45,12 +46,17 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, usernam
 		return nil, customerrors.InternalServerError, http.StatusInternalServerError
 	}
 
+	// Extract hashtags
+	hashtagList := utils.ExtractHashtags(req.Content)
+
 	// Create post
 	post := models.Post{
 		Id:        uuid.New(),
 		Username:  username,
 		User:      *user,
 		Content:   req.Content,
+		ImageUrl:  "",
+		Hashtags:  hashtagList,
 		CreatedAt: time.Now(),
 	}
 	err = service.postRepo.CreatePost(&post)

@@ -46,7 +46,7 @@ func TestCreatePostSuccess(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	content := "This is a test post"
+	content := "This is a test #post. #postings_are_fun"
 	postCreateRequestDTO := models.PostCreateRequestDTO{
 		Content: content,
 	}
@@ -91,6 +91,7 @@ func TestCreatePostSuccess(t *testing.T) {
 	assert.Equal(t, user.Username, capturedPost.Username)
 	assert.NotNil(t, capturedPost.CreatedAt)
 	assert.NotNil(t, capturedPost.Id)
+	assert.Equal(t, []string{"post", "postings_are_fun"}, capturedPost.Hashtags)
 
 	mockUserRepository.AssertExpectations(t)
 	mockPostRepository.AssertExpectations(t)
