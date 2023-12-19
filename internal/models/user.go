@@ -3,12 +3,13 @@ package models
 import "time"
 
 type User struct {
-	Username     string    `gorm:"primary_key;type:varchar(20);not_null;unique"`
-	Nickname     string    `orm:"type:varchar(25)"`
-	Email        string    `gorm:"type:varchar(128);not_null;unique"`
-	PasswordHash string    `gorm:"type:varchar(80);not_null"`
-	CreatedAt    time.Time `gorm:"column:created_at;not_null"`
-	Activated    bool      `gorm:"not_null"`
+	Username          string    `gorm:"primary_key;type:varchar(20);not_null;unique"`
+	Nickname          string    `gorm:"type:varchar(25)"`
+	Email             string    `gorm:"type:varchar(128);not_null;unique"`
+	PasswordHash      string    `gorm:"type:varchar(80);not_null"`
+	CreatedAt         time.Time `gorm:"column:created_at;not_null"`
+	Activated         bool      `gorm:"not_null"`
+	ProfilePictureUrl string    `gorm:"type:varchar(256);null"`
 }
 
 type UserCreateRequestDTO struct {

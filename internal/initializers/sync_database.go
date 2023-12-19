@@ -10,6 +10,7 @@ func SyncDatabase() {
 	modelsToMigrate := []interface{}{
 		&models.User{},
 		&models.ActivationToken{},
+		&models.Post{},
 	}
 
 	for _, model := range modelsToMigrate {

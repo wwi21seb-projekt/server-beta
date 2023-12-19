@@ -2,7 +2,7 @@ package controllers
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/marcbudd/server-beta/internal/errors"
+	"github.com/marcbudd/server-beta/internal/customerrors"
 	"github.com/marcbudd/server-beta/internal/models"
 	"github.com/marcbudd/server-beta/internal/services"
 	"net/http"
@@ -32,7 +32,7 @@ func (controller *UserController) CreateUser(c *gin.Context) {
 
 	if c.Bind(&userCreateRequestDTO) != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": errors.BadRequest,
+			"error": customerrors.BadRequest,
 		})
 		return
 	}
@@ -58,7 +58,7 @@ func (controller *UserController) Login(c *gin.Context) {
 
 	if c.Bind(&userLoginRequestDTO) != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": errors.BadRequest,
+			"error": customerrors.BadRequest,
 		})
 		return
 	}
@@ -84,7 +84,7 @@ func (controller *UserController) ActivateUser(c *gin.Context) {
 
 	if c.Bind(&verificationTokenRequestDTO) != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": errors.BadRequest,
+			"error": customerrors.BadRequest,
 		})
 		return
 	}
@@ -93,7 +93,7 @@ func (controller *UserController) ActivateUser(c *gin.Context) {
 	username := c.Param("username")
 	if username == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": errors.BadRequest,
+			"error": customerrors.BadRequest,
 		})
 		return
 	}
@@ -116,7 +116,7 @@ func (controller *UserController) ResendActivationToken(c *gin.Context) {
 	username := c.Param("username")
 	if username == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": errors.BadRequest,
+			"error": customerrors.BadRequest,
 		})
 		return
 	}
