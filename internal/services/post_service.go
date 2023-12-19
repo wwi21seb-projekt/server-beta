@@ -18,13 +18,16 @@ type PostServiceInterface interface {
 }
 
 type PostService struct {
-	postRepo repositories.PostRepositoryInterface
-	userRepo repositories.UserRepositoryInterface
+	postRepo    repositories.PostRepositoryInterface
+	userRepo    repositories.UserRepositoryInterface
+	hashtagRepo repositories.HashtagRepositoryInterface
 }
 
 // NewPostService can be used as a constructor to create a PostService "object"
-func NewPostService(postRepo repositories.PostRepositoryInterface, userRepo repositories.UserRepositoryInterface) *PostService {
-	return &PostService{postRepo: postRepo, userRepo: userRepo}
+func NewPostService(postRepo repositories.PostRepositoryInterface,
+	userRepo repositories.UserRepositoryInterface,
+	hashtagRepo repositories.HashtagRepositoryInterface) *PostService {
+	return &PostService{postRepo: postRepo, userRepo: userRepo, hashtagRepo: hashtagRepo}
 }
 
 func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, username string) (*models.PostCreateResponseDTO, *customerrors.CustomError, int) {
@@ -46,17 +49,26 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, usernam
 		return nil, customerrors.InternalServerError, http.StatusInternalServerError
 	}
 
-	// Extract hashtags
-	hashtagList := utils.ExtractHashtags(req.Content)
+	//Extract hashtags
+	hashtagNames := utils.ExtractHashtags(req.Content)
+
+	// Create hashtag object for each hashtag name
+	var hashtags []models.Hashtag
+	for _, name := range hashtagNames {
+		hashtag, err := service.hashtagRepo.FindOrCreateHashtag(name)
+		if err != nil {
+			return nil, customerrors.InternalServerError, http.StatusInternalServerError
+		}
+		hashtags = append(hashtags, hashtag)
+	}
 
 	// Create post
 	post := models.Post{
 		Id:        uuid.New(),
 		Username:  username,
-		User:      *user,
 		Content:   req.Content,
 		ImageUrl:  "",
-		Hashtags:  hashtagList,
+		Hashtags:  hashtags,
 		CreatedAt: time.Now(),
 	}
 	err = service.postRepo.CreatePost(&post)

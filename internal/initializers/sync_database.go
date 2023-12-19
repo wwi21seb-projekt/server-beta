@@ -11,6 +11,7 @@ func SyncDatabase() {
 		&models.User{},
 		&models.ActivationToken{},
 		&models.Post{},
+		&models.Hashtag{},
 	}
 
 	for _, model := range modelsToMigrate {

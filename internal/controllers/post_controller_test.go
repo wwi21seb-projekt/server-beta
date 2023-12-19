@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/marcbudd/server-beta/internal/controllers"
 	"github.com/marcbudd/server-beta/internal/customerrors"
 	"github.com/marcbudd/server-beta/internal/middleware"
@@ -26,10 +27,12 @@ func TestCreatePostSuccess(t *testing.T) {
 	// Arrange
 	mockUserRepository := new(repositories.MockUserRepository)
 	mockPostRepository := new(repositories.MockPostRepository)
+	mockHashtagRepository := new(repositories.MockHashtagRepository)
 
 	postService := services.NewPostService(
 		mockPostRepository,
 		mockUserRepository,
+		mockHashtagRepository,
 	)
 	postController := controllers.NewPostController(postService)
 
@@ -51,6 +54,15 @@ func TestCreatePostSuccess(t *testing.T) {
 		Content: content,
 	}
 
+	expectedHashtagOne := models.Hashtag{
+		Id:   uuid.New(),
+		Name: "post",
+	}
+	expectedHashtagTwo := models.Hashtag{
+		Id:   uuid.New(),
+		Name: "postings_are_fun",
+	}
+
 	// Mock expectations
 	var capturedPost *models.Post
 	mockUserRepository.On("FindUserByUsername", user.Username).Return(&user, nil) // User found successfully
@@ -58,6 +70,8 @@ func TestCreatePostSuccess(t *testing.T) {
 		Run(func(args mock.Arguments) {
 			capturedPost = args.Get(0).(*models.Post) // Save argument to captor
 		}).Return(nil) // Post created successfully
+	mockHashtagRepository.On("FindOrCreateHashtag", expectedHashtagOne.Name).Return(expectedHashtagOne, nil)
+	mockHashtagRepository.On("FindOrCreateHashtag", expectedHashtagTwo.Name).Return(expectedHashtagTwo, nil)
 
 	// Setup HTTP request
 	requestBody, err := json.Marshal(postCreateRequestDTO)
@@ -91,10 +105,14 @@ func TestCreatePostSuccess(t *testing.T) {
 	assert.Equal(t, user.Username, capturedPost.Username)
 	assert.NotNil(t, capturedPost.CreatedAt)
 	assert.NotNil(t, capturedPost.Id)
-	assert.Equal(t, []string{"post", "postings_are_fun"}, capturedPost.Hashtags)
+	assert.Equal(t, capturedPost.Hashtags[0].Id, expectedHashtagOne.Id)
+	assert.Equal(t, capturedPost.Hashtags[0].Name, expectedHashtagOne.Name)
+	assert.Equal(t, capturedPost.Hashtags[1].Id, expectedHashtagTwo.Id)
+	assert.Equal(t, capturedPost.Hashtags[1].Name, expectedHashtagTwo.Name)
 
 	mockUserRepository.AssertExpectations(t)
 	mockPostRepository.AssertExpectations(t)
+	mockHashtagRepository.AssertExpectations(t)
 }
 
 // TestCreatePostBadRequest tests if the CreatePost function returns a 400 bad request if the content is empty
@@ -109,10 +127,12 @@ func TestCreatePostBadRequest(t *testing.T) {
 		// Arrange
 		mockUserRepository := new(repositories.MockUserRepository)
 		mockPostRepository := new(repositories.MockPostRepository)
+		mockHashtagRepository := new(repositories.MockHashtagRepository)
 
 		postService := services.NewPostService(
 			mockPostRepository,
 			mockUserRepository,
+			mockHashtagRepository,
 		)
 		postController := controllers.NewPostController(postService)
 
@@ -162,10 +182,12 @@ func TestCreatePostUnauthorized(t *testing.T) {
 		// Arrange
 		mockUserRepository := new(repositories.MockUserRepository)
 		mockPostRepository := new(repositories.MockPostRepository)
+		mockHashtagRepository := new(repositories.MockHashtagRepository)
 
 		postService := services.NewPostService(
 			mockPostRepository,
 			mockUserRepository,
+			mockHashtagRepository,
 		)
 		postController := controllers.NewPostController(postService)
 

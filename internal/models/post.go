@@ -11,7 +11,7 @@ type Post struct {
 	User      User      `gorm:"foreignKey:username"`
 	Content   string    `gorm:"column:content;type:varchar(256);null"`
 	ImageUrl  string    `gorm:"column:image_url;type:varchar(256);null"`
-	Hashtags  []string  `gorm:"column:hashtags;null"`
+	Hashtags  []Hashtag `gorm:"many2many:post_hashtags;"` // gorm handles the join table
 	CreatedAt time.Time `gorm:"column:created_at;not_null"`
 }
 
