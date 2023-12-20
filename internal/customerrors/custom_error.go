@@ -1,8 +1,8 @@
-package errors
+package customerrors
 
 import "fmt"
 
-// CustomError can be used to create custom errors
+// CustomError can be used to create custom customerrors
 type CustomError struct {
 	Message string `json:"message"`
 	Code    string `json:"code"`
@@ -74,5 +74,8 @@ var (
 	UserAlreadyActivated = &CustomError{
 		Message: "The user is already activated. Please login to your account.",
 		Code:    "ERR-013",
+	}
+	PreliminaryUserUnauthorized = &CustomError{
+		Message: "The user is not authorized. Please login to your account.",
 	}
 )

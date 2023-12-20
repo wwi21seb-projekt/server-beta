@@ -35,13 +35,17 @@ func SetupRouter() *gin.Engine {
 	// Setup repositories, services, controllers
 	activationTokenRepo := repositories.NewActivationTokenRepository(initializers.DB)
 	userRepo := repositories.NewUserRepository(initializers.DB)
+	postRepo := repositories.NewPostRepository(initializers.DB)
+	hashtagRepo := repositories.NewHashtagRepository(initializers.DB)
 
 	validator := utils.NewValidator()
 	mailService := services.NewMailService()
 	userService := services.NewUserService(userRepo, activationTokenRepo, mailService, validator)
+	postService := services.NewPostService(postRepo, userRepo, hashtagRepo)
 
 	imprintController := controllers.NewImprintController()
 	userController := controllers.NewUserController(userService)
+	postController := controllers.NewPostController(postService)
 
 	// API Routes
 	api := r.Group("/api")
@@ -64,6 +68,9 @@ func SetupRouter() *gin.Engine {
 	api.POST("/users/:username/activate", userController.ActivateUser)
 	api.DELETE("/users/:username/activate", userController.ResendActivationToken)
 	api.GET("/users/validate", middleware.AuthorizeUser, userController.ValidateLogin)
+
+	// Post
+	api.POST("/posts", middleware.AuthorizeUser, postController.CreatePost)
 
 	return r
 }

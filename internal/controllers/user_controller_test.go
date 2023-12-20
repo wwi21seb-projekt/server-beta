@@ -7,7 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/marcbudd/server-beta/internal/controllers"
-	"github.com/marcbudd/server-beta/internal/errors"
+	"github.com/marcbudd/server-beta/internal/customerrors"
 	"github.com/marcbudd/server-beta/internal/models"
 	"github.com/marcbudd/server-beta/internal/repositories"
 	"github.com/marcbudd/server-beta/internal/services"
@@ -157,11 +157,11 @@ func TestCreateUserBadRequest(t *testing.T) {
 
 		// Assertions
 		assert.Equal(t, http.StatusBadRequest, w.Code) // Expect HTTP 400 Bad Request status
-		var errorResponse errors.ErrorResponse
+		var errorResponse customerrors.ErrorResponse
 		err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
 		assert.NoError(t, err)
 
-		expectedCustomError := errors.BadRequest
+		expectedCustomError := customerrors.BadRequest
 		assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 		assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 	}
@@ -223,11 +223,11 @@ func TestCreateUserUsernameExists(t *testing.T) {
 
 	// Assert Response
 	assert.Equal(t, http.StatusConflict, w.Code) // Expect HTTP 409 Conflict status
-	var errorResponse errors.ErrorResponse
+	var errorResponse customerrors.ErrorResponse
 	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
 
-	expectedCustomError := errors.UsernameTaken
+	expectedCustomError := customerrors.UsernameTaken
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 }
@@ -288,13 +288,105 @@ func TestCreateEmailExists(t *testing.T) {
 
 	// Assert Response
 	assert.Equal(t, http.StatusConflict, w.Code) // Expect HTTP 409 Conflict status
-	var errorResponse errors.ErrorResponse
+	var errorResponse customerrors.ErrorResponse
 	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
 
-	expectedCustomError := errors.EmailTaken
+	expectedCustomError := customerrors.EmailTaken
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
+}
+
+// TestCreateEmailExistsRollback test if CreateUser does not block username when email already existed in previous request
+func TestCreateEmailExistsRollback(t *testing.T) {
+	// Setup mocks
+	mockUserRepository := new(repositories.MockUserRepository)
+	mockActivationTokenRepository := new(repositories.MockActivationTokenRepository)
+	mockMailService := new(services.MockMailService)
+	mockValidator := new(utils.MockValidator)
+
+	userService := services.NewUserService(
+		mockUserRepository,
+		mockActivationTokenRepository,
+		mockMailService,
+		mockValidator,
+	)
+
+	userController := controllers.NewUserController(userService)
+
+	username := "testUser"
+	nickname := "Test User"
+	email := "somemail@domain.com"
+	password := "Password123!"
+
+	userRequest := models.UserCreateRequestDTO{
+		Username: username,
+		Password: password,
+		Nickname: nickname,
+		Email:    email,
+	}
+
+	// Mock expectations
+	mockTx := new(gorm.DB)
+	mockUserRepository.On("BeginTx").Return(mockTx)
+	mockUserRepository.On("CommitTx", mockTx).Return(nil)
+	mockUserRepository.On("RollbackTx", mockTx).Return(nil)
+	mockUserRepository.On("CheckEmailExistsForUpdate", email, mockTx).Return(true, nil)        // Email does exist
+	mockUserRepository.On("CheckUsernameExistsForUpdate", username, mockTx).Return(false, nil) // Username does not exist
+	mockMailService.On("SendMail", email, mock.Anything, mock.Anything).Return(nil)            // Send mail successfully
+	mockValidator.On("ValidateEmailExistance", email).Return(true)                             // Email exists
+
+	// Setup HTTP request and recorder
+	requestBody, err := json.Marshal(userRequest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req, _ := http.NewRequest(http.MethodPost, "/users", bytes.NewBuffer(requestBody))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	// Act
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+	router.POST("/users", userController.CreateUser)
+	router.ServeHTTP(w, req)
+
+	// Assert Response
+	assert.Equal(t, http.StatusConflict, w.Code) // Expect HTTP 409 Conflict status
+	var errorResponse customerrors.ErrorResponse
+	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
+	assert.NoError(t, err)
+
+	expectedCustomError := customerrors.EmailTaken
+	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
+	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
+
+	// Setup second request
+	userRequest.Email = "anothermail@mail.com"
+	requestBody, err = json.Marshal(userRequest)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	mockUserRepository.On("BeginTx").Return(mockTx)
+	mockUserRepository.On("CommitTx", mockTx).Return(nil)
+	mockUserRepository.On("RollbackTx", mockTx).Return(nil)
+	mockUserRepository.On("CheckEmailExistsForUpdate", userRequest.Email, mockTx).Return(false, nil) // New email does not exist
+	mockUserRepository.On("CheckUsernameExistsForUpdate", username, mockTx).Return(false, nil)       // Username does not exist
+	mockMailService.On("SendMail", userRequest.Email, mock.Anything, mock.Anything).Return(nil)      // Send mail successfully
+	mockValidator.On("ValidateEmailExistance", userRequest.Email).Return(true)
+	mockActivationTokenRepository.On("CreateActivationTokenTx", mock.AnythingOfType("*models.ActivationToken"), mockTx).Return(nil)
+	mockUserRepository.On("CreateUserTx", mock.AnythingOfType("*models.User"), mockTx).Return(nil)
+
+	req, _ = http.NewRequest(http.MethodPost, "/users", bytes.NewBuffer(requestBody))
+	req.Header.Set("Content-Type", "application/json")
+	w = httptest.NewRecorder()
+
+	// Act
+	router.ServeHTTP(w, req)
+
+	// Assert Response
+	assert.Equal(t, http.StatusCreated, w.Code) // Expect HTTP 201 Created status
 }
 
 // TestCreateUserEmailUnreachable tests if CreateUser returns 422-Unprocessable Entity when email is unreachable
@@ -345,11 +437,11 @@ func TestCreateUserEmailUnreachable(t *testing.T) {
 
 	// Assert Response
 	assert.Equal(t, http.StatusUnprocessableEntity, w.Code) // Expect HTTP 422 Unprocessable Entity status
-	var errorResponse errors.ErrorResponse
+	var errorResponse customerrors.ErrorResponse
 	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
 
-	expectedCustomError := errors.EmailUnreachable
+	expectedCustomError := customerrors.EmailUnreachable
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
@@ -412,11 +504,11 @@ func TestCreateUserInternalServerErrorDatabase(t *testing.T) {
 
 	// Assert Response
 	assert.Equal(t, http.StatusInternalServerError, w.Code) // Expect HTTP 500 Internal Server Error status
-	var errorResponse errors.ErrorResponse
+	var errorResponse customerrors.ErrorResponse
 	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
 
-	expectedCustomError := errors.DatabaseError
+	expectedCustomError := customerrors.DatabaseError
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 }
@@ -479,11 +571,11 @@ func TestCreateUserInternalServerErrorServer(t *testing.T) {
 
 	// Assert Response
 	assert.Equal(t, http.StatusInternalServerError, w.Code) // Expect HTTP 500 Internal Server Error status
-	var errorResponse errors.ErrorResponse
+	var errorResponse customerrors.ErrorResponse
 	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
 
-	expectedCustomError := errors.EmailNotSent
+	expectedCustomError := customerrors.EmailNotSent
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 }
@@ -586,11 +678,11 @@ func TestLoginBadRequest(t *testing.T) {
 
 		// Assertions
 		assert.Equal(t, http.StatusBadRequest, w.Code) // Expect HTTP 400 Bad Request status
-		var errorResponse errors.ErrorResponse
+		var errorResponse customerrors.ErrorResponse
 		err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
 		assert.NoError(t, err)
 
-		expectedCustomError := errors.BadRequest
+		expectedCustomError := customerrors.BadRequest
 		assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 		assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 	}
@@ -641,11 +733,11 @@ func TestLoginInvalidCredentialsUserNotFound(t *testing.T) {
 
 	// Assert Response
 	assert.Equal(t, http.StatusUnauthorized, w.Code) // Expect HTTP 401 Unauthorized status
-	var errorResponse errors.ErrorResponse
+	var errorResponse customerrors.ErrorResponse
 	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
 
-	expectedCustomError := errors.InvalidCredentials
+	expectedCustomError := customerrors.InvalidCredentials
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
@@ -714,11 +806,11 @@ func TestLoginInvalidCredentialsPasswordIncorrect(t *testing.T) {
 
 	// Assert Response
 	assert.Equal(t, http.StatusUnauthorized, w.Code) // Expect HTTP 401 Unauthorized status
-	var errorResponse errors.ErrorResponse
+	var errorResponse customerrors.ErrorResponse
 	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
 
-	expectedCustomError := errors.InvalidCredentials
+	expectedCustomError := customerrors.InvalidCredentials
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
@@ -797,11 +889,11 @@ func TestLoginUserNotActivated(t *testing.T) {
 
 	// Assert Response
 	assert.Equal(t, http.StatusForbidden, w.Code) // Expect HTTP 403 Forbidden status
-	var errorResponse errors.ErrorResponse
+	var errorResponse customerrors.ErrorResponse
 	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
 
-	expectedCustomError := errors.UserNotActivated
+	expectedCustomError := customerrors.UserNotActivated
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
@@ -884,11 +976,11 @@ func TestLoginUserNotActivatedExpiredToken(t *testing.T) {
 
 	// Assert Response
 	assert.Equal(t, http.StatusForbidden, w.Code) // Expect HTTP 403 Forbidden status
-	var errorResponse errors.ErrorResponse
+	var errorResponse customerrors.ErrorResponse
 	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
 
-	expectedCustomError := errors.UserNotActivated
+	expectedCustomError := customerrors.UserNotActivated
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
@@ -1006,11 +1098,11 @@ func TestActivateUserBadRequest(t *testing.T) {
 
 		// Assertions
 		assert.Equal(t, http.StatusBadRequest, w.Code) // Expect HTTP 400 Bad Request status
-		var errorResponse errors.ErrorResponse
+		var errorResponse customerrors.ErrorResponse
 		err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
 		assert.NoError(t, err)
 
-		expectedCustomError := errors.BadRequest
+		expectedCustomError := customerrors.BadRequest
 		assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 		assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 	}
@@ -1075,11 +1167,11 @@ func TestActivateUserAlreadyReported(t *testing.T) {
 
 	// Assert Response
 	assert.Equal(t, http.StatusAlreadyReported, w.Code) // Expect HTTP 208 Already Reported status
-	var errorResponse errors.ErrorResponse
+	var errorResponse customerrors.ErrorResponse
 	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
 
-	expectedCustomError := errors.UserAlreadyActivated
+	expectedCustomError := customerrors.UserAlreadyActivated
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
@@ -1111,7 +1203,7 @@ func TestActivateUserNotFound(t *testing.T) {
 	}
 
 	// Mock expectations
-	mockUserRepository.On("FindUserByUsername", username).Return(&models.User{}, nil) // User not found
+	mockUserRepository.On("FindUserByUsername", username).Return(&models.User{}, gorm.ErrRecordNotFound) // User not found
 
 	// Setup HTTP request and recorder
 	requestBody, err := json.Marshal(activationRequest)
@@ -1130,11 +1222,11 @@ func TestActivateUserNotFound(t *testing.T) {
 
 	// Assert Response
 	assert.Equal(t, http.StatusNotFound, w.Code) // Expect HTTP 404 Not Found status
-	var errorResponse errors.ErrorResponse
+	var errorResponse customerrors.ErrorResponse
 	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
 
-	expectedCustomError := errors.UserNotFound
+	expectedCustomError := customerrors.UserNotFound
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
@@ -1184,8 +1276,8 @@ func TestActivateUserTokenNotFound(t *testing.T) {
 	}
 
 	// Mock expectations
-	mockUserRepository.On("FindUserByUsername", username).Return(&user, nil)                                                // User found successfully
-	mockActivationTokenRepository.On("FindActivationToken", username, sixDigitToken).Return(&models.ActivationToken{}, nil) // Token not found
+	mockUserRepository.On("FindUserByUsername", username).Return(&user, nil)                                                                   // User found successfully
+	mockActivationTokenRepository.On("FindActivationToken", username, sixDigitToken).Return(&models.ActivationToken{}, gorm.ErrRecordNotFound) // Token not found
 
 	// Setup HTTP request and recorder
 	requestBody, err := json.Marshal(activationRequest)
@@ -1204,11 +1296,11 @@ func TestActivateUserTokenNotFound(t *testing.T) {
 
 	// Assert Response
 	assert.Equal(t, http.StatusNotFound, w.Code) // Expect HTTP 404 Not Found status
-	var errorResponse errors.ErrorResponse
+	var errorResponse customerrors.ErrorResponse
 	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
 
-	expectedCustomError := errors.InvalidToken
+	expectedCustomError := customerrors.InvalidToken
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
@@ -1266,7 +1358,7 @@ func TestActivateUserTokenExpired(t *testing.T) {
 
 	// Mock expectations
 	mockUserRepository.On("FindUserByUsername", username).Return(&user, nil)                                              // User found successfully
-	mockActivationTokenRepository.On("FindActivationToken", username, sixDigitToken).Return(&activationToken, nil)        // Token not found
+	mockActivationTokenRepository.On("FindActivationToken", username, sixDigitToken).Return(&activationToken, nil)        // Expired token found successfully
 	mockActivationTokenRepository.On("DeleteActivationTokenByUsername", username).Return(nil)                             // Delete token successfully
 	mockActivationTokenRepository.On("CreateActivationToken", mock.AnythingOfType("*models.ActivationToken")).Return(nil) // Create new token successfully
 	mockMailService.On("SendMail", email, mock.Anything, mock.Anything).Return(nil)                                       // Send mail successfully
@@ -1288,11 +1380,11 @@ func TestActivateUserTokenExpired(t *testing.T) {
 
 	// Assert Response
 	assert.Equal(t, http.StatusUnauthorized, w.Code) // Expect HTTP 401 Unauthorized status
-	var errorResponse errors.ErrorResponse
+	var errorResponse customerrors.ErrorResponse
 	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
 
-	expectedCustomError := errors.ActivationTokenExpired
+	expectedCustomError := customerrors.ActivationTokenExpired
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
@@ -1412,11 +1504,11 @@ func TestResendActivationTokenAlreadyReported(t *testing.T) {
 
 	// Assert Response
 	assert.Equal(t, http.StatusAlreadyReported, w.Code) // Expect HTTP 208 Already Reported status
-	var errorResponse errors.ErrorResponse
+	var errorResponse customerrors.ErrorResponse
 	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
 
-	expectedCustomError := errors.UserAlreadyActivated
+	expectedCustomError := customerrors.UserAlreadyActivated
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
@@ -1445,7 +1537,7 @@ func TestResendActivationTokenUserNotfound(t *testing.T) {
 	username := "testUser"
 
 	// Mock expectations
-	mockUserRepository.On("FindUserByUsername", username).Return(&models.User{}, nil) // Find user successfully
+	mockUserRepository.On("FindUserByUsername", username).Return(&models.User{}, gorm.ErrRecordNotFound) // User not found
 
 	// Setup HTTP request and recorder
 	req, _ := http.NewRequest(http.MethodDelete, fmt.Sprintf("/users/%s/resend", username), nil)
@@ -1460,13 +1552,13 @@ func TestResendActivationTokenUserNotfound(t *testing.T) {
 
 	// Assert Response
 	assert.Equal(t, http.StatusNotFound, w.Code) // Expect HTTP 404 Not Found status
-	var errorResponse errors.ErrorResponse
+	var errorResponse customerrors.ErrorResponse
 	err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	expectedCustomError := errors.UserNotFound
+	expectedCustomError := customerrors.UserNotFound
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
