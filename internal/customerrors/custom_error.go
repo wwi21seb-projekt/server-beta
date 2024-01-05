@@ -83,4 +83,8 @@ var (
 		Message: "The file was not found. Please check the file and try again.",
 		Code:    "ERR-015",
 	}
+	PreliminaryFileTooLarge = &CustomError{
+		Message: "The file is too large. Please compress file.",
+		Code:    "ERR-016",
+	}
 )
