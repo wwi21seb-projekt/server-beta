@@ -77,5 +77,10 @@ var (
 	}
 	PreliminaryUserUnauthorized = &CustomError{
 		Message: "The user is not authorized. Please login to your account.",
+		Code:    "ERR-014",
+	}
+	PreliminaryFileNotFound = &CustomError{
+		Message: "The file was not found. Please check the file and try again.",
+		Code:    "ERR-015",
 	}
 )

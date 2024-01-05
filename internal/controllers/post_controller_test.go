@@ -33,6 +33,7 @@ func TestCreatePostSuccess(t *testing.T) {
 		mockPostRepository,
 		mockUserRepository,
 		mockHashtagRepository,
+		new(services.ImageService),
 	)
 	postController := controllers.NewPostController(postService)
 
@@ -133,6 +134,7 @@ func TestCreatePostBadRequest(t *testing.T) {
 			mockPostRepository,
 			mockUserRepository,
 			mockHashtagRepository,
+			new(services.ImageService),
 		)
 		postController := controllers.NewPostController(postService)
 
@@ -188,6 +190,7 @@ func TestCreatePostUnauthorized(t *testing.T) {
 			mockPostRepository,
 			mockUserRepository,
 			mockHashtagRepository,
+			new(services.ImageService),
 		)
 		postController := controllers.NewPostController(postService)
 

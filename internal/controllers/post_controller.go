@@ -32,22 +32,62 @@ func (controller *PostController) CreatePost(c *gin.Context) {
 		return
 	}
 
-	// Read body
-	var postCreateRequestDTO models.PostCreateRequestDTO
-	if c.Bind(&postCreateRequestDTO) != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": customerrors.BadRequest,
-		})
-		return
-	}
-	// Create post
-	postDto, serviceErr, httpStatus := controller.postService.CreatePost(&postCreateRequestDTO, username.(string))
-	if serviceErr != nil {
-		c.JSON(httpStatus, gin.H{
-			"error": serviceErr,
-		})
-		return
+	// If ContentType is application/json, read body and continue only with text
+	if c.ContentType() == "application/json" {
+		// Read body
+		var postCreateRequestDTO models.PostCreateRequestDTO
+		if c.Bind(&postCreateRequestDTO) != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": customerrors.BadRequest,
+			})
+			return
+		}
+
+		// Create post
+		postDto, serviceErr, httpStatus := controller.postService.CreatePost(&postCreateRequestDTO, nil, username.(string))
+		if serviceErr != nil {
+			c.JSON(httpStatus, gin.H{
+				"error": serviceErr,
+			})
+			return
+		}
+
+		c.JSON(httpStatus, postDto)
 	}
 
-	c.JSON(httpStatus, postDto)
+	// If ContentType is multipart/form-data, continue with image and (optional) text
+	if c.ContentType() == "multipart/form-data" {
+		// Read content
+		content := c.PostForm("content")
+		postCreateRequestDTO := models.PostCreateRequestDTO{
+			Content: content,
+		}
+
+		// Read image
+		file, err := c.FormFile("image")
+		if err != nil {
+			file = nil
+		}
+
+		// If no file is present and content is empty, return bad request
+		if file == nil && content == "" {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": customerrors.BadRequest,
+			})
+			return
+		}
+
+		// Create post
+		postDto, serviceErr, httpStatus := controller.postService.CreatePost(&postCreateRequestDTO, file, username.(string))
+		if serviceErr != nil {
+			c.JSON(httpStatus, gin.H{
+				"error": serviceErr,
+			})
+			return
+		}
+
+		c.JSON(httpStatus, postDto)
+
+	}
+
 }
