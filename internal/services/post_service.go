@@ -98,14 +98,13 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *m
 	}
 
 	// Create response dto and return
-	authorDto := models.AuthorDTO{
-		Username:          user.Username,
-		Nickname:          user.Nickname,
-		ProfilePictureUrl: user.ProfilePictureUrl,
-	}
 	postDto := models.PostCreateResponseDTO{
-		PostId:       post.Id,
-		Author:       &authorDto,
+		PostId: post.Id,
+		Author: &models.AuthorDTO{
+			Username:          user.Username,
+			Nickname:          user.Nickname,
+			ProfilePictureUrl: user.ProfilePictureUrl,
+		},
 		CreationDate: post.CreatedAt,
 		Content:      post.Content,
 	}
