@@ -412,7 +412,7 @@ func TestCreatePostWithImageSuccess(t *testing.T) {
 		assert.Equal(t, user.Username, capturedPost.Username)
 		assert.NotNil(t, capturedPost.CreatedAt)
 		assert.True(t, capturedPost.CreatedAt.Equal(responsePost.CreationDate))
-		assert.Equal(t, "api/images"+capturedFilename, capturedPost.ImageUrl)
+		assert.Equal(t, "/api/images"+capturedFilename, capturedPost.ImageUrl)
 		assert.Equal(t, capturedFile, []uint8(testImageContent))
 
 		mockPostRepository.AssertExpectations(t)

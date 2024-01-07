@@ -86,7 +86,7 @@ func (service *ImageService) SaveImage(fileHeader multipart.FileHeader) (string,
 		return "", customerrors.InternalServerError, http.StatusInternalServerError
 	}
 
-	imageUrl := "api/images/" + filename
+	imageUrl := os.Getenv("SERVER_URL") + "/api/images/" + filename
 	return imageUrl, nil, http.StatusOK
 }
 
