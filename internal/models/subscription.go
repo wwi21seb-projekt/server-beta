@@ -11,18 +11,18 @@ type Subscription struct {
 }
 
 type SubscriptionPostRequestDTO struct {
-	Content string `json:"content" binding:"required"`
+	Content string `json:"content" binding:"required"` // MARC: das attribut heißt hier nicht content
 }
 
 type SubscriptionDeleteRequestDTO struct {
-	Content string `json:"content" binding:"required"`
+	Content string `json:"content" binding:"required"` // MARC: es gibt kein subscription delete request body
 }
-type SubscriptionPostResponseDTO struct {
+type SubscriptionPostResponseDTO struct { // MARC: hier fehlt der Zeitstempel
 	SubscriptionId uuid.UUID `json:"postId"`
 	Follower       string    `json:"username"`
 	Following      string    `json:"following"`
 }
-type SubscriptionDeleteResponseDTO struct {
+type SubscriptionDeleteResponseDTO struct { // MARC: Auch den gibt und braucht es nicht
 	SubscriptionId uuid.UUID `json:"postId"`
 	Follower       string    `json:"username"`
 	Following      string    `json:"following"`

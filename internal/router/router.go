@@ -75,16 +75,9 @@ func SetupRouter() *gin.Engine {
 	// Post
 	api.POST("/posts", middleware.AuthorizeUser, postController.CreatePost)
 
-	//subscription
-	// ... bestehender Code ...
-
 	// Subscription
 	api.POST("/subscriptions", middleware.AuthorizeUser, subscriptionController.PostSubscription)
 	api.DELETE("/subscriptions/:subscriptionId", middleware.AuthorizeUser, subscriptionController.DeleteSubscription)
-
-	// ... bestehender Code ...
-
-	return r
 
 	return r
 }
