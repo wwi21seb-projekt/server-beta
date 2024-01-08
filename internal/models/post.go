@@ -31,3 +31,6 @@ type AuthorDTO struct { // to be used in post response dto
 	Nickname          string `json:"nickname"`
 	ProfilePictureUrl string `json:"profilePictureUrl"`
 }
+
+type PostFeedDTO struct {
+}
