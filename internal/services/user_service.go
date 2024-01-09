@@ -19,6 +19,8 @@ type UserServiceInterface interface {
 	LoginUser(req models.UserLoginRequestDTO) (*models.UserLoginResponseDTO, *customerrors.CustomError, int)
 	ActivateUser(username string, token string) (*customerrors.CustomError, int)
 	ResendActivationToken(username string) (*customerrors.CustomError, int)
+	UpdateUserNicknameAndStatus(req *models.UserUpdateResponseDTO, username string) (*UserUpdateResponseDTO, *customerrors.CustomError, int)
+	GetUserProfile(username string) (*models.UserProfileResponseDTO, *customerrors.CustomError, int)
 }
 
 type UserService struct {
@@ -60,6 +62,9 @@ func (service *UserService) CreateUser(req models.UserCreateRequestDTO) (*models
 		return nil, customerrors.BadRequest, http.StatusBadRequest
 	}
 	if !service.validator.ValidateNickname(req.Nickname) {
+		return nil, customerrors.BadRequest, http.StatusBadRequest
+	}
+	if !service.validator.ValidateStatus(req.Status) {
 		return nil, customerrors.BadRequest, http.StatusBadRequest
 	}
 	if !service.validator.ValidateEmailSyntax(req.Email) {
@@ -115,6 +120,7 @@ func (service *UserService) CreateUser(req models.UserCreateRequestDTO) (*models
 		PasswordHash:      passwordHashed,
 		CreatedAt:         time.Now(),
 		Activated:         false,
+		Status:            "", //status is empty in the beginning?
 	}
 
 	// Create new code
@@ -326,4 +332,101 @@ func (service *UserService) ResendActivationToken(username string) (*customerror
 
 	return nil, http.StatusNoContent
 
+}
+
+type UserUpdateResponseDTO struct {
+	Nickname string
+	Status   string
+}
+
+func (service *UserService) UpdateUserNicknameAndStatus(req *models.UserUpdateResponseDTO, username string) (*UserUpdateResponseDTO, *customerrors.CustomError, int) {
+	// Find the user by username
+	user, err := service.userRepo.FindUserByUsername(username)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, customerrors.UserNotFound, http.StatusNotFound
+		}
+		return nil, customerrors.InternalServerError, http.StatusInternalServerError
+	}
+
+	// Check if the new nickname and status are valid
+	if !service.validator.ValidateNickname(req.Nickname) || !service.validator.ValidateStatus(req.Status) {
+		return nil, customerrors.BadRequest, http.StatusBadRequest
+	}
+
+	// Update the user's nickname and status
+	user.Nickname = req.Nickname
+	user.Status = req.Status
+	err = service.userRepo.UpdateUser(user)
+	if err != nil {
+		return nil, customerrors.DatabaseError, http.StatusInternalServerError
+	}
+
+	// Create and return the response DTO
+	responseDTO := UserUpdateResponseDTO{
+		Nickname: user.Nickname,
+		Status:   user.Status,
+	}
+
+	return &responseDTO, nil, http.StatusOK
+}
+
+func (service *UserService) ChangeUserPassword(username, oldPassword, newPassword string) (*customerrors.CustomError, int) {
+	// Find the user by username
+	user, err := service.userRepo.FindUserByUsername(username)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return customerrors.UserNotFound, http.StatusNotFound
+		}
+		return customerrors.InternalServerError, http.StatusInternalServerError
+	}
+
+	// Verify the old password
+	if !utils.CheckPassword(oldPassword, user.PasswordHash) {
+		return customerrors.InvalidCredentials, http.StatusUnauthorized
+	}
+
+	// Validate the new password
+	if !service.validator.ValidatePassword(newPassword) {
+		return customerrors.BadRequest, http.StatusBadRequest
+	}
+
+	// Hash the new password
+	newPasswordHashed, err := utils.HashPassword(newPassword)
+	if err != nil {
+		return customerrors.InternalServerError, http.StatusInternalServerError
+	}
+
+	// Update the user's password
+	user.PasswordHash = newPasswordHashed
+	if err := service.userRepo.UpdateUser(user); err != nil {
+		return customerrors.DatabaseError, http.StatusInternalServerError
+	}
+
+	return nil, http.StatusOK
+}
+
+// GetUserProfile returns information about the user
+func (service *UserService) GetUserProfile(username string) (*models.UserProfileResponseDTO, *customerrors.CustomError, int) {
+	// find user
+	user, err := service.userRepo.FindUserByUsername(username)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, customerrors.UserNotFound, http.StatusNotFound
+		}
+		return nil, customerrors.InternalServerError, http.StatusInternalServerError
+	}
+
+	userProfile := &models.UserProfileResponseDTO{
+		Username:          user.Username,
+		Nickname:          user.Nickname,
+		Status:            user.Status,
+		ProfilePictureUrl: user.ProfilePictureUrl,
+		Follower:          10,  // example
+		Following:         100, // example
+		Posts:             412, // example
+		SubscriptionId:    "",  // example
+	}
+
+	return userProfile, nil, http.StatusOK
 }

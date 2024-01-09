@@ -14,6 +14,7 @@ type UserControllerInterface interface {
 	ActivateUser(c *gin.Context)
 	ResendActivationToken(c *gin.Context)
 	ValidateLogin(c *gin.Context)
+	UpdateNicknameAndStatus(c *gin.Context)
 }
 
 type UserController struct {
@@ -144,4 +145,30 @@ func (controller *UserController) ValidateLogin(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"username": username,
 	})
+}
+
+func (controller *UserController) UpdateNicknameAndStatus(c *gin.Context) {
+	// Extract the username from the context
+	username, exists := c.Get("username")
+	if !exists {
+		// Username is not found
+		c.JSON(http.StatusUnauthorized, customerrors.PreliminaryUserUnauthorized)
+		return
+	}
+
+	// Bind the JSON request body to the struct
+	var userUpdateResponseDTO models.UserUpdateResponseDTO
+	if err := c.BindJSON(userUpdateResponseDTO); err != nil {
+		c.JSON(http.StatusBadRequest, customerrors.BadRequest)
+		return
+	}
+
+	responseDTO, customErr, status := controller.userService.UpdateUserNicknameAndStatus(&userUpdateResponseDTO, username.(string))
+	if customErr != nil {
+		// If there is an error from the service, return it
+		c.JSON(status, customErr)
+		return
+	}
+	// If the update is successful, return the updated nickname and status
+	c.JSON(http.StatusOK, responseDTO)
 }

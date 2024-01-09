@@ -73,4 +73,4 @@ func SetupRouter() *gin.Engine {
 	api.POST("/posts", middleware.AuthorizeUser, postController.CreatePost)
 
 	return r
-}
+} //füg hinzu LINA
