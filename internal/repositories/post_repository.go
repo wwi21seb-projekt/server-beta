@@ -9,6 +9,7 @@ type PostRepositoryInterface interface {
 	CreatePost(post *models.Post) error
 	GetPostById(postId string) (models.Post, error)
 	GetPostsGlobalFeed(lastPost *models.Post, limit int) ([]models.Post, error)
+	GetPostsPersonalFeed(username string, lastPost *models.Post, limit int) ([]models.Post, error)
 }
 
 type PostRepository struct {
@@ -32,7 +33,25 @@ func (repo *PostRepository) GetPostById(postId string) (models.Post, error) {
 
 func (repo *PostRepository) GetPostsGlobalFeed(lastPost *models.Post, limit int) ([]models.Post, error) {
 	var posts []models.Post
+	if lastPost == nil {
+		err := repo.DB.Order("created_at desc, id desc").Limit(limit).Find(&posts).Error
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		err := repo.DB.Where("(created_at < ?) OR (created_at = ? AND id < ?)", lastPost.CreatedAt, lastPost.CreatedAt, lastPost.Id).
+			Order("created_at desc, id desc").Limit(limit).Find(&posts).Error
+		if err != nil {
+			return nil, err
+		}
+	}
 
+	return posts, nil
+}
+
+func (repo *PostRepository) GetPostsPersonalFeed(username string, lastPost *models.Post, limit int) ([]models.Post, error) {
+	var posts []models.Post
+	// TODO: change to use subscription based on username
 	if lastPost == nil {
 		err := repo.DB.Order("created_at desc, id desc").Limit(limit).Find(&posts).Error
 		if err != nil {

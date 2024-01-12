@@ -78,7 +78,6 @@ func (controller *PostController) GetPostFeed(c *gin.Context) {
 
 	// If feed type is set to global, get Global PostFeed
 	if feedType == "global" {
-		// Get Global PostFeed
 		postFeed, serviceErr, httpStatus := controller.postService.GetPostsGlobalFeed(lastPostId, limit)
 		if serviceErr != nil {
 			c.JSON(httpStatus, gin.H{
@@ -86,7 +85,6 @@ func (controller *PostController) GetPostFeed(c *gin.Context) {
 			})
 			return
 		}
-
 		c.JSON(http.StatusOK, postFeed)
 	}
 
@@ -98,5 +96,12 @@ func (controller *PostController) GetPostFeed(c *gin.Context) {
 	}
 
 	// Else: if user is logged in and feed type is set to personal, get Personal PostFeed
-	// TODO: add personal feed
+	postFeed, serviceErr, httpStatus := controller.postService.GetPostsPersonalFeed(lastPostId, limit)
+	if serviceErr != nil {
+		c.JSON(httpStatus, gin.H{
+			"error": serviceErr,
+		})
+		return
+	}
+	c.JSON(http.StatusOK, postFeed)
 }

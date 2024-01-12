@@ -23,3 +23,8 @@ func (m *MockPostRepository) GetPostsGlobalFeed(lastPost *models.Post, limit int
 	args := m.Called(lastPost, limit)
 	return args.Get(0).([]models.Post), args.Error(1)
 }
+
+func (m *MockPostRepository) GetPostsPersonalFeed(username string, lastPost *models.Post, limit int) ([]models.Post, error) {
+	args := m.Called(username, lastPost, limit)
+	return args.Get(0).([]models.Post), args.Error(1)
+}
