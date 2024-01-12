@@ -15,6 +15,7 @@ import (
 
 type PostServiceInterface interface {
 	CreatePost(req *models.PostCreateRequestDTO, username string) (*models.PostCreateResponseDTO, *customerrors.CustomError, int)
+	GetPostFeed(lastPostId uuid.UUID, limit int) (*models.PostFeed, *customerrors.CustomError, int)
 }
 
 type PostService struct {
@@ -90,4 +91,43 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, usernam
 	}
 
 	return &postDto, nil, http.StatusCreated
+}
+
+func (service *PostService) GetPostFeed(lastPostId uuid.UUID, limit int) (*models.PostFeed, *customerrors.CustomError, int) {
+	// Initialise empty PostFeed
+	feed := models.PostFeed{
+		Records:    []models.PostCreateResponseDTO{},
+		Pagination: &models.PaginationDTO{},
+	}
+
+	// Retrieve posts from the database
+	posts, err := service.postRepo.GetPosts(lastPostId, limit)
+	if err != nil {
+		return nil, customerrors.InternalServerError, http.StatusInternalServerError
+	}
+
+	// Fill PostFeed with posts
+	for _, post := range posts {
+		authorDto := models.AuthorDTO{
+			Username:          post.User.Username,
+			Nickname:          post.User.Nickname,
+			ProfilePictureUrl: post.User.ProfilePictureUrl,
+		}
+		postDto := models.PostCreateResponseDTO{
+			PostId:       post.Id,
+			Author:       &authorDto,
+			CreationDate: post.CreatedAt,
+			Content:      post.Content,
+		}
+		feed.Records = append(feed.Records, postDto)
+	}
+
+	// Set pagination details
+	if len(posts) > 0 {
+		feed.Pagination.LastPostId = posts[len(posts)-1].Id
+	}
+	feed.Pagination.Limit = limit
+	feed.Pagination.Records = len(posts)
+
+	return &feed, nil, http.StatusOK
 }

@@ -2,14 +2,17 @@ package controllers
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/marcbudd/server-beta/internal/customerrors"
 	"github.com/marcbudd/server-beta/internal/models"
 	"github.com/marcbudd/server-beta/internal/services"
 	"net/http"
+	"strconv"
 )
 
 type PostControllerInterface interface {
 	CreatePost(c *gin.Context)
+	GetPostFeed(c *gin.Context)
 }
 
 type PostController struct {
@@ -50,4 +53,45 @@ func (controller *PostController) CreatePost(c *gin.Context) {
 	}
 
 	c.JSON(httpStatus, postDto)
+}
+
+func (controller *PostController) GetPostFeed(c *gin.Context) {
+	// Read query parameters for lastPostId and limit
+	lastPostIdStr := c.DefaultQuery("lastPostId", "")
+	limitStr := c.DefaultQuery("limit", "0")
+
+	var lastPostId uuid.UUID
+	var limit int
+	var err error
+
+	// Convert lastPostId from String to UUID
+	if lastPostIdStr != "" {
+		lastPostId, err = uuid.Parse(lastPostIdStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "Invalid lastPostId format",
+			})
+			return
+		}
+	}
+
+	// convert limit from string to int value
+	limit, err = strconv.Atoi(limitStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid limit format",
+		})
+		return
+	}
+
+	// get the PostFeed
+	postFeed, serviceErr, httpStatus := controller.postService.GetPostFeed(lastPostId, limit)
+	if serviceErr != nil {
+		c.JSON(httpStatus, gin.H{
+			"error": serviceErr.Message,
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, postFeed)
 }
