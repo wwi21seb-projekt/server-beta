@@ -15,6 +15,7 @@ import (
 
 type PostServiceInterface interface {
 	CreatePost(req *models.PostCreateRequestDTO, username string) (*models.PostCreateResponseDTO, *customerrors.CustomError, int)
+	FindPostsByUser(username string, offset, limit int) ([]models.Post, error)
 }
 
 type PostService struct {
@@ -90,4 +91,13 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, usernam
 	}
 
 	return &postDto, nil, http.StatusCreated
+}
+
+func (service *PostService) FindPostsByUser(username string, offset, limit int) ([]models.Post, error) {
+	posts, err := service.postRepo.FindPostsByUser(username, offset, limit)
+	if err != nil {
+		return nil, err
+	}
+
+	return posts, nil
 }

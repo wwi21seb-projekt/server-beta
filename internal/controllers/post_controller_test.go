@@ -216,3 +216,63 @@ func TestCreatePostUnauthorized(t *testing.T) {
 		assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 	}
 }
+
+// TestGetPostsByUserSuccess tests if the FindPostsByUser function returns a list of posts and 200 ok if the user exists
+func TestFindPostsByUserSuccess(t *testing.T) {
+	// Arrange
+	mockUserRepository := new(repositories.MockUserRepository)
+	mockPostRepository := new(repositories.MockPostRepository)
+	mockHashtagRepository := new(repositories.MockHashtagRepository)
+
+	postService := services.NewPostService(
+		mockPostRepository,
+		mockUserRepository,
+		mockHashtagRepository,
+	)
+	postController := controllers.NewPostController(postService)
+
+	user := models.User{
+		Username: "testUser",
+		Nickname: "testNickname",
+		Email:    "test@example.com",
+	}
+
+	posts := []models.Post{
+		{
+			Id:        uuid.New(),
+			Username:  user.Username,
+			Content:   "Test Post 1",
+			CreatedAt: time.Now(),
+		},
+		{
+			Id:        uuid.New(),
+			Username:  user.Username,
+			Content:   "Test Post 2",
+			CreatedAt: time.Now().Add(-1 * time.Hour),
+		},
+	}
+
+	// Mock expectations
+	mockPostRepository.On("FindPostsByUser", user.Username, 0, 10).Return(posts, nil)
+
+	// Setup HTTP request
+	req, _ := http.NewRequest("GET", "/api/users/"+user.Username+"/posts?offset=0&limit=10", nil)
+	w := httptest.NewRecorder()
+
+	// Act
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+	router.GET("/users/:username/posts", postController.FindPostsByUser)
+	router.ServeHTTP(w, req)
+
+	// Assert
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var responsePosts []models.Post
+	err := json.Unmarshal(w.Body.Bytes(), &responsePosts)
+	assert.NoError(t, err)
+	assert.Equal(t, len(posts), len(responsePosts))
+
+	// Validate Mock Expectations
+	mockPostRepository.AssertExpectations(t)
+}

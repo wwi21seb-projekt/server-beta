@@ -6,10 +6,12 @@ import (
 	"github.com/marcbudd/server-beta/internal/models"
 	"github.com/marcbudd/server-beta/internal/services"
 	"net/http"
+	"strconv"
 )
 
 type PostControllerInterface interface {
 	CreatePost(c *gin.Context)
+	FindPostsByUser(c *gin.Context)
 }
 
 type PostController struct {
@@ -50,4 +52,30 @@ func (controller *PostController) CreatePost(c *gin.Context) {
 	}
 
 	c.JSON(httpStatus, postDto)
+}
+
+func (controller *PostController) FindPostsByUser(c *gin.Context) {
+	username := c.Param("username")
+	offsetQuery := c.DefaultQuery("offset", "0")
+	limitQuery := c.DefaultQuery("limit", "10")
+
+	offset, err := strconv.Atoi(offsetQuery)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid offset"})
+		return
+	}
+
+	limit, err := strconv.Atoi(limitQuery)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid limit"})
+		return
+	}
+
+	posts, err := controller.postService.FindPostsByUser(username, offset, limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, posts)
 }
