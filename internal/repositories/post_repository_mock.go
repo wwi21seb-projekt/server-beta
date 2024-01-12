@@ -19,9 +19,19 @@ func (m *MockPostRepository) GetPostById(postId string) (models.Post, error) {
 	return args.Get(0).(models.Post), args.Error(1)
 }
 
+func (m *MockPostRepository) GetPostsGlobalFeedCount() (int64, error) {
+	args := m.Called()
+	return args.Get(0).(int64), args.Error(1)
+}
+
 func (m *MockPostRepository) GetPostsGlobalFeed(lastPost *models.Post, limit int) ([]models.Post, error) {
 	args := m.Called(lastPost, limit)
 	return args.Get(0).([]models.Post), args.Error(1)
+}
+
+func (m *MockPostRepository) GetPostsPersonalFeedCount(username string) (int64, error) {
+	args := m.Called(username)
+	return args.Get(0).(int64), args.Error(1)
 }
 
 func (m *MockPostRepository) GetPostsPersonalFeed(username string, lastPost *models.Post, limit int) ([]models.Post, error) {

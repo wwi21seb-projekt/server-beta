@@ -6,14 +6,19 @@ import (
 
 // ExtractHashtags extracts all hashtags from a given text and returns them as a slice of strings
 func ExtractHashtags(text string) []string {
-	// Regex für Hashtags: beings with # and can contain letters, numbers and underscores
 	re := regexp.MustCompile(`#\w+`)
 	matches := re.FindAllString(text, -1)
 
-	var hashtags []string
+	hashtagsMap := make(map[string]bool) // use map first to remove duplicates
 	for _, match := range matches {
-		// Remove "#" from string
-		hashtags = append(hashtags, match[1:])
+		// Remove "#" from string and add to map
+		hashtagsMap[match[1:]] = true
+	}
+
+	// Convert map keys to slice
+	var hashtags []string
+	for hashtag := range hashtagsMap {
+		hashtags = append(hashtags, hashtag)
 	}
 
 	return hashtags

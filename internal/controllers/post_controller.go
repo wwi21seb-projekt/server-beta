@@ -55,11 +55,19 @@ func (controller *PostController) CreatePost(c *gin.Context) {
 	c.JSON(httpStatus, postDto)
 }
 
+// GetPostFeed is a controller function that gets a global or personal post feed and can be called from router
 func (controller *PostController) GetPostFeed(c *gin.Context) {
 	// Read query parameters for lastPostId and limit
-	lastPostId := c.DefaultQuery("lastPostId", "")
+	lastPostId := c.DefaultQuery("postId", "")
 	limitStr := c.DefaultQuery("limit", "0")
 	feedType := c.DefaultQuery("feedType", "global")
+
+	if feedType != "global" && feedType != "personal" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": customerrors.BadRequest,
+		})
+		return
+	}
 
 	var limit int
 	var err error
@@ -73,8 +81,8 @@ func (controller *PostController) GetPostFeed(c *gin.Context) {
 		return
 	}
 
-	// Get username from request that was set in middleware
-	_, ok := middleware.GetLoggedInUsername(c)
+	// Get username from request using middleware function
+	username, ok := middleware.GetLoggedInUsername(c)
 
 	// If feed type is set to global, get Global PostFeed
 	if feedType == "global" {
@@ -86,6 +94,7 @@ func (controller *PostController) GetPostFeed(c *gin.Context) {
 			return
 		}
 		c.JSON(http.StatusOK, postFeed)
+		return
 	}
 
 	// If feed type is set to personal, but user is not logged in, return error
@@ -93,10 +102,11 @@ func (controller *PostController) GetPostFeed(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"error": customerrors.PreliminaryUserUnauthorized,
 		})
+		return
 	}
 
 	// Else: if user is logged in and feed type is set to personal, get Personal PostFeed
-	postFeed, serviceErr, httpStatus := controller.postService.GetPostsPersonalFeed(lastPostId, limit)
+	postFeed, serviceErr, httpStatus := controller.postService.GetPostsPersonalFeed(username, lastPostId, limit)
 	if serviceErr != nil {
 		c.JSON(httpStatus, gin.H{
 			"error": serviceErr,

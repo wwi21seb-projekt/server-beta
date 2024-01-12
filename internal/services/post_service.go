@@ -16,7 +16,7 @@ import (
 type PostServiceInterface interface {
 	CreatePost(req *models.PostCreateRequestDTO, username string) (*models.PostCreateResponseDTO, *customerrors.CustomError, int)
 	GetPostsGlobalFeed(lastPostId string, limit int) (*models.PostFeed, *customerrors.CustomError, int)
-	GetPostsPersonalFeed(lastPostId string, limit int) (*models.PostFeed, *customerrors.CustomError, int)
+	GetPostsPersonalFeed(username string, lastPostId string, limit int) (*models.PostFeed, *customerrors.CustomError, int)
 }
 
 type PostService struct {
@@ -32,6 +32,7 @@ func NewPostService(postRepo repositories.PostRepositoryInterface,
 	return &PostService{postRepo: postRepo, userRepo: userRepo, hashtagRepo: hashtagRepo}
 }
 
+// CreatePost creates a post and returns a PostCreateResponseDTO
 func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, username string) (*models.PostCreateResponseDTO, *customerrors.CustomError, int) {
 
 	// Validations: 0-256 characters and utf8 characters
@@ -110,7 +111,7 @@ func (service *PostService) GetPostsGlobalFeed(lastPostId string, limit int) (*m
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return nil, customerrors.PreliminaryPostNotFound, http.StatusNotFound
 			}
-			return nil, customerrors.InternalServerError, http.StatusInternalServerError
+			return nil, customerrors.DatabaseError, http.StatusInternalServerError
 		}
 		lastPost = post
 	}
@@ -118,7 +119,12 @@ func (service *PostService) GetPostsGlobalFeed(lastPostId string, limit int) (*m
 	// Retrieve posts from the database
 	posts, err := service.postRepo.GetPostsGlobalFeed(&lastPost, limit)
 	if err != nil {
-		return nil, customerrors.InternalServerError, http.StatusInternalServerError
+		return nil, customerrors.DatabaseError, http.StatusInternalServerError
+	}
+
+	totalPostsCount, err := service.postRepo.GetPostsGlobalFeedCount()
+	if err != nil {
+		return nil, customerrors.DatabaseError, http.StatusInternalServerError
 	}
 
 	// Fill PostFeed with posts
@@ -142,12 +148,13 @@ func (service *PostService) GetPostsGlobalFeed(lastPostId string, limit int) (*m
 		feed.Pagination.LastPostId = posts[len(posts)-1].Id
 	}
 	feed.Pagination.Limit = limit
-	feed.Pagination.Records = len(posts)
+	feed.Pagination.Records = totalPostsCount
 
 	return &feed, nil, http.StatusOK
 }
 
-func (service *PostService) GetPostsPersonalFeed(lastPostId string, limit int) (*models.PostFeed, *customerrors.CustomError, int) {
+// GetPostsPersonalFeed returns a pagination object with the posts in the personal feed using pagination parameters
+func (service *PostService) GetPostsPersonalFeed(username string, lastPostId string, limit int) (*models.PostFeed, *customerrors.CustomError, int) {
 	// Initialise empty PostFeed
 	feed := models.PostFeed{
 		Records:    []models.PostCreateResponseDTO{},
@@ -162,15 +169,20 @@ func (service *PostService) GetPostsPersonalFeed(lastPostId string, limit int) (
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return nil, customerrors.PreliminaryPostNotFound, http.StatusNotFound
 			}
-			return nil, customerrors.InternalServerError, http.StatusInternalServerError
+			return nil, customerrors.DatabaseError, http.StatusInternalServerError
 		}
 		lastPost = post
 	}
 
 	// Retrieve posts from the database
-	posts, err := service.postRepo.GetPostsGlobalFeed(&lastPost, limit) // TODO: Change to personal feed
+	posts, err := service.postRepo.GetPostsPersonalFeed(username, &lastPost, limit)
 	if err != nil {
-		return nil, customerrors.InternalServerError, http.StatusInternalServerError
+		return nil, customerrors.DatabaseError, http.StatusInternalServerError
+	}
+
+	totalPostsCount, err := service.postRepo.GetPostsPersonalFeedCount(username)
+	if err != nil {
+		return nil, customerrors.DatabaseError, http.StatusInternalServerError
 	}
 
 	// Fill PostFeed with posts
@@ -194,7 +206,7 @@ func (service *PostService) GetPostsPersonalFeed(lastPostId string, limit int) (
 		feed.Pagination.LastPostId = posts[len(posts)-1].Id
 	}
 	feed.Pagination.Limit = limit
-	feed.Pagination.Records = len(posts)
+	feed.Pagination.Records = totalPostsCount
 
 	return &feed, nil, http.StatusOK
 }

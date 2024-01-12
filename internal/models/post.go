@@ -40,5 +40,5 @@ type PostFeed struct { // to be used for response to feed request
 type PaginationDTO struct {
 	LastPostId uuid.UUID `json:"lastPostId"`
 	Limit      int       `json:"limit"`
-	Records    int       `json:"records"`
+	Records    int64     `json:"records"`
 }

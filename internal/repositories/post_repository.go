@@ -8,7 +8,9 @@ import (
 type PostRepositoryInterface interface {
 	CreatePost(post *models.Post) error
 	GetPostById(postId string) (models.Post, error)
+	GetPostsGlobalFeedCount() (int64, error)
 	GetPostsGlobalFeed(lastPost *models.Post, limit int) ([]models.Post, error)
+	GetPostsPersonalFeedCount(username string) (int64, error)
 	GetPostsPersonalFeed(username string, lastPost *models.Post, limit int) ([]models.Post, error)
 }
 
@@ -31,6 +33,12 @@ func (repo *PostRepository) GetPostById(postId string) (models.Post, error) {
 	return post, err
 }
 
+func (repo *PostRepository) GetPostsGlobalFeedCount() (int64, error) {
+	var count int64
+	err := repo.DB.Model(&models.Post{}).Count(&count).Error
+	return count, err
+}
+
 func (repo *PostRepository) GetPostsGlobalFeed(lastPost *models.Post, limit int) ([]models.Post, error) {
 	var posts []models.Post
 	if lastPost == nil {
@@ -47,6 +55,12 @@ func (repo *PostRepository) GetPostsGlobalFeed(lastPost *models.Post, limit int)
 	}
 
 	return posts, nil
+}
+
+func (repo *PostRepository) GetPostsPersonalFeedCount(username string) (int64, error) {
+	var count int64
+	err := repo.DB.Model(&models.Post{}).Count(&count).Error // TODO: change to use subscription based on username
+	return count, err
 }
 
 func (repo *PostRepository) GetPostsPersonalFeed(username string, lastPost *models.Post, limit int) ([]models.Post, error) {
