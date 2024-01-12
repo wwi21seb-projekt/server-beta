@@ -3,6 +3,7 @@ package controllers
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/marcbudd/server-beta/internal/customerrors"
+	"github.com/marcbudd/server-beta/internal/middleware"
 	"github.com/marcbudd/server-beta/internal/models"
 	"github.com/marcbudd/server-beta/internal/services"
 	"net/http"
@@ -58,6 +59,7 @@ func (controller *PostController) GetPostFeed(c *gin.Context) {
 	// Read query parameters for lastPostId and limit
 	lastPostId := c.DefaultQuery("lastPostId", "")
 	limitStr := c.DefaultQuery("limit", "0")
+	feedType := c.DefaultQuery("feedType", "global")
 
 	var limit int
 	var err error
@@ -71,14 +73,30 @@ func (controller *PostController) GetPostFeed(c *gin.Context) {
 		return
 	}
 
-	// get the PostFeed
-	postFeed, serviceErr, httpStatus := controller.postService.GetPostsGlobalFeed(lastPostId, limit)
-	if serviceErr != nil {
-		c.JSON(httpStatus, gin.H{
-			"error": serviceErr.Message,
-		})
-		return
+	// Get username from request that was set in middleware
+	_, ok := middleware.GetLoggedInUsername(c)
+
+	// If feed type is set to global, get Global PostFeed
+	if feedType == "global" {
+		// Get Global PostFeed
+		postFeed, serviceErr, httpStatus := controller.postService.GetPostsGlobalFeed(lastPostId, limit)
+		if serviceErr != nil {
+			c.JSON(httpStatus, gin.H{
+				"error": serviceErr,
+			})
+			return
+		}
+
+		c.JSON(http.StatusOK, postFeed)
 	}
 
-	c.JSON(http.StatusOK, postFeed)
+	// If feed type is set to personal, but user is not logged in, return error
+	if feedType == "personal" && !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": customerrors.PreliminaryUserUnauthorized,
+		})
+	}
+
+	// Else: if user is logged in and feed type is set to personal, get Personal PostFeed
+	// TODO: add personal feed
 }

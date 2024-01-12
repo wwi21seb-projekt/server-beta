@@ -71,7 +71,7 @@ func SetupRouter() *gin.Engine {
 
 	// Post
 	api.POST("/posts", middleware.AuthorizeUser, postController.CreatePost)
-	api.GET("/feed", middleware.AuthorizeUser, postController.GetPostFeed)
+	api.GET("/feed", postController.GetPostFeed)
 
 	return r
 }
