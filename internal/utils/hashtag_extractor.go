@@ -9,16 +9,18 @@ func ExtractHashtags(text string) []string {
 	re := regexp.MustCompile(`#\w+`)
 	matches := re.FindAllString(text, -1)
 
-	hashtagsMap := make(map[string]bool) // use map first to remove duplicates
-	for _, match := range matches {
-		// Remove "#" from string and add to map
-		hashtagsMap[match[1:]] = true
-	}
-
-	// Convert map keys to slice
+	hashtagsMap := make(map[string]bool)
 	var hashtags []string
-	for hashtag := range hashtagsMap {
-		hashtags = append(hashtags, hashtag)
+
+	for _, match := range matches {
+		// Remove "#" from string
+		hashtag := match[1:]
+
+		// Add to slice if not exist in map
+		if !hashtagsMap[hashtag] {
+			hashtagsMap[hashtag] = true
+			hashtags = append(hashtags, hashtag)
+		}
 	}
 
 	return hashtags
