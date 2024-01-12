@@ -1,14 +1,14 @@
 package repositories
 
 import (
-	"github.com/google/uuid"
 	"github.com/marcbudd/server-beta/internal/models"
 	"gorm.io/gorm"
 )
 
 type PostRepositoryInterface interface {
 	CreatePost(post *models.Post) error
-	GetPosts(lastPostId uuid.UUID, limit int) ([]models.Post, error)
+	GetPostById(postId string) (models.Post, error)
+	GetPostsGlobalFeed(lastPost *models.Post, limit int) ([]models.Post, error)
 }
 
 type PostRepository struct {
@@ -24,16 +24,23 @@ func (repo *PostRepository) CreatePost(post *models.Post) error {
 	return repo.DB.Create(&post).Error
 }
 
-func (repo *PostRepository) GetPosts(lastPostId uuid.UUID, limit int) ([]models.Post, error) {
+func (repo *PostRepository) GetPostById(postId string) (models.Post, error) {
+	var post models.Post
+	err := repo.DB.Where("id = ?", postId).First(&post).Error
+	return post, err
+}
+
+func (repo *PostRepository) GetPostsGlobalFeed(lastPost *models.Post, limit int) ([]models.Post, error) {
 	var posts []models.Post
 
-	if lastPostId == uuid.Nil {
-		err := repo.DB.Order("created_at desc").Limit(limit).Find(&posts).Error
+	if lastPost == nil {
+		err := repo.DB.Order("created_at desc, id desc").Limit(limit).Find(&posts).Error
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		err := repo.DB.Where("id > ?", lastPostId).Order("created_at desc").Limit(limit).Find(&posts).Error
+		err := repo.DB.Where("(created_at < ?) OR (created_at = ? AND id < ?)", lastPost.CreatedAt, lastPost.CreatedAt, lastPost.Id).
+			Order("created_at desc, id desc").Limit(limit).Find(&posts).Error
 		if err != nil {
 			return nil, err
 		}

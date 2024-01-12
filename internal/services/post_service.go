@@ -15,7 +15,7 @@ import (
 
 type PostServiceInterface interface {
 	CreatePost(req *models.PostCreateRequestDTO, username string) (*models.PostCreateResponseDTO, *customerrors.CustomError, int)
-	GetPostFeed(lastPostId uuid.UUID, limit int) (*models.PostFeed, *customerrors.CustomError, int)
+	GetPostsGlobalFeed(lastPostId string, limit int) (*models.PostFeed, *customerrors.CustomError, int)
 }
 
 type PostService struct {
@@ -93,15 +93,28 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, usernam
 	return &postDto, nil, http.StatusCreated
 }
 
-func (service *PostService) GetPostFeed(lastPostId uuid.UUID, limit int) (*models.PostFeed, *customerrors.CustomError, int) {
+func (service *PostService) GetPostsGlobalFeed(lastPostId string, limit int) (*models.PostFeed, *customerrors.CustomError, int) {
 	// Initialise empty PostFeed
 	feed := models.PostFeed{
 		Records:    []models.PostCreateResponseDTO{},
 		Pagination: &models.PaginationDTO{},
 	}
 
+	// Get last post if lastPostId is not empty
+	var lastPost models.Post
+	if lastPostId != "" {
+		post, err := service.postRepo.GetPostById(lastPostId)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, customerrors.PreliminaryPostNotFound, http.StatusNotFound
+			}
+			return nil, customerrors.InternalServerError, http.StatusInternalServerError
+		}
+		lastPost = post
+	}
+
 	// Retrieve posts from the database
-	posts, err := service.postRepo.GetPosts(lastPostId, limit)
+	posts, err := service.postRepo.GetPostsGlobalFeed(&lastPost, limit)
 	if err != nil {
 		return nil, customerrors.InternalServerError, http.StatusInternalServerError
 	}
