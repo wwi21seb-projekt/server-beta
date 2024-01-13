@@ -15,8 +15,8 @@ import (
 
 type PostServiceInterface interface {
 	CreatePost(req *models.PostCreateRequestDTO, username string) (*models.PostCreateResponseDTO, *customerrors.CustomError, int)
-	GetPostsGlobalFeed(lastPostId string, limit int) (*models.PostFeed, *customerrors.CustomError, int)
-	GetPostsPersonalFeed(username string, lastPostId string, limit int) (*models.PostFeed, *customerrors.CustomError, int)
+	GetPostsGlobalFeed(lastPostId string, limit int) (*models.GeneralFeedDTO, *customerrors.CustomError, int)
+	GetPostsPersonalFeed(username string, lastPostId string, limit int) (*models.GeneralFeedDTO, *customerrors.CustomError, int)
 }
 
 type PostService struct {
@@ -96,11 +96,11 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, usernam
 }
 
 // GetPostsGlobalFeed returns a pagination object with the posts in the global feed using pagination parameters
-func (service *PostService) GetPostsGlobalFeed(lastPostId string, limit int) (*models.PostFeed, *customerrors.CustomError, int) {
-	// Initialise empty PostFeed
-	feed := models.PostFeed{
+func (service *PostService) GetPostsGlobalFeed(lastPostId string, limit int) (*models.GeneralFeedDTO, *customerrors.CustomError, int) {
+	// Initialise empty GeneralFeedDTO
+	feed := models.GeneralFeedDTO{
 		Records:    []models.PostCreateResponseDTO{},
-		Pagination: &models.PaginationDTO{},
+		Pagination: &models.GeneralFeedPaginationDTO{},
 	}
 
 	// Get last post if lastPostId is not empty
@@ -127,7 +127,7 @@ func (service *PostService) GetPostsGlobalFeed(lastPostId string, limit int) (*m
 		return nil, customerrors.DatabaseError, http.StatusInternalServerError
 	}
 
-	// Fill PostFeed with posts
+	// Fill GeneralFeedDTO with posts
 	for _, post := range posts {
 		authorDto := models.AuthorDTO{
 			Username:          post.User.Username,
@@ -154,11 +154,11 @@ func (service *PostService) GetPostsGlobalFeed(lastPostId string, limit int) (*m
 }
 
 // GetPostsPersonalFeed returns a pagination object with the posts in the personal feed using pagination parameters
-func (service *PostService) GetPostsPersonalFeed(username string, lastPostId string, limit int) (*models.PostFeed, *customerrors.CustomError, int) {
-	// Initialise empty PostFeed
-	feed := models.PostFeed{
+func (service *PostService) GetPostsPersonalFeed(username string, lastPostId string, limit int) (*models.GeneralFeedDTO, *customerrors.CustomError, int) {
+	// Initialise empty GeneralFeedDTO
+	feed := models.GeneralFeedDTO{
 		Records:    []models.PostCreateResponseDTO{},
-		Pagination: &models.PaginationDTO{},
+		Pagination: &models.GeneralFeedPaginationDTO{},
 	}
 
 	// Get last post if lastPostId is not empty
@@ -185,7 +185,7 @@ func (service *PostService) GetPostsPersonalFeed(username string, lastPostId str
 		return nil, customerrors.DatabaseError, http.StatusInternalServerError
 	}
 
-	// Fill PostFeed with posts
+	// Fill GeneralFeedDTO with posts
 	for _, post := range posts {
 		authorDto := models.AuthorDTO{
 			Username:          post.User.Username,

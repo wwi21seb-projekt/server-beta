@@ -32,12 +32,12 @@ type AuthorDTO struct { // to be used in post response dto
 	ProfilePictureUrl string `json:"profilePictureUrl"`
 }
 
-type PostFeed struct { // to be used for response to feed request
-	Records    []PostCreateResponseDTO `json:"records"`
-	Pagination *PaginationDTO          `json:"pagination"`
+type GeneralFeedDTO struct { // to be used for response to feed request
+	Records    []PostCreateResponseDTO   `json:"records"`
+	Pagination *GeneralFeedPaginationDTO `json:"pagination"`
 }
 
-type PaginationDTO struct {
+type GeneralFeedPaginationDTO struct {
 	LastPostId uuid.UUID `json:"lastPostId"`
 	Limit      int       `json:"limit"`
 	Records    int64     `json:"records"`

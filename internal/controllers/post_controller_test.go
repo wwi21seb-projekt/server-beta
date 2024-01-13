@@ -309,7 +309,7 @@ func TestGetGlobalPostFeedSuccess(t *testing.T) {
 
 		// Assert
 		assert.Equal(t, http.StatusOK, w.Code) // Expect 200 ok
-		var responsePostFeed models.PostFeed
+		var responsePostFeed models.GeneralFeedDTO
 		err := json.Unmarshal(w.Body.Bytes(), &responsePostFeed)
 		assert.NoError(t, err)
 
@@ -502,7 +502,7 @@ func TestGetPersonalPostFeedSuccess(t *testing.T) {
 
 	// Assert
 	assert.Equal(t, http.StatusOK, w.Code) // Expect 200 ok
-	var responsePostFeed models.PostFeed
+	var responsePostFeed models.GeneralFeedDTO
 	err = json.Unmarshal(w.Body.Bytes(), &responsePostFeed)
 	assert.NoError(t, err)
 

@@ -84,7 +84,7 @@ func (controller *PostController) GetPostFeed(c *gin.Context) {
 	// Get username from request using middleware function
 	username, ok := middleware.GetLoggedInUsername(c)
 
-	// If feed type is set to global, get Global PostFeed
+	// If feed type is set to global, get Global GeneralFeedDTO
 	if feedType == "global" {
 		postFeed, serviceErr, httpStatus := controller.postService.GetPostsGlobalFeed(lastPostId, limit)
 		if serviceErr != nil {
@@ -105,7 +105,7 @@ func (controller *PostController) GetPostFeed(c *gin.Context) {
 		return
 	}
 
-	// Else: if user is logged in and feed type is set to personal, get Personal PostFeed
+	// Else: if user is logged in and feed type is set to personal, get Personal GeneralFeedDTO
 	postFeed, serviceErr, httpStatus := controller.postService.GetPostsPersonalFeed(username, lastPostId, limit)
 	if serviceErr != nil {
 		c.JSON(httpStatus, gin.H{
