@@ -61,21 +61,27 @@ func (controller *PostController) FindPostsByUser(c *gin.Context) {
 
 	offset, err := strconv.Atoi(offsetQuery)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid offset"})
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": customerrors.BadRequest,
+		})
 		return
 	}
 
 	limit, err := strconv.Atoi(limitQuery)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid limit"})
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": customerrors.BadRequest,
+		})
 		return
 	}
 
-	posts, err := controller.postService.FindPostsByUser(username, offset, limit)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	feedDto, serviceErr, httpStatus := controller.postService.FindPostsByUser(username, offset, limit)
+	if serviceErr != nil {
+		c.JSON(httpStatus, gin.H{
+			"error": serviceErr,
+		})
 		return
 	}
 
-	c.JSON(http.StatusOK, posts)
+	c.JSON(httpStatus, feedDto)
 }

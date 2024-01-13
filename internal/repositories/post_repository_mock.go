@@ -14,6 +14,11 @@ func (m *MockPostRepository) CreatePost(post *models.Post) error {
 	return args.Error(0)
 }
 
+func (m *MockPostRepository) FindPostsByUserCount(username string) (int64, error) {
+	args := m.Called(username)
+	return args.Get(0).(int64), args.Error(1)
+}
+
 func (m *MockPostRepository) FindPostsByUser(username string, offset, limit int) ([]models.Post, error) {
 	args := m.Called(username, offset, limit)
 	return args.Get(0).([]models.Post), args.Error(1)

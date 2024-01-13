@@ -31,3 +31,20 @@ type AuthorDTO struct { // to be used in post response dto
 	Nickname          string `json:"nickname"`
 	ProfilePictureUrl string `json:"profilePictureUrl"`
 }
+
+type UserFeedDTO struct {
+	Records    []UserFeedRecordDTO    `json:"records"`
+	Pagination *UserFeedPaginationDTO `json:"pagination"`
+}
+
+type UserFeedRecordDTO struct {
+	PostId       uuid.UUID `json:"postId"`
+	CreationDate time.Time `json:"creationDate"`
+	Content      string    `json:"content"`
+}
+
+type UserFeedPaginationDTO struct {
+	Offset  int   `json:"offset"`
+	Limit   int   `json:"limit"`
+	Records int64 `json:"records"`
+}

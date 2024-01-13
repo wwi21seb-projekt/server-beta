@@ -15,7 +15,7 @@ import (
 
 type PostServiceInterface interface {
 	CreatePost(req *models.PostCreateRequestDTO, username string) (*models.PostCreateResponseDTO, *customerrors.CustomError, int)
-	FindPostsByUser(username string, offset, limit int) ([]models.Post, error)
+	FindPostsByUser(username string, offset, limit int) (*models.UserFeedDTO, *customerrors.CustomError, int)
 }
 
 type PostService struct {
@@ -93,11 +93,49 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, usernam
 	return &postDto, nil, http.StatusCreated
 }
 
-func (service *PostService) FindPostsByUser(username string, offset, limit int) ([]models.Post, error) {
-	posts, err := service.postRepo.FindPostsByUser(username, offset, limit)
+func (service *PostService) FindPostsByUser(username string, offset, limit int) (*models.UserFeedDTO, *customerrors.CustomError, int) {
+
+	// See if user exists
+	_, err := service.userRepo.FindUserByUsername(username)
 	if err != nil {
-		return nil, err
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, customerrors.UserNotFound, http.StatusNotFound
+		}
+		return nil, customerrors.DatabaseError, http.StatusInternalServerError
 	}
 
-	return posts, nil
+	// Get posts total count
+	totalPostsCount, err := service.postRepo.FindPostsByUserCount(username)
+	if err != nil {
+		return nil, customerrors.DatabaseError, http.StatusInternalServerError
+	}
+
+	posts, err := service.postRepo.FindPostsByUser(username, offset, limit)
+	if err != nil {
+		return nil, customerrors.DatabaseError, http.StatusInternalServerError
+	}
+
+	// Create response dto and return
+	var postDtos []models.UserFeedRecordDTO
+	for _, post := range posts {
+		postDto := models.UserFeedRecordDTO{
+			PostId:       post.Id,
+			CreationDate: post.CreatedAt,
+			Content:      post.Content,
+		}
+		postDtos = append(postDtos, postDto)
+	}
+
+	paginationDto := models.UserFeedPaginationDTO{
+		Offset:  offset,
+		Limit:   limit,
+		Records: totalPostsCount,
+	}
+
+	userFeedDto := models.UserFeedDTO{
+		Records:    postDtos,
+		Pagination: &paginationDto,
+	}
+
+	return &userFeedDto, nil, http.StatusOK
 }
