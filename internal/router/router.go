@@ -70,7 +70,7 @@ func SetupRouter() *gin.Engine {
 	api.GET("/users/validate", middleware.AuthorizeUser, userController.ValidateLogin)
 	api.GET("/users", ReturnNotImplemented)
 	api.GET("/users/:username", ReturnNotImplemented)
-	api.GET("/users/:username/feed", middleware.AuthorizeUser, postController.FindPostsByUser)
+	api.GET("/users/:username/feed", middleware.AuthorizeUser, postController.FindPostsByUserUsername)
 	api.PUT("/users", ReturnNotImplemented)
 	api.PATCH("/users", ReturnNotImplemented)
 

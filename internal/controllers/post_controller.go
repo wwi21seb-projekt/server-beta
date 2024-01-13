@@ -11,7 +11,7 @@ import (
 
 type PostControllerInterface interface {
 	CreatePost(c *gin.Context)
-	FindPostsByUser(c *gin.Context)
+	FindPostsByUserUsername(c *gin.Context)
 }
 
 type PostController struct {
@@ -54,7 +54,7 @@ func (controller *PostController) CreatePost(c *gin.Context) {
 	c.JSON(httpStatus, postDto)
 }
 
-func (controller *PostController) FindPostsByUser(c *gin.Context) {
+func (controller *PostController) FindPostsByUserUsername(c *gin.Context) {
 	username := c.Param("username")
 	offsetQuery := c.DefaultQuery("offset", "0")
 	limitQuery := c.DefaultQuery("limit", "10")
@@ -75,7 +75,7 @@ func (controller *PostController) FindPostsByUser(c *gin.Context) {
 		return
 	}
 
-	feedDto, serviceErr, httpStatus := controller.postService.FindPostsByUser(username, offset, limit)
+	feedDto, serviceErr, httpStatus := controller.postService.FindPostsByUsername(username, offset, limit)
 	if serviceErr != nil {
 		c.JSON(httpStatus, gin.H{
 			"error": serviceErr,
