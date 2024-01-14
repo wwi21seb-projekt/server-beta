@@ -50,3 +50,8 @@ func (m *MockUserRepository) UpdateUser(user *models.User) error {
 	args := m.Called(user)
 	return args.Error(0)
 }
+
+func (m *MockUserRepository) SearchUser(username string, limit int, offset int) ([]models.User, int64, error) {
+	args := m.Called(username, limit, offset)
+	return args.Get(0).([]models.User), args.Get(1).(int64), args.Error(2)
+}

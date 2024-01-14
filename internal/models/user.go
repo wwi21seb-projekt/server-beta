@@ -1,6 +1,8 @@
 package models
 
-import "time"
+import (
+	"time"
+)
 
 type User struct {
 	Username          string    `gorm:"primary_key;type:varchar(20);not_null;unique"`
@@ -37,4 +39,21 @@ type UserResponseDTO struct {
 	Username string `json:"username"`
 	Nickname string `json:"nickname"`
 	Email    string `json:"email"`
+}
+
+type UserSearchResponseDTO struct {
+	Records    []UserSearchRecordDTO    `json:"records"`
+	Pagination *UserSearchPaginationDTO `json:"pagination"`
+}
+
+type UserSearchRecordDTO struct {
+	Username          string `json:"username"`
+	Nickname          string `json:"nickname"`
+	ProfilePictureUrl string `json:"profilePictureUrl"`
+}
+
+type UserSearchPaginationDTO struct {
+	Offset  int   `json:"offset"`
+	Limit   int   `json:"limit"`
+	Records int64 `json:"records"`
 }

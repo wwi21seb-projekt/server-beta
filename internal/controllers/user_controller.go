@@ -6,6 +6,7 @@ import (
 	"github.com/marcbudd/server-beta/internal/models"
 	"github.com/marcbudd/server-beta/internal/services"
 	"net/http"
+	"strconv"
 )
 
 type UserControllerInterface interface {
@@ -14,6 +15,7 @@ type UserControllerInterface interface {
 	ActivateUser(c *gin.Context)
 	ResendActivationToken(c *gin.Context)
 	ValidateLogin(c *gin.Context)
+	SearchUser(c *gin.Context)
 }
 
 type UserController struct {
@@ -144,4 +146,47 @@ func (controller *UserController) ValidateLogin(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"username": username,
 	})
+}
+
+// SearchUser searches for a user by username given in url
+func (controller *UserController) SearchUser(c *gin.Context) {
+	// Read information from url
+	username := c.DefaultQuery("username", "")
+	limitStr := c.DefaultQuery("limit", "0")
+	offsetStr := c.DefaultQuery("offset", "0")
+
+	if username == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": customerrors.BadRequest,
+		})
+		return
+	}
+
+	// Convert limit and offset to int
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": customerrors.BadRequest,
+		})
+		return
+	}
+
+	offset, err := strconv.Atoi(offsetStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": customerrors.BadRequest,
+		})
+		return
+	}
+
+	// Search user
+	userDto, serviceErr, httpStatus := controller.userService.SearchUser(username, limit, offset)
+	if serviceErr != nil {
+		c.JSON(httpStatus, gin.H{
+			"error": serviceErr,
+		})
+		return
+	}
+
+	c.JSON(httpStatus, userDto)
 }

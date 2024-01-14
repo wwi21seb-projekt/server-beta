@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/marcbudd/server-beta/internal/controllers"
 	"github.com/marcbudd/server-beta/internal/customerrors"
+	"github.com/marcbudd/server-beta/internal/middleware"
 	"github.com/marcbudd/server-beta/internal/models"
 	"github.com/marcbudd/server-beta/internal/repositories"
 	"github.com/marcbudd/server-beta/internal/services"
@@ -1566,4 +1567,148 @@ func TestResendActivationTokenUserNotfound(t *testing.T) {
 	mockUserRepository.AssertExpectations(t)
 	mockActivationTokenRepository.AssertExpectations(t)
 	mockMailService.AssertExpectations(t)
+}
+
+// TestSearchUserSuccess tests if SearchUser returns 200-OK and list of users
+func TestSearchUserSuccess(t *testing.T) {
+	// Setup mocks
+	mockUserRepository := new(repositories.MockUserRepository)
+
+	userService := services.NewUserService(
+		mockUserRepository,
+		nil,
+		nil,
+		nil,
+	)
+
+	userController := controllers.NewUserController(userService)
+
+	foundUsers := []models.User{
+		{
+			Username:          "testUser1",
+			Nickname:          "Test User 1",
+			ProfilePictureUrl: "",
+		},
+		{
+			Username:          "testUser2",
+			Nickname:          "Test User 2",
+			ProfilePictureUrl: "",
+		},
+	}
+
+	searchQuery := "testUser"
+	limit := 10
+	offset := 0
+
+	// Mock expectations
+	mockUserRepository.On("SearchUser", searchQuery, limit, offset).Return(foundUsers, int64(len(foundUsers)), nil) // Find foundUsers successfully
+
+	// Setup HTTP request and recorder
+	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/foundUsers?username=%s&limit=%d&offset=%d", searchQuery, limit, offset), nil)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	// Act
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+	router.GET("/foundUsers", userController.SearchUser)
+	router.ServeHTTP(w, req)
+
+	// Assert Response
+	assert.Equal(t, http.StatusOK, w.Code) // Expect HTTP 200 OK status
+	var responseDto models.UserSearchResponseDTO
+	err := json.Unmarshal(w.Body.Bytes(), &responseDto)
+	assert.NoError(t, err)
+
+	assert.Equal(t, len(foundUsers), len(responseDto.Records))
+	assert.Equal(t, int64(len(foundUsers)), responseDto.Pagination.Records)
+	assert.Equal(t, limit, responseDto.Pagination.Limit)
+	assert.Equal(t, offset, responseDto.Pagination.Offset)
+
+	for i, user := range foundUsers {
+		assert.Equal(t, user.Username, responseDto.Records[i].Username)
+		assert.Equal(t, user.Nickname, responseDto.Records[i].Nickname)
+		assert.Equal(t, user.ProfilePictureUrl, responseDto.Records[i].ProfilePictureUrl)
+	}
+
+	mockUserRepository.AssertExpectations(t)
+}
+
+// TestSearchUserBadRequest tests if SearchUser returns 400-Bad Request when request query is invalid
+func TestSearchUserBadRequest(t *testing.T) {
+	urls := []string{
+		"/users?username=&limit=10&offset=0",               // empty username
+		"/users?limit=q0&offset=0",                         // no username
+		"/users?username=testUser&limit=10&offset=invalid", // invalid offset
+		"/users?username=testUser&limit=invalid&offset=0",  // invalid limit
+	}
+
+	for _, url := range urls {
+		controller := controllers.NewUserController(nil)
+
+		gin.SetMode(gin.TestMode)
+		router := gin.Default()
+		router.GET("/users", controller.SearchUser)
+
+		// Create request
+		req, err := http.NewRequest(http.MethodGet, url, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		// Assertions
+		assert.Equal(t, http.StatusBadRequest, w.Code) // Expect HTTP 400 Bad Request status
+		var errorResponse customerrors.ErrorResponse
+		err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
+		assert.NoError(t, err)
+
+		expectedCustomError := customerrors.BadRequest
+		assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
+		assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
+	}
+}
+
+// TestSearchUserUnauthorized tests if SearchUser returns 401-Unauthorized when user is not authenticated
+func TestSearchUserUnauthorized(t *testing.T) {
+	invalidTokens := []string{
+		"invalidToken",
+		"Bearer invalidToken",
+		"",
+	}
+
+	for _, token := range invalidTokens {
+
+		controller := controllers.NewUserController(nil)
+
+		gin.SetMode(gin.TestMode)
+		router := gin.Default()
+		router.GET("/users", middleware.AuthorizeUser, controller.SearchUser)
+
+		// Create request
+		req, err := http.NewRequest(http.MethodGet, "/users?username=testUser&limit=10&offset=0", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		req.Header.Set("Content-Type", "application/json")
+		if token != "" {
+			req.Header.Set("Authorization", token)
+		}
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		// Assertions
+		assert.Equal(t, http.StatusUnauthorized, w.Code) // Expect HTTP 401 Unauthorized status
+		var errorResponse customerrors.ErrorResponse
+		err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
+		assert.NoError(t, err)
+
+		expectedCustomError := customerrors.PreliminaryUserUnauthorized
+		assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
+		assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
+	}
 }

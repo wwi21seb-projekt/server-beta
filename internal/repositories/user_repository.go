@@ -14,6 +14,7 @@ type UserRepositoryInterface interface {
 	CheckEmailExistsForUpdate(email string, tx *gorm.DB) (bool, error)
 	CheckUsernameExistsForUpdate(username string, tx *gorm.DB) (bool, error)
 	UpdateUser(user *models.User) error
+	SearchUser(username string, limit int, offset int) ([]models.User, int64, error)
 }
 
 type UserRepository struct {
@@ -68,4 +69,29 @@ func (repo *UserRepository) CheckUsernameExistsForUpdate(username string, tx *go
 func (repo *UserRepository) UpdateUser(user *models.User) error {
 	err := repo.DB.Save(&user).Error
 	return err
+}
+
+func (repo *UserRepository) SearchUser(username string, limit int, offset int) ([]models.User, int64, error) {
+	var users []models.User
+	var count int64
+	maxLevenshteinDistance := 3 // max distance for search results is set to ensure that only relevant results are returned
+
+	query := repo.DB.Model(&models.User{}).
+		Select("*, levenshtein(username, ?) as distance", username).
+		Where("levenshtein(username, ?) <= ?", username, maxLevenshteinDistance).
+		Order("distance ASC")
+
+	// Count results
+	err := query.Count(&count).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Get users
+	err = query.Limit(limit).Offset(offset).Find(&users).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return users, count, nil
 }

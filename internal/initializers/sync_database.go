@@ -5,8 +5,18 @@ import (
 	"github.com/marcbudd/server-beta/internal/models"
 )
 
-// SyncDatabase synchronizes the database tables with the model definitions
+// SyncDatabase synchronizes the database tables with the model definitions and creates extensions if necessary
 func SyncDatabase() {
+	// Create extensions
+	extensions := []string{"pg_trgm", "fuzzystrmatch"} // needed for levenshtein distance search
+	for _, ext := range extensions {
+		err := DB.Exec(fmt.Sprintf("CREATE EXTENSION IF NOT EXISTS %s", ext)).Error
+		if err != nil {
+			panic(fmt.Sprintf("Failed to create extension %s: %v", ext, err))
+		}
+	}
+
+	// Migrate models
 	modelsToMigrate := []interface{}{
 		&models.User{},
 		&models.ActivationToken{},
