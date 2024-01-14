@@ -14,6 +14,7 @@ type UserRepositoryInterface interface {
 	CheckEmailExistsForUpdate(email string, tx *gorm.DB) (bool, error)
 	CheckUsernameExistsForUpdate(username string, tx *gorm.DB) (bool, error)
 	UpdateUser(user *models.User) error
+	GetAllUsers() ([]models.User, error)
 }
 
 type UserRepository struct {
@@ -68,4 +69,10 @@ func (repo *UserRepository) CheckUsernameExistsForUpdate(username string, tx *go
 func (repo *UserRepository) UpdateUser(user *models.User) error {
 	err := repo.DB.Save(&user).Error
 	return err
+}
+
+func (repo *UserRepository) GetAllUsers() ([]models.User, error) {
+	var users []models.User
+	err := repo.DB.Find(&users).Error
+	return users, err
 }

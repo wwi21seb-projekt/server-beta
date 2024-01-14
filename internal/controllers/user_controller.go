@@ -14,6 +14,8 @@ type UserControllerInterface interface {
 	ActivateUser(c *gin.Context)
 	ResendActivationToken(c *gin.Context)
 	ValidateLogin(c *gin.Context)
+	GetAllUsers(c *gin.Context)
+	SearchUsers(c *gin.Context)
 }
 
 type UserController struct {
@@ -144,4 +146,38 @@ func (controller *UserController) ValidateLogin(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"username": username,
 	})
+}
+
+func (controller *UserController) GetAllUsers(c *gin.Context) {
+	users, customErr, httpStatus := controller.userService.GetAllUsers()
+	if customErr != nil {
+		c.JSON(httpStatus, gin.H{"error": customErr})
+		return
+	}
+	if len(users) == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Keine Benutzer gefunden"})
+		return
+	}
+	c.JSON(http.StatusOK, users)
+}
+
+func (controller *UserController) SearchUsers(c *gin.Context) {
+	username := c.Query("username")
+	if username == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Benutzername erforderlich"})
+		return
+	}
+
+	users, customErr, httpStatus := controller.userService.SearchUsers(username)
+	if customErr != nil {
+		c.JSON(httpStatus, gin.H{"error": customErr})
+		return
+	}
+
+	if len(users) == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Keine ähnlichen Benutzer gefunden"})
+		return
+	}
+
+	c.JSON(http.StatusOK, users)
 }

@@ -68,12 +68,11 @@ func SetupRouter() *gin.Engine {
 	api.POST("/users/:username/activate", userController.ActivateUser)
 	api.DELETE("/users/:username/activate", userController.ResendActivationToken)
 	api.GET("/users/validate", middleware.AuthorizeUser, userController.ValidateLogin)
-	api.GET("/users", ReturnNotImplemented)
-	api.GET("/users/:username", ReturnNotImplemented)
-	api.GET("/users/:username/feed", ReturnNotImplemented)
+	api.GET("/users", userController.GetAllUsers)
+	api.GET("/users/:username", userController.SearchUsers)
 	api.PUT("/users", ReturnNotImplemented)
 	api.PATCH("/users", ReturnNotImplemented)
-	api.GET("/users/:username/posts", postController.FindPostsByUser)
+	api.GET("/users/:username/feed", postController.FindPostsByUser)
 
 	// Post
 	api.POST("/posts", middleware.AuthorizeUser, postController.CreatePost)

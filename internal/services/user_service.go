@@ -2,6 +2,7 @@ package services
 
 import (
 	"errors"
+	"github.com/agnivade/levenshtein"
 	"github.com/google/uuid"
 	"github.com/marcbudd/server-beta/internal/customerrors"
 	"github.com/marcbudd/server-beta/internal/models"
@@ -19,6 +20,8 @@ type UserServiceInterface interface {
 	LoginUser(req models.UserLoginRequestDTO) (*models.UserLoginResponseDTO, *customerrors.CustomError, int)
 	ActivateUser(username string, token string) (*customerrors.CustomError, int)
 	ResendActivationToken(username string) (*customerrors.CustomError, int)
+	GetAllUsers() ([]models.User, *customerrors.CustomError, int)
+	SearchUsers(username string) ([]models.User, *customerrors.CustomError, int)
 }
 
 type UserService struct {
@@ -326,4 +329,34 @@ func (service *UserService) ResendActivationToken(username string) (*customerror
 
 	return nil, http.StatusNoContent
 
+}
+
+func (service *UserService) GetAllUsers() ([]models.User, *customerrors.CustomError, int) {
+	users, err := service.userRepo.GetAllUsers()
+	if err != nil {
+		return nil, customerrors.InternalServerError, http.StatusInternalServerError
+	}
+	if len(users) == 0 {
+		return nil, customerrors.UserNotFound, http.StatusNotFound
+	}
+	return users, nil, http.StatusOK
+}
+
+func (service *UserService) SearchUsers(username string) ([]models.User, *customerrors.CustomError, int) {
+	users, err := service.userRepo.GetAllUsers()
+	if err != nil {
+		return nil, customerrors.InternalServerError, http.StatusInternalServerError
+	}
+	if len(users) == 0 {
+		return nil, customerrors.UserNotFound, http.StatusNotFound
+	}
+
+	var similarUsers []models.User
+	for _, user := range users {
+		distance := levenshtein.ComputeDistance(username, user.Username)
+		if distance <= 2 {
+			similarUsers = append(similarUsers, user)
+		}
+	}
+	return similarUsers, nil, http.StatusOK
 }
