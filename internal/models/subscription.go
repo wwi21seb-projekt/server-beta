@@ -2,28 +2,25 @@ package models
 
 import (
 	"github.com/google/uuid"
+	"time"
 )
 
 type Subscription struct {
-	SubscriptionId uuid.UUID `gorm:"column:id;primary_key"`
-	Follower       User      `gorm:"foreignKey:username"`
-	Following      User      `gorm:"foreignKey:username"`
+	Id                uuid.UUID `gorm:"column:id;primary_key"`
+	SubscriptionDate  time.Time `gorm:"column:subscription_date;not null"`
+	FollowerUsername  string    `gorm:"column:follower;type:varchar(20)"`
+	Follower          User      `gorm:"foreignKey:username"`               // Person who follows
+	FollowingUsername string    `gorm:"column:following;type:varchar(20)"` // Person who is being followed
+	Following         User      `gorm:"foreignKey:username"`
 }
 
 type SubscriptionPostRequestDTO struct {
-	Content string `json:"content" binding:"required"` // MARC: das attribut heißt hier nicht content
+	Following string `json:"following" binding:"required"`
 }
 
-type SubscriptionDeleteRequestDTO struct {
-	Content string `json:"content" binding:"required"` // MARC: es gibt kein subscription delete request body
-}
-type SubscriptionPostResponseDTO struct { // MARC: hier fehlt der Zeitstempel
-	SubscriptionId uuid.UUID `json:"postId"`
-	Follower       string    `json:"username"`
-	Following      string    `json:"following"`
-}
-type SubscriptionDeleteResponseDTO struct { // MARC: Auch den gibt und braucht es nicht
-	SubscriptionId uuid.UUID `json:"postId"`
-	Follower       string    `json:"username"`
-	Following      string    `json:"following"`
+type SubscriptionPostResponseDTO struct {
+	SubscriptionId   uuid.UUID `json:"subscriptionId"`
+	SubscriptionDate time.Time `json:"subscriptionDate"`
+	Follower         string    `json:"username"`
+	Following        string    `json:"following"`
 }

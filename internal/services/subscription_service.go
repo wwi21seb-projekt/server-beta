@@ -1,75 +1,101 @@
 package services
 
 import (
+	"errors"
 	"github.com/google/uuid"
 	"github.com/marcbudd/server-beta/internal/customerrors"
 	"github.com/marcbudd/server-beta/internal/models"
 	"github.com/marcbudd/server-beta/internal/repositories"
+	"gorm.io/gorm"
 	"net/http"
+	"time"
 )
 
 type SubscriptionServiceInterface interface {
-	PostSubscription(follower, following string) (*models.SubscriptionPostResponseDTO, *customerrors.CustomError, int)
-	DeleteSubscription(subscriptionId uuid.UUID) (*models.SubscriptionDeleteResponseDTO, *customerrors.CustomError, int)
+	PostSubscription(req *models.SubscriptionPostRequestDTO, currentUsername string) (*models.SubscriptionPostResponseDTO, *customerrors.CustomError, int)
+	DeleteSubscription(subscriptionId string, currentUsername string) (*customerrors.CustomError, int)
 }
 
 type SubscriptionService struct {
 	subscriptionRepo repositories.SubscriptionRepositoryInterface
+	userRepo         repositories.UserRepositoryInterface
 }
 
-func NewSubscriptionService(subscriptionRepo repositories.SubscriptionRepositoryInterface) *SubscriptionService {
-	return &SubscriptionService{subscriptionRepo: subscriptionRepo}
+func NewSubscriptionService(
+	subscriptionRepo repositories.SubscriptionRepositoryInterface,
+	userRepo repositories.UserRepositoryInterface) *SubscriptionService {
+	return &SubscriptionService{subscriptionRepo: subscriptionRepo, userRepo: userRepo}
 }
 
-func (service *SubscriptionService) PostSubscription(follower, following string) (*models.SubscriptionPostResponseDTO, *customerrors.CustomError, int) {
-	// MARC: hier übernimmst du dann den createRequest und den username des aktuellen nutzers aus dem controller
+func (service *SubscriptionService) PostSubscription(req *models.SubscriptionPostRequestDTO, currentUsername string) (*models.SubscriptionPostResponseDTO, *customerrors.CustomError, int) {
 
-	// Erstellen einer neuen Subscription-Instanz
+	// Check if user wants to follow himself
+	if req.Following == currentUsername {
+		return nil, customerrors.PreliminarySelfFollow, http.StatusNotAcceptable
+	}
+
+	// Check if user exists
+	_, err := service.userRepo.FindUserByUsername(req.Following)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, customerrors.UserNotFound, http.StatusNotFound
+		}
+		return nil, customerrors.DatabaseError, http.StatusInternalServerError
+	}
+
+	// Check if subscription already exists
+	_, err = service.subscriptionRepo.GetSubscriptionByUsernames(currentUsername, req.Following)
+	if err == nil {
+		return nil, customerrors.PreliminarySubscriptionAlreadyExists, http.StatusConflict
+	}
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, customerrors.DatabaseError, http.StatusInternalServerError
+	}
+
+	// Create subscription
 	newSubscription := models.Subscription{
-		SubscriptionId: uuid.New(),
-		// MARC: wir brauchen auch noch einen Zeitstempel, wann die Subscription erstellt wurde
-		Follower:  models.User{Username: follower}, // MARC: ich bin mir nicht sicher ob das so gut funktioniert, weil du erstellst hier einen neuen user, was ist wenn der user nicht existiert?
-		Following: models.User{Username: following},
+		Id:                uuid.New(),
+		SubscriptionDate:  time.Now(),
+		FollowerUsername:  currentUsername,
+		FollowingUsername: req.Following,
 	}
 
-	// MARC: außerdem müssen noch weitere Fehlerfälle (siehe Postman) überprüft werden
-	// User Not Found (s. o.)
-	// Self follow
-
-	// Speichern der Subscription in der Datenbank
-	err := service.subscriptionRepo.CreateSubscription(&newSubscription)
+	err = service.subscriptionRepo.CreateSubscription(&newSubscription)
 	if err != nil {
-		return nil, customerrors.InternalServerError, http.StatusInternalServerError
+		return nil, customerrors.DatabaseError, http.StatusInternalServerError
 	}
 
-	// Erstellen des Antwortobjekts
-
-	return &models.SubscriptionPostResponseDTO{
-		SubscriptionId: uuid.New(), // MARC: hier dann auch created at zurückgeben
-		Follower:       follower,
-		Following:      following,
-	}, nil, http.StatusCreated
+	// Create response
+	response := &models.SubscriptionPostResponseDTO{
+		SubscriptionId:   newSubscription.Id,
+		SubscriptionDate: newSubscription.SubscriptionDate,
+		Follower:         newSubscription.FollowerUsername,
+		Following:        newSubscription.FollowingUsername,
+	}
+	return response, nil, http.StatusCreated
 }
 
-func (service *SubscriptionService) DeleteSubscription(subscriptionId uuid.UUID) (*models.SubscriptionDeleteResponseDTO, *customerrors.CustomError, int) {
-	// MARC: am besten erst subscription auslesen (falls nciht vorhanden, dann 404 Not Found)
-	// dann überprüfen, ob der eingeloggte nutzer der follower ist, wenn nicht darf er nicht löschen
-	// dann löschen
+func (service *SubscriptionService) DeleteSubscription(subscriptionId string, currentUsername string) (*customerrors.CustomError, int) {
 
-	// Löschen der Subscription aus der Datenbank
-	err := service.subscriptionRepo.DeleteSubscription(subscriptionId)
+	// Get subscription
+	subscription, err := service.subscriptionRepo.GetSubscriptionById(subscriptionId)
 	if err != nil {
-		return nil, customerrors.InternalServerError, http.StatusInternalServerError
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return customerrors.PreliminarySubscriptionNotFound, http.StatusNotFound
+		}
+		return customerrors.DatabaseError, http.StatusInternalServerError
 	}
 
-	return &models.SubscriptionDeleteResponseDTO{ // MARC: es gibt bei delete kein response body, deswegen auch 204 no content
-		SubscriptionId: subscriptionId,
-		Follower:       "exampleFollower",
-		Following:      "exampleFollowing",
-	}, nil, http.StatusNoContent
+	// Check if user is authorized to delete subscription
+	if subscription.FollowerUsername != currentUsername {
+		return customerrors.PreliminarySubscriptionDeleteNotAuthorized, http.StatusForbidden
+	}
 
-	// MARC: weiterhin hast du jetzt einen mock für den subscription service geschrieben und dann nur den controller getestet und den service weggemockt
-	// bis jetzt habe ich immer den service gar nicht "weggemockt" sondern nur das repository, und dann beim controller test den service gleich mitgetestet
-	// Und bei den Tests fehlen dann die tests für die einzelnen Fehlerfälle
+	// Delete subscription
+	err = service.subscriptionRepo.DeleteSubscription(subscriptionId)
+	if err != nil {
+		return customerrors.DatabaseError, http.StatusInternalServerError
+	}
 
+	return nil, http.StatusNoContent
 }

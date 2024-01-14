@@ -1,8 +1,8 @@
 package controllers
 
 import (
+	"fmt"
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"github.com/marcbudd/server-beta/internal/customerrors"
 	"github.com/marcbudd/server-beta/internal/models"
 	"github.com/marcbudd/server-beta/internal/services"
@@ -24,24 +24,26 @@ func NewSubscriptionController(subscriptionService services.SubscriptionServiceI
 
 func (controller *SubscriptionController) PostSubscription(c *gin.Context) {
 
-	// MARC: Username aus dem Context von der Middleware holen
-	// username, exists := c.Get("username")
-	// if !exists {
-	// 	c.JSON(http.StatusUnauthorized, gin.H{
-	// 		"error": customerrors.PreliminaryUserUnauthorized,
-	// 	})
-
-	var req models.SubscriptionPostRequestDTO
-	if err := c.Bind(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": customerrors.BadRequest, // MARC: customerrors verwenden
+	// Get current user from middleware
+	username, exists := c.Get("username")
+	if !exists {
+		fmt.Println("test")
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": customerrors.PreliminaryUserUnauthorized,
 		})
 		return
 	}
 
-	// MARC: hier übergibst du als Username immer "exampleFollower" und "exampleFollowing"
-	// du musst den request body übergeben und den usernamen den du aus der middleware hoslt
-	response, serviceErr, httpStatus := controller.subscriptionService.PostSubscription("exampleFollower", "exampleFollowing")
+	var req models.SubscriptionPostRequestDTO
+	if err := c.Bind(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": customerrors.BadRequest,
+		})
+		return
+	}
+
+	// Create subscription
+	response, serviceErr, httpStatus := controller.subscriptionService.PostSubscription(&req, username.(string))
 	if serviceErr != nil {
 		c.JSON(httpStatus, gin.H{
 			"error": serviceErr,
@@ -54,17 +56,25 @@ func (controller *SubscriptionController) PostSubscription(c *gin.Context) {
 
 func (controller *SubscriptionController) DeleteSubscription(c *gin.Context) {
 
-	// MARC: ich würde hier nicht unbedingt die Subscription ID zu UUID parsen, sondern die id als string verwende
-	// und dann in der service methode das einfach als string zum filtern des requests verwenden
-	// falls die subscribtion dann nicht existiert, ist das dann 404 Not Found
-	// auch hier musst username des eingeloggten nutzers auslesen, an den service übergeben und überprüfen, ob der nutzer überhaupt berechtigt ist die subscription zu löschen
-	subscriptionId, err := uuid.Parse(c.Param("subscriptionId"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid subscription id"}) // MARC: customerrors verwenden
+	subscriptionId := c.Param("subscriptionId")
+	if subscriptionId == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": customerrors.BadRequest,
+		})
 		return
 	}
 
-	response, serviceErr, httpStatus := controller.subscriptionService.DeleteSubscription(subscriptionId)
+	// Get current user from middleware
+	username, exists := c.Get("username")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": customerrors.PreliminaryUserUnauthorized,
+		})
+		return
+	}
+
+	// Delete subscription
+	serviceErr, httpStatus := controller.subscriptionService.DeleteSubscription(subscriptionId, username.(string))
 	if serviceErr != nil {
 		c.JSON(httpStatus, gin.H{
 			"error": serviceErr,
@@ -72,5 +82,5 @@ func (controller *SubscriptionController) DeleteSubscription(c *gin.Context) {
 		return
 	}
 
-	c.JSON(httpStatus, response) // MARC: no content ---> also kein response body
+	c.JSON(httpStatus, gin.H{})
 }

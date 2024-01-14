@@ -77,5 +77,22 @@ var (
 	}
 	PreliminaryUserUnauthorized = &CustomError{
 		Message: "The user is not authorized. Please login to your account.",
+		Code:    "ERR-014",
+	}
+	PreliminarySelfFollow = &CustomError{
+		Message: "The user cannot follow himself.",
+		Code:    "ERR-015",
+	}
+	PreliminarySubscriptionAlreadyExists = &CustomError{
+		Message: "The subscription already exists. Please check the subscription id and try again.",
+		Code:    "ERR-016",
+	}
+	PreliminarySubscriptionNotFound = &CustomError{
+		Message: "The subscription was not found. Please check the subscription id and try again.",
+		Code:    "ERR-017",
+	}
+	PreliminarySubscriptionDeleteNotAuthorized = &CustomError{
+		Message: "The user is not authorized to delete the subscription. Please check the subscription id and try again.",
+		Code:    "ERR-018",
 	}
 )
