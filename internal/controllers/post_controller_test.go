@@ -286,8 +286,7 @@ func TestGetGlobalPostFeedSuccess(t *testing.T) {
 		mockPostRepository.On("GetPostsGlobalFeed", mock.AnythingOfType("*models.Post"), limit).
 			Run(func(args mock.Arguments) {
 				capturedLastPost = args.Get(0).(*models.Post) // Save argument to captor
-			}).Return(nextPosts, nil) // Posts returned successfully
-		mockPostRepository.On("GetPostsGlobalFeedCount").Return(totalCount, nil) // Count returned successfully
+			}).Return(nextPosts, totalCount, nil) // Posts returned successfully
 
 		// Setup HTTP request
 		url := "/feed?postId=" + lastPost.Id.String() + "&limit=" + fmt.Sprint(limit)
@@ -484,8 +483,7 @@ func TestGetPersonalPostFeedSuccess(t *testing.T) {
 	mockPostRepository.On("GetPostsPersonalFeed", currentUsername, mock.AnythingOfType("*models.Post"), limit).
 		Run(func(args mock.Arguments) {
 			capturedLastPost = args.Get(1).(*models.Post) // Save argument to captor
-		}).Return(nextPosts, nil) // Posts returned successfully
-	mockPostRepository.On("GetPostsPersonalFeedCount", currentUsername).Return(totalCount, nil) // Count returned successfully
+		}).Return(nextPosts, totalCount, nil) // Posts returned successfully
 
 	// Setup HTTP request
 	url := "/feed?postId=" + lastPost.Id.String() + "&limit=" + fmt.Sprint(limit) + "&feedType=personal"

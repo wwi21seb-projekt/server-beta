@@ -117,12 +117,7 @@ func (service *PostService) GetPostsGlobalFeed(lastPostId string, limit int) (*m
 	}
 
 	// Retrieve posts from the database
-	posts, err := service.postRepo.GetPostsGlobalFeed(&lastPost, limit)
-	if err != nil {
-		return nil, customerrors.DatabaseError, http.StatusInternalServerError
-	}
-
-	totalPostsCount, err := service.postRepo.GetPostsGlobalFeedCount()
+	posts, totalPostsCount, err := service.postRepo.GetPostsGlobalFeed(&lastPost, limit)
 	if err != nil {
 		return nil, customerrors.DatabaseError, http.StatusInternalServerError
 	}
@@ -175,12 +170,7 @@ func (service *PostService) GetPostsPersonalFeed(username string, lastPostId str
 	}
 
 	// Retrieve posts from the database
-	posts, err := service.postRepo.GetPostsPersonalFeed(username, &lastPost, limit)
-	if err != nil {
-		return nil, customerrors.DatabaseError, http.StatusInternalServerError
-	}
-
-	totalPostsCount, err := service.postRepo.GetPostsPersonalFeedCount(username)
+	posts, totalPostsCount, err := service.postRepo.GetPostsPersonalFeed(username, &lastPost, limit)
 	if err != nil {
 		return nil, customerrors.DatabaseError, http.StatusInternalServerError
 	}
