@@ -7,8 +7,7 @@ import (
 
 type PostRepositoryInterface interface {
 	CreatePost(post *models.Post) error
-	FindPostsByUsernameCount(username string) (int64, error)
-	FindPostsByUsername(username string, offset, limit int) ([]models.Post, error)
+	FindPostsByUsername(username string, offset, limit int) ([]models.Post, int64, error)
 }
 
 type PostRepository struct {
@@ -24,14 +23,23 @@ func (repo *PostRepository) CreatePost(post *models.Post) error {
 	return repo.DB.Create(&post).Error
 }
 
-func (repo *PostRepository) FindPostsByUsernameCount(username string) (int64, error) {
-	var count int64
-	err := repo.DB.Model(&models.Post{}).Where("username = ?", username).Count(&count).Error
-	return count, err
-}
-
-func (repo *PostRepository) FindPostsByUsername(username string, offset, limit int) ([]models.Post, error) {
+func (repo *PostRepository) FindPostsByUsername(username string, offset, limit int) ([]models.Post, int64, error) {
 	var posts []models.Post
-	err := repo.DB.Where("username = ?", username).Offset(offset).Limit(limit).Find(&posts).Error
-	return posts, err
+	var count int64
+
+	baseQuery := repo.DB.Model(&models.Post{}).Where("username = ?", username)
+
+	// Count number of posts based on username
+	err := baseQuery.Count(&count).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Get posts using pagination information
+	err = baseQuery.Offset(offset).Limit(limit).Find(&posts).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return posts, count, nil
 }

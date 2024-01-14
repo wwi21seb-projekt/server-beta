@@ -104,13 +104,8 @@ func (service *PostService) FindPostsByUsername(username string, offset, limit i
 		return nil, customerrors.DatabaseError, http.StatusInternalServerError
 	}
 
-	// Get posts total count
-	totalPostsCount, err := service.postRepo.FindPostsByUsernameCount(username)
-	if err != nil {
-		return nil, customerrors.DatabaseError, http.StatusInternalServerError
-	}
-
-	posts, err := service.postRepo.FindPostsByUsername(username, offset, limit)
+	// Get posts
+	posts, totalPostsCount, err := service.postRepo.FindPostsByUsername(username, offset, limit)
 	if err != nil {
 		return nil, customerrors.DatabaseError, http.StatusInternalServerError
 	}

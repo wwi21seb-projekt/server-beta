@@ -264,8 +264,7 @@ func TestFindPostsByUsernameSuccess(t *testing.T) {
 
 	// Mock expectations
 	mockUserRepository.On("FindUserByUsername", user.Username).Return(&user, nil) // User found successfully
-	mockPostRepository.On("FindPostsByUsernameCount", user.Username).Return(int64(len(posts)), nil)
-	mockPostRepository.On("FindPostsByUsername", user.Username, 0, 10).Return(posts, nil)
+	mockPostRepository.On("FindPostsByUsername", user.Username, 0, 10).Return(posts, int64(len(posts)), nil)
 
 	// Setup HTTP request
 	url := "/users/" + user.Username + "/feed?offset=" + fmt.Sprint(offset) + "&limit=" + fmt.Sprint(limit)
