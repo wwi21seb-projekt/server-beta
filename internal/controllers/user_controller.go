@@ -14,7 +14,9 @@ type UserControllerInterface interface {
 	ActivateUser(c *gin.Context)
 	ResendActivationToken(c *gin.Context)
 	ValidateLogin(c *gin.Context)
-	UpdateNicknameAndStatus(c *gin.Context)
+	UpdateUserInformation(c *gin.Context)
+	ChangeUserPassword(c *gin.Context)
+	GetUserProfile(c *gin.Context)
 }
 
 type UserController struct {
@@ -138,7 +140,9 @@ func (controller *UserController) ResendActivationToken(c *gin.Context) {
 func (controller *UserController) ValidateLogin(c *gin.Context) {
 	username, exists := c.Get("username")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{})
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": customerrors.PreliminaryUserUnauthorized,
+		})
 		return
 	}
 
@@ -147,28 +151,98 @@ func (controller *UserController) ValidateLogin(c *gin.Context) {
 	})
 }
 
-func (controller *UserController) UpdateNicknameAndStatus(c *gin.Context) {
+// UpdateUserInformation updates the user's nickname and status
+func (controller *UserController) UpdateUserInformation(c *gin.Context) {
 	// Extract the username from the context
 	username, exists := c.Get("username")
 	if !exists {
-		// Username is not found
-		c.JSON(http.StatusUnauthorized, customerrors.PreliminaryUserUnauthorized)
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": customerrors.PreliminaryUserUnauthorized,
+		})
 		return
 	}
 
 	// Bind the JSON request body to the struct
-	var userUpdateResponseDTO models.UserUpdateResponseDTO
-	if err := c.BindJSON(userUpdateResponseDTO); err != nil {
-		c.JSON(http.StatusBadRequest, customerrors.BadRequest)
+	var userUpdateResponseDTO models.UserInformationUpdateDTO
+	if err := c.BindJSON(&userUpdateResponseDTO); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": customerrors.BadRequest,
+		})
 		return
 	}
 
-	responseDTO, customErr, status := controller.userService.UpdateUserNicknameAndStatus(&userUpdateResponseDTO, username.(string))
+	// Update the user's information
+	responseDTO, customErr, status := controller.userService.UpdateUserInformation(&userUpdateResponseDTO, username.(string))
 	if customErr != nil {
-		// If there is an error from the service, return it
-		c.JSON(status, customErr)
+		c.JSON(status, gin.H{
+			"error": customErr,
+		})
 		return
 	}
-	// If the update is successful, return the updated nickname and status
-	c.JSON(http.StatusOK, responseDTO)
+
+	c.JSON(status, responseDTO)
+}
+
+// ChangeUserPassword changes the user's password
+func (controller *UserController) ChangeUserPassword(c *gin.Context) {
+	// Extract the username from the context
+	username, exists := c.Get("username")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": customerrors.PreliminaryUserUnauthorized,
+		})
+		return
+	}
+
+	// Bind the JSON request body to the struct
+	var userPasswordChangeDTO models.ChangePasswordDTO
+	if err := c.BindJSON(&userPasswordChangeDTO); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": customerrors.BadRequest,
+		})
+		return
+	}
+
+	// Update the user's password
+	customErr, status := controller.userService.ChangeUserPassword(&userPasswordChangeDTO, username.(string))
+	if customErr != nil {
+		c.JSON(status, gin.H{
+			"error": customErr,
+		})
+		return
+	}
+
+	c.JSON(status, gin.H{})
+}
+
+// GetUserProfile returns the user's profile
+func (controller *UserController) GetUserProfile(c *gin.Context) {
+	// Get logged-in username from middleware
+	currentUsername, exists := c.Get("username")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": customerrors.PreliminaryUserUnauthorized,
+		})
+		return
+	}
+
+	// Get username from url
+	username := c.Param("username")
+	if username == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": customerrors.BadRequest,
+		})
+		return
+	}
+
+	// Get user profile
+	userProfileDTO, customErr, status := controller.userService.GetUserProfile(username, currentUsername.(string))
+	if customErr != nil {
+		c.JSON(status, gin.H{
+			"error": customErr,
+		})
+		return
+	}
+
+	c.JSON(status, userProfileDTO)
 }

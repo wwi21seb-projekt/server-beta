@@ -40,7 +40,7 @@ func SetupRouter() *gin.Engine {
 
 	validator := utils.NewValidator()
 	mailService := services.NewMailService()
-	userService := services.NewUserService(userRepo, activationTokenRepo, mailService, validator)
+	userService := services.NewUserService(userRepo, activationTokenRepo, mailService, validator, postRepo)
 	postService := services.NewPostService(postRepo, userRepo, hashtagRepo)
 
 	imprintController := controllers.NewImprintController()
@@ -68,9 +68,12 @@ func SetupRouter() *gin.Engine {
 	api.POST("/users/:username/activate", userController.ActivateUser)
 	api.DELETE("/users/:username/activate", userController.ResendActivationToken)
 	api.GET("/users/validate", middleware.AuthorizeUser, userController.ValidateLogin)
+	api.PUT("/users", middleware.AuthorizeUser, userController.UpdateUserInformation)
+	api.PATCH("/users", middleware.AuthorizeUser, userController.ChangeUserPassword)
+	api.GET("/users/:username", middleware.AuthorizeUser, userController.GetUserProfile)
 
 	// Post
 	api.POST("/posts", middleware.AuthorizeUser, postController.CreatePost)
 
 	return r
-} //füg hinzu LINA
+}

@@ -1,6 +1,8 @@
 package models
 
-import "time"
+import (
+	"time"
+)
 
 type User struct {
 	Username          string    `gorm:"primary_key;type:varchar(20);not_null;unique"`
@@ -41,9 +43,14 @@ type UserResponseDTO struct {
 	Email    string `json:"email"`
 }
 
-type UserUpdateResponseDTO struct {
-	Nickname string `json:"nickname"`
-	Status   string `json:"status"`
+type UserInformationUpdateDTO struct {
+	Nickname string `json:"nickname" binding:"required"`
+	Status   string `json:"status" binding:"required"`
+}
+
+type ChangePasswordDTO struct {
+	OldPassword string `json:"oldPassword" binding:"required"`
+	NewPassword string `json:"newPassword" binding:"required"`
 }
 
 type UserProfileResponseDTO struct {
@@ -51,8 +58,8 @@ type UserProfileResponseDTO struct {
 	Nickname          string `json:"nickname"`
 	Status            string `json:"status"`
 	ProfilePictureUrl string `json:"profilePictureUrl"`
-	Follower          int    `json:"follower"`
-	Following         int    `json:"following"`
-	Posts             int    `json:"posts"`
+	Follower          int64  `json:"follower"`
+	Following         int64  `json:"following"`
+	Posts             int64  `json:"posts"`
 	SubscriptionId    string `json:"subscriptionId"`
 }

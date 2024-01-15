@@ -7,7 +7,7 @@ import (
 
 type PostRepositoryInterface interface {
 	CreatePost(post *models.Post) error
-	FindPostsByUserID(userID string, offset int, limit int) ([]models.Post, error)
+	GetPostCountByUsername(username string) (int64, error)
 }
 
 type PostRepository struct {
@@ -23,20 +23,10 @@ func (repo *PostRepository) CreatePost(post *models.Post) error {
 	return repo.DB.Create(&post).Error
 }
 
-// FindPostsByUserID retrieves posts for a user sorted by userid
-func (repo *PostRepository) FindPostsByUserID(userID string, offset int, limit int) ([]models.Post, error) {
-	var posts []models.Post
-
-	// Execute the query to fetch the posts
-	err := repo.DB.Where("user_id = ?", userID).
-		Offset(offset).
-		Limit(limit).
-		Order("created_at DESC"). // sorted by creation date in descending order
-		Find(&posts).Error
-
-	if err != nil {
-		return nil, err
-	}
-
-	return posts, nil
+func (repo *PostRepository) GetPostCountByUsername(username string) (int64, error) {
+	var count int64
+	err := repo.DB.Model(&models.Post{}).
+		Where("username = ? ", username).
+		Count(&count).Error
+	return count, err
 }
