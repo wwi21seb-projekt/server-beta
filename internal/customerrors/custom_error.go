@@ -82,5 +82,25 @@ var (
 	PreliminaryOldPasswordIncorrect = &CustomError{
 		Message: "The old password is incorrect. Please check the password and try again.",
 		Code:    "ERR-015",
+  }
+	PreliminarySelfFollow = &CustomError{
+		Message: "The user cannot follow himself.",
+		Code:    "ERR-015",
+	}
+	PreliminarySubscriptionAlreadyExists = &CustomError{
+		Message: "The subscription already exists. Please check the subscription id and try again.",
+		Code:    "ERR-016",
+	}
+	PreliminarySubscriptionNotFound = &CustomError{
+		Message: "The subscription was not found. Please check the subscription id and try again.",
+		Code:    "ERR-017",
+	}
+	PreliminarySubscriptionDeleteNotAuthorized = &CustomError{
+		Message: "The user is not authorized to delete the subscription. Please check the subscription id and try again.",
+		Code:    "ERR-018",
+  }
+	PreliminaryPostNotFound = &CustomError{
+		Message: "The post was not found. Please check the post id and try again.",
+		Code:    "ERR-015",
 	}
 )
