@@ -98,3 +98,27 @@ func TestValidatePassword(t *testing.T) {
 		}
 	}
 }
+
+// TestValidateStatus tests the ValidateStatus function using multiple examples
+func TestValidateStatus(t *testing.T) {
+	tests := []struct {
+		name   string
+		status string
+		want   bool
+	}{
+		{"Empty Status", "", true},
+		{"Valid Status", "This is a valid status.", true},
+		{"Exact Limit Status", string(make([]rune, 125)), true},
+		{"Too Long Status", string(make([]rune, 126)), false},
+	}
+
+	validator := utils.NewValidator()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := validator.ValidateStatus(tt.status); got != tt.want {
+				t.Errorf("ValidateStatus() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

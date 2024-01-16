@@ -16,6 +16,9 @@ import (
 
 type PostServiceInterface interface {
 	CreatePost(req *models.PostCreateRequestDTO, file *multipart.FileHeader, username string) (*models.PostCreateResponseDTO, *customerrors.CustomError, int)
+	GetPostsByUsername(username string, offset, limit int) (*models.UserFeedDTO, *customerrors.CustomError, int)
+	GetPostsGlobalFeed(lastPostId string, limit int) (*models.GeneralFeedDTO, *customerrors.CustomError, int)
+	GetPostsPersonalFeed(username string, lastPostId string, limit int) (*models.GeneralFeedDTO, *customerrors.CustomError, int)
 }
 
 type PostService struct {
@@ -110,4 +113,152 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *m
 	}
 
 	return &postDto, nil, http.StatusCreated
+}
+
+func (service *PostService) GetPostsByUsername(username string, offset, limit int) (*models.UserFeedDTO, *customerrors.CustomError, int) {
+
+	// See if user exists
+	_, err := service.userRepo.FindUserByUsername(username)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, customerrors.UserNotFound, http.StatusNotFound
+		}
+		return nil, customerrors.DatabaseError, http.StatusInternalServerError
+	}
+
+	// Get posts
+	posts, totalPostsCount, err := service.postRepo.GetPostsByUsername(username, offset, limit)
+	if err != nil {
+		return nil, customerrors.DatabaseError, http.StatusInternalServerError
+	}
+
+	// Create response dto and return
+	var postDtos []models.UserFeedRecordDTO
+	for _, post := range posts {
+		postDto := models.UserFeedRecordDTO{
+			PostId:       post.Id,
+			CreationDate: post.CreatedAt,
+			Content:      post.Content,
+		}
+		postDtos = append(postDtos, postDto)
+	}
+
+	paginationDto := models.UserFeedPaginationDTO{
+		Offset:  offset,
+		Limit:   limit,
+		Records: totalPostsCount,
+	}
+
+	userFeedDto := models.UserFeedDTO{
+		Records:    postDtos,
+		Pagination: &paginationDto,
+	}
+
+	return &userFeedDto, nil, http.StatusOK
+}
+
+// GetPostsGlobalFeed returns a pagination object with the posts in the global feed using pagination parameters
+func (service *PostService) GetPostsGlobalFeed(lastPostId string, limit int) (*models.GeneralFeedDTO, *customerrors.CustomError, int) {
+	// Initialise empty GeneralFeedDTO
+	feed := models.GeneralFeedDTO{
+		Records:    []models.PostCreateResponseDTO{},
+		Pagination: &models.GeneralFeedPaginationDTO{},
+	}
+
+	// Get last post if lastPostId is not empty
+	var lastPost models.Post
+	if lastPostId != "" {
+		post, err := service.postRepo.GetPostById(lastPostId)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, customerrors.PreliminaryPostNotFound, http.StatusNotFound
+			}
+			return nil, customerrors.DatabaseError, http.StatusInternalServerError
+		}
+		lastPost = post
+	}
+
+	// Retrieve posts from the database
+	posts, totalPostsCount, err := service.postRepo.GetPostsGlobalFeed(&lastPost, limit)
+	if err != nil {
+		return nil, customerrors.DatabaseError, http.StatusInternalServerError
+	}
+
+	// Fill GeneralFeedDTO with posts
+	for _, post := range posts {
+		authorDto := models.AuthorDTO{
+			Username:          post.User.Username,
+			Nickname:          post.User.Nickname,
+			ProfilePictureUrl: post.User.ProfilePictureUrl,
+		}
+		postDto := models.PostCreateResponseDTO{
+			PostId:       post.Id,
+			Author:       &authorDto,
+			CreationDate: post.CreatedAt,
+			Content:      post.Content,
+		}
+		feed.Records = append(feed.Records, postDto)
+	}
+
+	// Set pagination details
+	if len(posts) > 0 {
+		feed.Pagination.LastPostId = posts[len(posts)-1].Id
+	}
+	feed.Pagination.Limit = limit
+	feed.Pagination.Records = totalPostsCount
+
+	return &feed, nil, http.StatusOK
+}
+
+// GetPostsPersonalFeed returns a pagination object with the posts in the personal feed using pagination parameters
+func (service *PostService) GetPostsPersonalFeed(username string, lastPostId string, limit int) (*models.GeneralFeedDTO, *customerrors.CustomError, int) {
+	// Initialise empty GeneralFeedDTO
+	feed := models.GeneralFeedDTO{
+		Records:    []models.PostCreateResponseDTO{},
+		Pagination: &models.GeneralFeedPaginationDTO{},
+	}
+
+	// Get last post if lastPostId is not empty
+	var lastPost models.Post
+	if lastPostId != "" {
+		post, err := service.postRepo.GetPostById(lastPostId)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, customerrors.PreliminaryPostNotFound, http.StatusNotFound
+			}
+			return nil, customerrors.DatabaseError, http.StatusInternalServerError
+		}
+		lastPost = post
+	}
+
+	// Retrieve posts from the database
+	posts, totalPostsCount, err := service.postRepo.GetPostsPersonalFeed(username, &lastPost, limit)
+	if err != nil {
+		return nil, customerrors.DatabaseError, http.StatusInternalServerError
+	}
+
+	// Fill GeneralFeedDTO with posts
+	for _, post := range posts {
+		authorDto := models.AuthorDTO{
+			Username:          post.User.Username,
+			Nickname:          post.User.Nickname,
+			ProfilePictureUrl: post.User.ProfilePictureUrl,
+		}
+		postDto := models.PostCreateResponseDTO{
+			PostId:       post.Id,
+			Author:       &authorDto,
+			CreationDate: post.CreatedAt,
+			Content:      post.Content,
+		}
+		feed.Records = append(feed.Records, postDto)
+	}
+
+	// Set pagination details
+	if len(posts) > 0 {
+		feed.Pagination.LastPostId = posts[len(posts)-1].Id
+	}
+	feed.Pagination.Limit = limit
+	feed.Pagination.Records = totalPostsCount
+
+	return &feed, nil, http.StatusOK
 }

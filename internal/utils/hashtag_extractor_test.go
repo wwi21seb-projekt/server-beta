@@ -26,6 +26,16 @@ func TestExtractHashtags(t *testing.T) {
 			text:     "#Hello, this is a #1Test_1Post with #123Numbers",
 			expected: []string{"Hello", "1Test_1Post", "123Numbers"},
 		},
+		{
+			name:     "Same hashtags with lower case and upper case characters",
+			text:     "Hashtags with #test and #Test",
+			expected: []string{"test", "Test"},
+		},
+		{
+			name:     "Texts with same hashtags twice",
+			text:     "Hashtags with #test and #test",
+			expected: []string{"test"},
+		},
 	}
 
 	for _, tt := range tests {

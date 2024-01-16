@@ -44,11 +44,20 @@ func SetupRouter() *gin.Engine {
 	imageService := services.NewImageService(fileSystem)
 	userService := services.NewUserService(userRepo, activationTokenRepo, mailService, validator)
 	postService := services.NewPostService(postRepo, userRepo, hashtagRepo, imageService)
+	subscriptionRepo := repositories.NewSubscriptionRepository(initializers.DB)
+
+	validator := utils.NewValidator()
+	mailService := services.NewMailService()
+	userService := services.NewUserService(userRepo, activationTokenRepo, mailService, validator, postRepo)
+	postService := services.NewPostService(postRepo, userRepo, hashtagRepo)
+	subscriptionService := services.NewSubscriptionService(subscriptionRepo, userRepo)
 
 	imprintController := controllers.NewImprintController()
 	userController := controllers.NewUserController(userService)
 	postController := controllers.NewPostController(postService)
 	imageController := controllers.NewImageController(imageService)
+
+	subscriptionController := controllers.NewSubscriptionController(subscriptionService)
 
 	// API Routes
 	api := r.Group("/api")
@@ -71,24 +80,23 @@ func SetupRouter() *gin.Engine {
 	api.POST("/users/:username/activate", userController.ActivateUser)
 	api.DELETE("/users/:username/activate", userController.ResendActivationToken)
 	api.GET("/users/validate", middleware.AuthorizeUser, userController.ValidateLogin)
-	api.GET("/users", ReturnNotImplemented)
-	api.GET("/users/:username", ReturnNotImplemented)
-	api.GET("/users/:username/feed", ReturnNotImplemented)
-	api.PUT("/users", ReturnNotImplemented)
-	api.PATCH("/users", ReturnNotImplemented)
+	api.PUT("/users", middleware.AuthorizeUser, userController.UpdateUserInformation)
+	api.PATCH("/users", middleware.AuthorizeUser, userController.ChangeUserPassword)
+	api.GET("/users/:username", middleware.AuthorizeUser, userController.GetUserProfile)
+	api.GET("/users/:username/feed", middleware.AuthorizeUser, postController.GetPostsByUserUsername)
 
 	// Post
 	api.POST("/posts", middleware.AuthorizeUser, postController.CreatePost)
+  
+	// Feed
+	api.GET("/feed", postController.GetPostFeed)
 
 	// Image
 	api.GET("/images/:filename", imageController.GetImage)
 
-  // Subscriptions
-	api.POST("/subscriptions", ReturnNotImplemented)
-	api.DELETE("/subscriptions", ReturnNotImplemented)
-
-	// Feed
-	api.GET("/feed", ReturnNotImplemented)
+	// Subscription
+	api.POST("/subscriptions", middleware.AuthorizeUser, subscriptionController.PostSubscription)
+	api.DELETE("/subscriptions/:subscriptionId", middleware.AuthorizeUser, subscriptionController.DeleteSubscription)
 
 	return r
 }
