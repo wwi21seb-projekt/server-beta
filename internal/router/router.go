@@ -41,7 +41,7 @@ func SetupRouter() *gin.Engine {
 
 	validator := utils.NewValidator()
 	mailService := services.NewMailService()
-	userService := services.NewUserService(userRepo, activationTokenRepo, mailService, validator)
+	userService := services.NewUserService(userRepo, activationTokenRepo, mailService, validator, postRepo)
 	postService := services.NewPostService(postRepo, userRepo, hashtagRepo)
 	subscriptionService := services.NewSubscriptionService(subscriptionRepo, userRepo)
 
@@ -71,11 +71,11 @@ func SetupRouter() *gin.Engine {
 	api.POST("/users/:username/activate", userController.ActivateUser)
 	api.DELETE("/users/:username/activate", userController.ResendActivationToken)
 	api.GET("/users/validate", middleware.AuthorizeUser, userController.ValidateLogin)
+	api.PUT("/users", middleware.AuthorizeUser, userController.UpdateUserInformation)
+	api.PATCH("/users", middleware.AuthorizeUser, userController.ChangeUserPassword)
+	api.GET("/users/:username", middleware.AuthorizeUser, userController.GetUserProfile)
 	api.GET("/users", ReturnNotImplemented)
-	api.GET("/users/:username", ReturnNotImplemented)
 	api.GET("/users/:username/feed", ReturnNotImplemented)
-	api.PUT("/users", ReturnNotImplemented)
-	api.PATCH("/users", ReturnNotImplemented)
 
 	// Post
 	api.POST("/posts", middleware.AuthorizeUser, postController.CreatePost)

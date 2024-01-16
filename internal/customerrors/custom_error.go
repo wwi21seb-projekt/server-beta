@@ -10,7 +10,7 @@ type CustomError struct {
 
 // Error function to implement the error interface
 func (e *CustomError) Error() string {
-	return fmt.Sprintf("%v:%v: syntax error", e.Message, e.Code)
+	return fmt.Sprintf("Message: %v Code: %v", e.Message, e.Code)
 }
 
 // ErrorResponse is used for testing to see if the right custom error was returned
@@ -79,6 +79,10 @@ var (
 		Message: "The user is not authorized. Please login to your account.",
 		Code:    "ERR-014",
 	}
+	PreliminaryOldPasswordIncorrect = &CustomError{
+		Message: "The old password is incorrect. Please check the password and try again.",
+		Code:    "ERR-015",
+  }
 	PreliminarySelfFollow = &CustomError{
 		Message: "The user cannot follow himself.",
 		Code:    "ERR-015",
@@ -98,6 +102,5 @@ var (
 	PreliminaryPostNotFound = &CustomError{
 		Message: "The post was not found. Please check the post id and try again.",
 		Code:    "ERR-015",
-
 	}
 )

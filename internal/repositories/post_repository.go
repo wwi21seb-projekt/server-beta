@@ -7,6 +7,7 @@ import (
 
 type PostRepositoryInterface interface {
 	CreatePost(post *models.Post) error
+	GetPostCountByUsername(username string) (int64, error)
 	GetPostById(postId string) (models.Post, error)
 	GetPostsGlobalFeed(lastPost *models.Post, limit int) ([]models.Post, int64, error)
 	GetPostsPersonalFeed(username string, lastPost *models.Post, limit int) ([]models.Post, int64, error)
@@ -23,6 +24,14 @@ func NewPostRepository(db *gorm.DB) *PostRepository {
 
 func (repo *PostRepository) CreatePost(post *models.Post) error {
 	return repo.DB.Create(&post).Error
+}
+
+func (repo *PostRepository) GetPostCountByUsername(username string) (int64, error) {
+	var count int64
+	err := repo.DB.Model(&models.Post{}).
+		Where("username = ? ", username).
+		Count(&count).Error
+	return count, err
 }
 
 func (repo *PostRepository) GetPostById(postId string) (models.Post, error) {

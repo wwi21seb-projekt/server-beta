@@ -19,6 +19,9 @@ type UserServiceInterface interface {
 	LoginUser(req models.UserLoginRequestDTO) (*models.UserLoginResponseDTO, *customerrors.CustomError, int)
 	ActivateUser(username string, token string) (*customerrors.CustomError, int)
 	ResendActivationToken(username string) (*customerrors.CustomError, int)
+	UpdateUserInformation(req *models.UserInformationUpdateDTO, currentUsername string) (*models.UserInformationUpdateDTO, *customerrors.CustomError, int)
+	ChangeUserPassword(req *models.ChangePasswordDTO, currentUsername string) (*customerrors.CustomError, int)
+	GetUserProfile(username string, currentUser string) (*models.UserProfileResponseDTO, *customerrors.CustomError, int)
 }
 
 type UserService struct {
@@ -26,6 +29,7 @@ type UserService struct {
 	activationTokenRepo repositories.ActivationTokenRepositoryInterface
 	mailService         MailServiceInterface
 	validator           utils.ValidatorInterface
+	postRepo            repositories.PostRepositoryInterface
 }
 
 // NewUserService can be used as a constructor to generate a new UserService "object"
@@ -33,15 +37,17 @@ func NewUserService(
 	userRepo repositories.UserRepositoryInterface,
 	activationTokenRepo repositories.ActivationTokenRepositoryInterface,
 	maliService MailServiceInterface,
-	validator utils.ValidatorInterface) *UserService {
+	validator utils.ValidatorInterface,
+	postRepo repositories.PostRepositoryInterface) *UserService {
 	return &UserService{
 		userRepo:            userRepo,
 		activationTokenRepo: activationTokenRepo,
 		mailService:         maliService,
-		validator:           validator}
+		validator:           validator,
+		postRepo:            postRepo}
 }
 
-// SendActivationToken deletes old activation tokens, generates a new six-digit code and sends it to user via mail
+// sendActivationToken deletes old activation tokens, generates a new six-digit code and sends it to user via mail
 func (service *UserService) sendActivationToken(email string, tokenObject *models.ActivationToken) *customerrors.CustomError {
 	subject := "Verification Token"
 	body := "Your verification code is:\n\n\t" + tokenObject.Token + "\n\nVerify your account now!"
@@ -60,6 +66,9 @@ func (service *UserService) CreateUser(req models.UserCreateRequestDTO) (*models
 		return nil, customerrors.BadRequest, http.StatusBadRequest
 	}
 	if !service.validator.ValidateNickname(req.Nickname) {
+		return nil, customerrors.BadRequest, http.StatusBadRequest
+	}
+	if !service.validator.ValidateStatus(req.Status) {
 		return nil, customerrors.BadRequest, http.StatusBadRequest
 	}
 	if !service.validator.ValidateEmailSyntax(req.Email) {
@@ -115,6 +124,7 @@ func (service *UserService) CreateUser(req models.UserCreateRequestDTO) (*models
 		PasswordHash:      passwordHashed,
 		CreatedAt:         time.Now(),
 		Activated:         false,
+		Status:            "", //status is empty in the beginning
 	}
 
 	// Create new code
@@ -326,4 +336,121 @@ func (service *UserService) ResendActivationToken(username string) (*customerror
 
 	return nil, http.StatusNoContent
 
+}
+
+// UpdateUserInformation can be called from the controller to update a user's nickname and status
+func (service *UserService) UpdateUserInformation(req *models.UserInformationUpdateDTO, currentUsername string) (*models.UserInformationUpdateDTO, *customerrors.CustomError, int) {
+	// Check if the new nickname and status are valid
+	if !service.validator.ValidateNickname(req.Nickname) || !service.validator.ValidateStatus(req.Status) {
+		return nil, customerrors.BadRequest, http.StatusBadRequest
+	}
+
+	// Find the user by username
+	user, err := service.userRepo.FindUserByUsername(currentUsername)
+	if err != nil {
+		return nil, customerrors.DatabaseError, http.StatusInternalServerError
+	}
+
+	// Update the user's nickname and status
+	user.Nickname = req.Nickname
+	user.Status = req.Status
+	err = service.userRepo.UpdateUser(user)
+	if err != nil {
+		return nil, customerrors.DatabaseError, http.StatusInternalServerError
+	}
+
+	// Create and return the response DTO
+	responseDTO := models.UserInformationUpdateDTO{
+		Nickname: user.Nickname,
+		Status:   user.Status,
+	}
+
+	return &responseDTO, nil, http.StatusOK
+}
+
+// ChangeUserPassword can be called from the controller to update a user's password
+func (service *UserService) ChangeUserPassword(req *models.ChangePasswordDTO, currentUsername string) (*customerrors.CustomError, int) {
+	// Validate the new password
+	if !service.validator.ValidatePassword(req.NewPassword) {
+		return customerrors.BadRequest, http.StatusBadRequest
+	}
+
+	// Find the user by username
+	user, err := service.userRepo.FindUserByUsername(currentUsername)
+	if err != nil {
+		return customerrors.DatabaseError, http.StatusInternalServerError
+	}
+
+	// Verify the old password
+	if !utils.CheckPassword(req.OldPassword, user.PasswordHash) {
+		return customerrors.PreliminaryOldPasswordIncorrect, http.StatusForbidden
+	}
+
+	// Hash the new password
+	newPasswordHashed, err := utils.HashPassword(req.NewPassword)
+	if err != nil {
+		return customerrors.InternalServerError, http.StatusInternalServerError
+	}
+
+	// Update the user's password
+	user.PasswordHash = newPasswordHashed
+	if err := service.userRepo.UpdateUser(user); err != nil {
+		return customerrors.DatabaseError, http.StatusInternalServerError
+	}
+
+	return nil, http.StatusNoContent
+}
+
+// GetUserProfile returns information about the user
+func (service *UserService) GetUserProfile(username string, currentUser string) (*models.UserProfileResponseDTO, *customerrors.CustomError, int) {
+	// find user
+	user, err := service.userRepo.FindUserByUsername(username)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, customerrors.UserNotFound, http.StatusNotFound
+		}
+		return nil, customerrors.DatabaseError, http.StatusInternalServerError
+	}
+
+	// Get counts
+	postCount, err := service.postRepo.GetPostCountByUsername(username)
+	if err != nil {
+		return nil, customerrors.DatabaseError, http.StatusInternalServerError
+	}
+	// TODO: Use subscriptions
+	//followerCount, followingCount, err := service.subscriptionRepo.GetSubscriptionCountByUsername(username)
+	//if err != nil {
+	//	return nil, customerrors.DatabaseError, http.StatusInternalServerError
+	//}
+	followerCount := int64(0)  // example
+	followingCount := int64(0) // example
+
+	// Set subscription id if current user is following
+	subscriptionId := ""
+	//if currentUser != "" {
+	//	id, err := service.subscriptionRepo.GetSubscriptionByUsernames(currentUser, username)
+	//	if err != nil {
+	//		if errors.Is(err, gorm.ErrRecordNotFound) {
+	//			subscriptionId = ""
+	//		} else {
+	//			return nil, customerrors.DatabaseError, http.StatusInternalServerError
+	//		}
+	//	} else {
+	//		subscriptionId = id
+	//	}
+	//}
+
+	// Create response
+	userProfile := &models.UserProfileResponseDTO{
+		Username:          user.Username,
+		Nickname:          user.Nickname,
+		Status:            user.Status,
+		ProfilePictureUrl: user.ProfilePictureUrl,
+		Follower:          followerCount,
+		Following:         followingCount,
+		Posts:             postCount,
+		SubscriptionId:    subscriptionId,
+	}
+
+	return userProfile, nil, http.StatusOK
 }
