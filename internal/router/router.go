@@ -71,13 +71,32 @@ func SetupRouter() *gin.Engine {
 	api.POST("/users/:username/activate", userController.ActivateUser)
 	api.DELETE("/users/:username/activate", userController.ResendActivationToken)
 	api.GET("/users/validate", middleware.AuthorizeUser, userController.ValidateLogin)
+	api.GET("/users", ReturnNotImplemented)
+	api.GET("/users/:username", ReturnNotImplemented)
+	api.GET("/users/:username/feed", ReturnNotImplemented)
+	api.PUT("/users", ReturnNotImplemented)
+	api.PATCH("/users", ReturnNotImplemented)
 
 	// Post
 	api.POST("/posts", middleware.AuthorizeUser, postController.CreatePost)
+	api.GET("/feed", postController.GetPostFeed)
+
+	// Subscriptions
+	api.POST("/subscriptions", ReturnNotImplemented)
+	api.DELETE("/subscriptions", ReturnNotImplemented)
+
+	// Feed
+	api.GET("/feed", ReturnNotImplemented)
 
 	// Subscription
 	api.POST("/subscriptions", middleware.AuthorizeUser, subscriptionController.PostSubscription)
 	api.DELETE("/subscriptions/:subscriptionId", middleware.AuthorizeUser, subscriptionController.DeleteSubscription)
 
 	return r
+}
+
+func ReturnNotImplemented(c *gin.Context) {
+	c.JSON(http.StatusNotImplemented, gin.H{
+		"error": "Not implemented",
+	})
 }

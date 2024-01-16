@@ -94,5 +94,10 @@ var (
 	PreliminarySubscriptionDeleteNotAuthorized = &CustomError{
 		Message: "The user is not authorized to delete the subscription. Please check the subscription id and try again.",
 		Code:    "ERR-018",
+  }
+	PreliminaryPostNotFound = &CustomError{
+		Message: "The post was not found. Please check the post id and try again.",
+		Code:    "ERR-015",
+
 	}
 )

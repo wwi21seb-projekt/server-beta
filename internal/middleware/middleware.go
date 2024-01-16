@@ -8,33 +8,36 @@ import (
 	"strings"
 )
 
-// AuthorizeUser validates token and attaches username of user to request
+// AuthorizeUser validates token and attaches username of user to request, if token invalid aborts with error
 func AuthorizeUser(c *gin.Context) {
-	authHeader := c.GetHeader("Authorization")
-	if authHeader == "" {
+	username, ok := GetLoggedInUsername(c)
+	if !ok {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 			"error": customerrors.PreliminaryUserUnauthorized,
 		})
-		return
+	}
+
+	c.Set("username", username) // Attach username to request
+	c.Next()                    // Execute main function
+}
+
+// GetLoggedInUsername returns the username of the logged-in user and true if the user is logged in
+func GetLoggedInUsername(c *gin.Context) (string, bool) {
+	authHeader := c.GetHeader("Authorization")
+	if authHeader == "" {
+		return "", false
 	}
 
 	const bearerSchema = "Bearer "
 	if !strings.HasPrefix(authHeader, bearerSchema) {
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-			"error": customerrors.PreliminaryUserUnauthorized,
-		})
-		return
+		return "", false
 	}
 
 	tokenString := strings.TrimPrefix(authHeader, bearerSchema)
 	username, err := utils.VerifyAccessToken(tokenString)
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-			"error": customerrors.PreliminaryUserUnauthorized,
-		})
-		return
+		return "", false
 	}
 
-	c.Set("username", username) // Attach username to request
-	c.Next()                    // Execute main function
+	return username, true
 }
