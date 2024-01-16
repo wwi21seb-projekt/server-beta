@@ -8,36 +8,41 @@ import (
 	"github.com/marcbudd/server-beta/internal/repositories"
 	"github.com/marcbudd/server-beta/internal/utils"
 	"gorm.io/gorm"
+	"mime/multipart"
 	"net/http"
 	"time"
 	"unicode/utf8"
 )
 
 type PostServiceInterface interface {
-	CreatePost(req *models.PostCreateRequestDTO, username string) (*models.PostCreateResponseDTO, *customerrors.CustomError, int)
+	CreatePost(req *models.PostCreateRequestDTO, file *multipart.FileHeader, username string) (*models.PostCreateResponseDTO, *customerrors.CustomError, int)
 	GetPostsByUsername(username string, offset, limit int) (*models.UserFeedDTO, *customerrors.CustomError, int)
 	GetPostsGlobalFeed(lastPostId string, limit int) (*models.GeneralFeedDTO, *customerrors.CustomError, int)
 	GetPostsPersonalFeed(username string, lastPostId string, limit int) (*models.GeneralFeedDTO, *customerrors.CustomError, int)
 }
 
 type PostService struct {
-	postRepo    repositories.PostRepositoryInterface
-	userRepo    repositories.UserRepositoryInterface
-	hashtagRepo repositories.HashtagRepositoryInterface
+	postRepo     repositories.PostRepositoryInterface
+	userRepo     repositories.UserRepositoryInterface
+	hashtagRepo  repositories.HashtagRepositoryInterface
+	imageService ImageServiceInterface
 }
 
 // NewPostService can be used as a constructor to create a PostService "object"
 func NewPostService(postRepo repositories.PostRepositoryInterface,
 	userRepo repositories.UserRepositoryInterface,
-	hashtagRepo repositories.HashtagRepositoryInterface) *PostService {
-	return &PostService{postRepo: postRepo, userRepo: userRepo, hashtagRepo: hashtagRepo}
+	hashtagRepo repositories.HashtagRepositoryInterface,
+	imageService ImageServiceInterface) *PostService {
+	return &PostService{postRepo: postRepo, userRepo: userRepo, hashtagRepo: hashtagRepo, imageService: imageService}
 }
 
-// CreatePost creates a post and returns a PostCreateResponseDTO
-func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, username string) (*models.PostCreateResponseDTO, *customerrors.CustomError, int) {
+func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *multipart.FileHeader, username string) (*models.PostCreateResponseDTO, *customerrors.CustomError, int) {
 
 	// Validations: 0-256 characters and utf8 characters
-	if len(req.Content) <= 0 || len(req.Content) > 256 { // TODO: if image is present, content can be empty
+	if len(req.Content) > 256 {
+		return nil, customerrors.BadRequest, http.StatusBadRequest
+	}
+	if len(req.Content) <= 0 && file == nil { // image or file can be empty, but not both
 		return nil, customerrors.BadRequest, http.StatusBadRequest
 	}
 	if !utf8.ValidString(req.Content) {
@@ -53,6 +58,11 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, usernam
 		return nil, customerrors.InternalServerError, http.StatusInternalServerError
 	}
 
+	// Check if user is activated
+	if !user.Activated {
+		return nil, customerrors.PreliminaryUserUnauthorized, http.StatusUnauthorized
+	}
+
 	//Extract hashtags
 	hashtagNames := utils.ExtractHashtags(req.Content)
 
@@ -66,12 +76,22 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, usernam
 		hashtags = append(hashtags, hashtag)
 	}
 
+	// Save image if present
+	var imageUrl = ""
+	if file != nil {
+		url, err, httpStatus := service.imageService.SaveImage(*file)
+		if err != nil {
+			return nil, err, httpStatus
+		}
+		imageUrl = url
+	}
+
 	// Create post
 	post := models.Post{
 		Id:        uuid.New(),
 		Username:  username,
 		Content:   req.Content,
-		ImageUrl:  "",
+		ImageUrl:  imageUrl,
 		Hashtags:  hashtags,
 		CreatedAt: time.Now(),
 	}
@@ -81,14 +101,13 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, usernam
 	}
 
 	// Create response dto and return
-	authorDto := models.AuthorDTO{
-		Username:          user.Username,
-		Nickname:          user.Nickname,
-		ProfilePictureUrl: user.ProfilePictureUrl,
-	}
 	postDto := models.PostCreateResponseDTO{
-		PostId:       post.Id,
-		Author:       &authorDto,
+		PostId: post.Id,
+		Author: &models.AuthorDTO{
+			Username:          user.Username,
+			Nickname:          user.Nickname,
+			ProfilePictureUrl: user.ProfilePictureUrl,
+		},
 		CreationDate: post.CreatedAt,
 		Content:      post.Content,
 	}
