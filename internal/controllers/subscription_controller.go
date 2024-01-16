@@ -29,7 +29,7 @@ func (controller *SubscriptionController) PostSubscription(c *gin.Context) {
 	if !exists {
 		fmt.Println("test")
 		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": customerrors.PreliminaryUserUnauthorized,
+			"error": customerrors.UserUnauthorized,
 		})
 		return
 	}
@@ -68,7 +68,7 @@ func (controller *SubscriptionController) DeleteSubscription(c *gin.Context) {
 	username, exists := c.Get("username")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": customerrors.PreliminaryUserUnauthorized,
+			"error": customerrors.UserUnauthorized,
 		})
 		return
 	}

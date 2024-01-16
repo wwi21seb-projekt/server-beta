@@ -48,7 +48,7 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, usernam
 	user, err := service.userRepo.FindUserByUsername(username)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, customerrors.PreliminaryUserUnauthorized, http.StatusUnauthorized // TODO: Custom error for unauthorized?
+			return nil, customerrors.UserUnauthorized, http.StatusUnauthorized // TODO: Custom error for unauthorized?
 		}
 		return nil, customerrors.InternalServerError, http.StatusInternalServerError
 	}

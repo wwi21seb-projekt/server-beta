@@ -75,32 +75,32 @@ var (
 		Message: "The user is already activated. Please login to your account.",
 		Code:    "ERR-013",
 	}
-	PreliminaryUserUnauthorized = &CustomError{
-		Message: "The user is not authorized. Please login to your account.",
+	UserUnauthorized = &CustomError{
+		Message: "The request is unauthorized. Please login to your account.",
 		Code:    "ERR-014",
 	}
 	PreliminaryOldPasswordIncorrect = &CustomError{
-		Message: "The old password is incorrect. Please check the password and try again.",
-		Code:    "ERR-015",
-  }
+		Message: "To be set",
+		Code:    "To be set",
+	}
 	PreliminarySelfFollow = &CustomError{
-		Message: "The user cannot follow himself.",
-		Code:    "ERR-015",
+		Message: "To be set",
+		Code:    "To be set",
 	}
 	PreliminarySubscriptionAlreadyExists = &CustomError{
-		Message: "The subscription already exists. Please check the subscription id and try again.",
-		Code:    "ERR-016",
+		Message: "To be set",
+		Code:    "To be set",
 	}
 	PreliminarySubscriptionNotFound = &CustomError{
-		Message: "The subscription was not found. Please check the subscription id and try again.",
+		Message: "To be set",
 		Code:    "ERR-017",
 	}
 	PreliminarySubscriptionDeleteNotAuthorized = &CustomError{
-		Message: "The user is not authorized to delete the subscription. Please check the subscription id and try again.",
-		Code:    "ERR-018",
-  }
+		Message: "To be set",
+		Code:    "To be set",
+	}
 	PreliminaryPostNotFound = &CustomError{
-		Message: "The post was not found. Please check the post id and try again.",
-		Code:    "ERR-015",
+		Message: "To be set",
+		Code:    "To be set",
 	}
 )
