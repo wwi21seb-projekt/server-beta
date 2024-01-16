@@ -218,6 +218,239 @@ func TestCreatePostUnauthorized(t *testing.T) {
 	}
 }
 
+// TestGetPostsByUsernameSuccess tests if the GetPostsByUserUsername function returns a list of posts and 200 ok if the user exists
+func TestFindPostsByUsernameSuccess(t *testing.T) {
+	// Arrange
+	mockUserRepository := new(repositories.MockUserRepository)
+	mockPostRepository := new(repositories.MockPostRepository)
+	mockHashtagRepository := new(repositories.MockHashtagRepository)
+
+	postService := services.NewPostService(
+		mockPostRepository,
+		mockUserRepository,
+		mockHashtagRepository,
+	)
+	postController := controllers.NewPostController(postService)
+
+	user := models.User{
+		Username: "testUser",
+		Nickname: "testNickname",
+		Email:    "test@example.com",
+	}
+
+	posts := []models.Post{
+		{
+			Id:        uuid.New(),
+			Username:  user.Username,
+			Content:   "Test Post 1",
+			CreatedAt: time.Now(),
+		},
+		{
+			Id:        uuid.New(),
+			Username:  user.Username,
+			Content:   "Test Post 2",
+			CreatedAt: time.Now().Add(-1 * time.Hour),
+		},
+	}
+
+	currentUsername := "someOtherUser"
+	authenticationToken, err := utils.GenerateAccessToken(currentUsername)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	limit := 10
+	offset := 0
+
+	// Mock expectations
+	mockUserRepository.On("FindUserByUsername", user.Username).Return(&user, nil) // User found successfully
+	mockPostRepository.On("GetPostsByUsername", user.Username, 0, 10).Return(posts, int64(len(posts)), nil)
+
+	// Setup HTTP request
+	url := "/users/" + user.Username + "/feed?offset=" + fmt.Sprint(offset) + "&limit=" + fmt.Sprint(limit)
+	req, _ := http.NewRequest("GET", url, nil)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+authenticationToken)
+	w := httptest.NewRecorder()
+
+	// Act
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+	router.GET("/users/:username/feed", middleware.AuthorizeUser, postController.GetPostsByUserUsername)
+	router.ServeHTTP(w, req)
+
+	// Assert
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var response models.UserFeedDTO
+	err = json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(t, err)
+
+	assert.Equal(t, posts[0].Id, response.Records[0].PostId)
+	assert.Equal(t, posts[0].Content, response.Records[0].Content)
+	assert.Equal(t, posts[0].Content, response.Records[0].Content)
+	assert.Equal(t, posts[1].Id, response.Records[1].PostId)
+	assert.Equal(t, posts[1].Content, response.Records[1].Content)
+	assert.True(t, posts[1].CreatedAt.Equal(response.Records[1].CreationDate))
+
+	assert.Equal(t, offset, response.Pagination.Offset)
+	assert.Equal(t, limit, response.Pagination.Limit)
+	assert.Equal(t, int64(len(posts)), response.Pagination.Records)
+
+	// Validate Mock Expectations
+	mockUserRepository.AssertExpectations(t)
+	mockPostRepository.AssertExpectations(t)
+}
+
+// TestFindPostsByUsernameBadRequest tests if the GetPostsByUserUsername function returns a 400 bad request if the offset or limit query parameters are invalid
+func TestFindPostsByUsernameBadRequest(t *testing.T) {
+	invalidQueries := []string{
+		"offset=invalid",               // invalid offset
+		"limit=invalid",                // invalid limit
+		"limit=invalid",                // invalid limit
+		"offset=1&limit=invalid",       // invalid limit
+		"offset=invalid&limit=1",       // invalid offset
+		"offset=invalid&limit=invalid", // invalid offset and limit
+	}
+
+	for _, query := range invalidQueries {
+		// Arrange
+		mockUserRepository := new(repositories.MockUserRepository)
+		mockPostRepository := new(repositories.MockPostRepository)
+		mockHashtagRepository := new(repositories.MockHashtagRepository)
+
+		postService := services.NewPostService(
+			mockPostRepository,
+			mockUserRepository,
+			mockHashtagRepository,
+		)
+		postController := controllers.NewPostController(postService)
+
+		username := "testUser"
+		authenticationToken, err := utils.GenerateAccessToken(username)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Setup HTTP request
+		req, _ := http.NewRequest("GET", "/users/testUser/feed?"+query, nil)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+authenticationToken)
+		w := httptest.NewRecorder()
+
+		// Act
+		gin.SetMode(gin.TestMode)
+		router := gin.Default()
+		router.GET("/users/:username/feed", middleware.AuthorizeUser, postController.GetPostsByUserUsername)
+		router.ServeHTTP(w, req)
+
+		// Assert
+		assert.Equal(t, http.StatusBadRequest, w.Code) // Expect 400 bad request
+		var errorResponse customerrors.ErrorResponse
+		err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
+		assert.NoError(t, err)
+
+		expectedCustomError := customerrors.BadRequest
+		assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
+		assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
+	}
+}
+
+// TestFindPostsByUsernameUnauthorized tests if the GetPostsByUserUsername function returns a 401 unauthorized if the user is not authenticated
+func TestFindPostsByUsernameUnauthorized(t *testing.T) {
+	invalidTokens := []string{
+		"",                 // empty token
+		"someInvalidToken", // some invalid token
+	}
+
+	for _, token := range invalidTokens {
+		// Arrange
+		mockUserRepository := new(repositories.MockUserRepository)
+		mockPostRepository := new(repositories.MockPostRepository)
+		mockHashtagRepository := new(repositories.MockHashtagRepository)
+
+		postService := services.NewPostService(
+			mockPostRepository,
+			mockUserRepository,
+			mockHashtagRepository,
+		)
+		postController := controllers.NewPostController(postService)
+
+		// Setup HTTP request
+		req, _ := http.NewRequest("GET", "/users/testUser/feed", nil)
+		req.Header.Set("Content-Type", "application/json")
+		if token != "" {
+			req.Header.Set("Authorization", "Bearer "+token)
+		}
+		w := httptest.NewRecorder()
+
+		// Act
+		gin.SetMode(gin.TestMode)
+		router := gin.Default()
+		router.GET("/users/:username/feed", middleware.AuthorizeUser, postController.GetPostsByUserUsername)
+		router.ServeHTTP(w, req)
+
+		// Assert
+		assert.Equal(t, http.StatusUnauthorized, w.Code) // Expect 401 Unauthorized
+		var errorResponse customerrors.ErrorResponse
+		err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
+		assert.NoError(t, err)
+
+		expectedCustomError := customerrors.PreliminaryUserUnauthorized
+		assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
+		assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
+	}
+}
+
+// TestFindPostsByUserUsernameNotFound tests if the GetPostsByUserUsername function returns a 404 not found if the user does not exist
+func TestFindPostsByUsernameUserNotFound(t *testing.T) {
+	// Arrange
+	mockUserRepository := new(repositories.MockUserRepository)
+	mockPostRepository := new(repositories.MockPostRepository)
+	mockHashtagRepository := new(repositories.MockHashtagRepository)
+
+	postService := services.NewPostService(
+		mockPostRepository,
+		mockUserRepository,
+		mockHashtagRepository,
+	)
+	postController := controllers.NewPostController(postService)
+
+	username := "testUser"
+	authenticationToken, err := utils.GenerateAccessToken(username)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Mock expectations
+	mockUserRepository.On("FindUserByUsername", username).Return(&models.User{}, gorm.ErrRecordNotFound) // User not found
+
+	// Setup HTTP request
+	req, _ := http.NewRequest("GET", "/users/testUser/feed", nil)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+authenticationToken)
+	w := httptest.NewRecorder()
+
+	// Act
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+	router.GET("/users/:username/feed", middleware.AuthorizeUser, postController.GetPostsByUserUsername)
+	router.ServeHTTP(w, req)
+
+	// Assert
+	assert.Equal(t, http.StatusNotFound, w.Code) // Expect 404 not found
+	var errorResponse customerrors.ErrorResponse
+	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
+	assert.NoError(t, err)
+
+	expectedCustomError := customerrors.UserNotFound
+	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
+	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
+
+	mockPostRepository.AssertExpectations(t)
+	mockUserRepository.AssertExpectations(t)
+}
+
 // TestGetGlobalPostFeedSuccess tests if the GetPostFeed function returns a post feed and 200 ok if the request is valid
 func TestGetGlobalPostFeedSuccess(t *testing.T) {
 	validToken, err := utils.GenerateAccessToken("someUser")

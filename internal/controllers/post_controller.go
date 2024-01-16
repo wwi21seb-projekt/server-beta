@@ -12,6 +12,7 @@ import (
 
 type PostControllerInterface interface {
 	CreatePost(c *gin.Context)
+	GetPostsByUserUsername(c *gin.Context)
 	GetPostFeed(c *gin.Context)
 }
 
@@ -53,6 +54,38 @@ func (controller *PostController) CreatePost(c *gin.Context) {
 	}
 
 	c.JSON(httpStatus, postDto)
+}
+
+func (controller *PostController) GetPostsByUserUsername(c *gin.Context) {
+	username := c.Param("username")
+	offsetQuery := c.DefaultQuery("offset", "0")
+	limitQuery := c.DefaultQuery("limit", "10")
+
+	offset, err := strconv.Atoi(offsetQuery)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": customerrors.BadRequest,
+		})
+		return
+	}
+
+	limit, err := strconv.Atoi(limitQuery)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": customerrors.BadRequest,
+		})
+		return
+	}
+
+	feedDto, serviceErr, httpStatus := controller.postService.GetPostsByUsername(username, offset, limit)
+	if serviceErr != nil {
+		c.JSON(httpStatus, gin.H{
+			"error": serviceErr,
+		})
+		return
+	}
+
+	c.JSON(httpStatus, feedDto)
 }
 
 // GetPostFeed is a controller function that gets a global or personal post feed and can be called from router

@@ -15,6 +15,7 @@ import (
 
 type PostServiceInterface interface {
 	CreatePost(req *models.PostCreateRequestDTO, username string) (*models.PostCreateResponseDTO, *customerrors.CustomError, int)
+	GetPostsByUsername(username string, offset, limit int) (*models.UserFeedDTO, *customerrors.CustomError, int)
 	GetPostsGlobalFeed(lastPostId string, limit int) (*models.GeneralFeedDTO, *customerrors.CustomError, int)
 	GetPostsPersonalFeed(username string, lastPostId string, limit int) (*models.GeneralFeedDTO, *customerrors.CustomError, int)
 }
@@ -93,6 +94,48 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, usernam
 	}
 
 	return &postDto, nil, http.StatusCreated
+}
+
+func (service *PostService) GetPostsByUsername(username string, offset, limit int) (*models.UserFeedDTO, *customerrors.CustomError, int) {
+
+	// See if user exists
+	_, err := service.userRepo.FindUserByUsername(username)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, customerrors.UserNotFound, http.StatusNotFound
+		}
+		return nil, customerrors.DatabaseError, http.StatusInternalServerError
+	}
+
+	// Get posts
+	posts, totalPostsCount, err := service.postRepo.GetPostsByUsername(username, offset, limit)
+	if err != nil {
+		return nil, customerrors.DatabaseError, http.StatusInternalServerError
+	}
+
+	// Create response dto and return
+	var postDtos []models.UserFeedRecordDTO
+	for _, post := range posts {
+		postDto := models.UserFeedRecordDTO{
+			PostId:       post.Id,
+			CreationDate: post.CreatedAt,
+			Content:      post.Content,
+		}
+		postDtos = append(postDtos, postDto)
+	}
+
+	paginationDto := models.UserFeedPaginationDTO{
+		Offset:  offset,
+		Limit:   limit,
+		Records: totalPostsCount,
+	}
+
+	userFeedDto := models.UserFeedDTO{
+		Records:    postDtos,
+		Pagination: &paginationDto,
+	}
+
+	return &userFeedDto, nil, http.StatusOK
 }
 
 // GetPostsGlobalFeed returns a pagination object with the posts in the global feed using pagination parameters
