@@ -77,5 +77,10 @@ var (
 	}
 	PreliminaryUserUnauthorized = &CustomError{
 		Message: "The user is not authorized. Please login to your account.",
+		Code:    "ERR-014",
+	}
+	PreliminaryPostNotFound = &CustomError{
+		Message: "The post was not found. Please check the post id and try again.",
+		Code:    "ERR-015",
 	}
 )
