@@ -2,7 +2,7 @@ package initializers
 
 import (
 	"fmt"
-	"github.com/marcbudd/server-beta/internal/models"
+	"github.com/wwi21seb-projekt/server-beta/internal/models"
 )
 
 // SyncDatabase synchronizes the database tables with the model definitions and creates extensions if necessary

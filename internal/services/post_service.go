@@ -3,10 +3,10 @@ package services
 import (
 	"errors"
 	"github.com/google/uuid"
-	"github.com/marcbudd/server-beta/internal/customerrors"
-	"github.com/marcbudd/server-beta/internal/models"
-	"github.com/marcbudd/server-beta/internal/repositories"
-	"github.com/marcbudd/server-beta/internal/utils"
+	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
+	"github.com/wwi21seb-projekt/server-beta/internal/models"
+	"github.com/wwi21seb-projekt/server-beta/internal/repositories"
+	"github.com/wwi21seb-projekt/server-beta/internal/utils"
 	"gorm.io/gorm"
 	"mime/multipart"
 	"net/http"
@@ -53,7 +53,7 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *m
 	user, err := service.userRepo.FindUserByUsername(username)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, customerrors.UserUnauthorized, http.StatusUnauthorized // TODO: Custom error for unauthorized?
+			return nil, customerrors.UserUnauthorized, http.StatusUnauthorized
 		}
 		return nil, customerrors.InternalServerError, http.StatusInternalServerError
 	}

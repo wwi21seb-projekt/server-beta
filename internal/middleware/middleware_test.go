@@ -3,9 +3,9 @@ package middleware
 import (
 	"encoding/json"
 	"github.com/gin-gonic/gin"
-	"github.com/marcbudd/server-beta/internal/customerrors"
-	"github.com/marcbudd/server-beta/internal/utils"
 	"github.com/stretchr/testify/assert"
+	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
+	"github.com/wwi21seb-projekt/server-beta/internal/utils"
 	"net/http"
 	"net/http/httptest"
 	"testing"

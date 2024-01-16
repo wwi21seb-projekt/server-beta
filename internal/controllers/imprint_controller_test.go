@@ -3,7 +3,7 @@ package controllers_test
 import (
 	"encoding/json"
 	"github.com/gin-gonic/gin"
-	"github.com/marcbudd/server-beta/internal/controllers"
+	"github.com/wwi21seb-projekt/server-beta/internal/controllers"
 	"net/http"
 	"net/http/httptest"
 	"testing"

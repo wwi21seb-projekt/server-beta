@@ -2,8 +2,8 @@ package middleware
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/marcbudd/server-beta/internal/customerrors"
-	"github.com/marcbudd/server-beta/internal/utils"
+	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
+	"github.com/wwi21seb-projekt/server-beta/internal/utils"
 	"net/http"
 	"strings"
 )

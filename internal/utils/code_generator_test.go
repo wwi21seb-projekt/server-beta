@@ -1,7 +1,7 @@
 package utils_test
 
 import (
-	"github.com/marcbudd/server-beta/internal/utils"
+	"github.com/wwi21seb-projekt/server-beta/internal/utils"
 	"strconv"
 	"testing"
 	"unicode"

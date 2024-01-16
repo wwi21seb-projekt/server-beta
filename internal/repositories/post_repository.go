@@ -1,7 +1,7 @@
 package repositories
 
 import (
-	"github.com/marcbudd/server-beta/internal/models"
+	"github.com/wwi21seb-projekt/server-beta/internal/models"
 	"gorm.io/gorm"
 )
 
@@ -88,9 +88,9 @@ func (repo *PostRepository) GetPostsPersonalFeed(username string, lastPost *mode
 	var count int64
 	var err error
 
-	baseQuery := repo.DB.Model(&models.Post{})
-
-	// TODO: filter for subscriptions
+	baseQuery := repo.DB.Model(&models.Post{}).
+		Joins("JOIN subscriptions ON subscriptions.following = posts.username").
+		Where("subscriptions.follower = ?", username)
 
 	// Number of posts in global feed
 	err = baseQuery.Count(&count).Error

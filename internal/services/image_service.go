@@ -3,8 +3,8 @@ package services
 import (
 	"fmt"
 	"github.com/google/uuid"
-	"github.com/marcbudd/server-beta/internal/customerrors"
-	"github.com/marcbudd/server-beta/internal/repositories"
+	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
+	"github.com/wwi21seb-projekt/server-beta/internal/repositories"
 	"io"
 	"mime/multipart"
 	"net/http"

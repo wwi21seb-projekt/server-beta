@@ -2,9 +2,9 @@ package controllers
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/marcbudd/server-beta/internal/customerrors"
-	"github.com/marcbudd/server-beta/internal/models"
-	"github.com/marcbudd/server-beta/internal/services"
+	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
+	"github.com/wwi21seb-projekt/server-beta/internal/models"
+	"github.com/wwi21seb-projekt/server-beta/internal/services"
 	"net/http"
 	"strconv"
 )

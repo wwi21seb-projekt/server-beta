@@ -1,7 +1,7 @@
 package repositories
 
 import (
-	"github.com/marcbudd/server-beta/internal/models"
+	"github.com/wwi21seb-projekt/server-beta/internal/models"
 	"gorm.io/gorm"
 )
 

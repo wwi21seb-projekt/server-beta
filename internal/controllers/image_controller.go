@@ -2,7 +2,7 @@ package controllers
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/marcbudd/server-beta/internal/services"
+	"github.com/wwi21seb-projekt/server-beta/internal/services"
 	"strings"
 )
 

@@ -3,9 +3,9 @@ package services
 import (
 	"errors"
 	"github.com/google/uuid"
-	"github.com/marcbudd/server-beta/internal/customerrors"
-	"github.com/marcbudd/server-beta/internal/models"
-	"github.com/marcbudd/server-beta/internal/repositories"
+	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
+	"github.com/wwi21seb-projekt/server-beta/internal/models"
+	"github.com/wwi21seb-projekt/server-beta/internal/repositories"
 	"gorm.io/gorm"
 	"net/http"
 	"time"

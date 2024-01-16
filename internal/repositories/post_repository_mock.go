@@ -1,8 +1,8 @@
 package repositories
 
 import (
-	"github.com/marcbudd/server-beta/internal/models"
 	"github.com/stretchr/testify/mock"
+	"github.com/wwi21seb-projekt/server-beta/internal/models"
 )
 
 type MockPostRepository struct {

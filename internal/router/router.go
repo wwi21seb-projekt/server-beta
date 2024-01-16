@@ -3,17 +3,17 @@ package router
 import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"github.com/marcbudd/server-beta/internal/controllers"
-	"github.com/marcbudd/server-beta/internal/initializers"
-	"github.com/marcbudd/server-beta/internal/middleware"
-	"github.com/marcbudd/server-beta/internal/repositories"
-	"github.com/marcbudd/server-beta/internal/services"
-	"github.com/marcbudd/server-beta/internal/utils"
+	"github.com/wwi21seb-projekt/server-beta/internal/controllers"
+	"github.com/wwi21seb-projekt/server-beta/internal/initializers"
+	"github.com/wwi21seb-projekt/server-beta/internal/middleware"
+	"github.com/wwi21seb-projekt/server-beta/internal/repositories"
+	"github.com/wwi21seb-projekt/server-beta/internal/services"
+	"github.com/wwi21seb-projekt/server-beta/internal/utils"
 	"net/http"
 	"os"
 )
 
-// SetupRouter can be used to configure the router: CORS, routes, etc.
+// SetupRouter configures the router: CORS, routes, etc.
 func SetupRouter() *gin.Engine {
 	r := gin.Default()
 
@@ -43,7 +43,7 @@ func SetupRouter() *gin.Engine {
 	validator := utils.NewValidator()
 	mailService := services.NewMailService()
 	imageService := services.NewImageService(fileSystem)
-	userService := services.NewUserService(userRepo, activationTokenRepo, mailService, validator, postRepo)
+	userService := services.NewUserService(userRepo, activationTokenRepo, mailService, validator, postRepo, subscriptionRepo)
 	postService := services.NewPostService(postRepo, userRepo, hashtagRepo, imageService)
 	subscriptionService := services.NewSubscriptionService(subscriptionRepo, userRepo)
 
