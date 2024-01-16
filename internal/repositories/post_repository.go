@@ -7,7 +7,8 @@ import (
 
 type PostRepositoryInterface interface {
 	CreatePost(post *models.Post) error
-	FindPostsByUsername(username string, offset, limit int) ([]models.Post, int64, error)
+	GetPostCountByUsername(username string) (int64, error)
+	GetPostsByUsername(username string, offset, limit int) ([]models.Post, int64, error)
 	GetPostById(postId string) (models.Post, error)
 	GetPostsGlobalFeed(lastPost *models.Post, limit int) ([]models.Post, int64, error)
 	GetPostsPersonalFeed(username string, lastPost *models.Post, limit int) ([]models.Post, int64, error)
@@ -26,7 +27,13 @@ func (repo *PostRepository) CreatePost(post *models.Post) error {
 	return repo.DB.Create(&post).Error
 }
 
-func (repo *PostRepository) FindPostsByUsername(username string, offset, limit int) ([]models.Post, int64, error) {
+func (repo *PostRepository) GetPostCountByUsername(username string) (int64, error) {
+	var count int64
+	err := repo.DB.Model(&models.Post{}).Where("username = ?", username).Count(&count).Error
+	return count, err
+}
+
+func (repo *PostRepository) GetPostsByUsername(username string, offset, limit int) ([]models.Post, int64, error) {
 	var posts []models.Post
 	var count int64
 
@@ -34,18 +41,18 @@ func (repo *PostRepository) FindPostsByUsername(username string, offset, limit i
 
 	// Count number of posts based on username
 	err := baseQuery.Count(&count).Error
-  if err != nil {
+	if err != nil {
 		return nil, 0, err
-  }
-  
-  // Get posts using pagination information
+	}
+
+	// Get posts using pagination information
 	err = baseQuery.Offset(offset).Limit(limit).Find(&posts).Error
 	if err != nil {
 		return nil, 0, err
 	}
 
 	return posts, count, nil
-}  
+}
 
 func (repo *PostRepository) GetPostById(postId string) (models.Post, error) {
 	var post models.Post
@@ -62,7 +69,7 @@ func (repo *PostRepository) GetPostsGlobalFeed(lastPost *models.Post, limit int)
 
 	// Number of posts in global feed
 	err = baseQuery.Count(&count).Error
-	
+
 	if lastPost != nil {
 		baseQuery = baseQuery.Where("(created_at < ?) OR (created_at = ? AND id < ?)", lastPost.CreatedAt, lastPost.CreatedAt, lastPost.Id)
 	}
@@ -97,7 +104,7 @@ func (repo *PostRepository) GetPostsPersonalFeed(username string, lastPost *mode
 
 	// Posts subset based on pagination
 	err = baseQuery.Order("created_at desc, id desc").Limit(limit).Find(&posts).Error
-  if err != nil {
+	if err != nil {
 		return nil, 0, err
 	}
 

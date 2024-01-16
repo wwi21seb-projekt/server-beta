@@ -15,7 +15,7 @@ import (
 
 type PostServiceInterface interface {
 	CreatePost(req *models.PostCreateRequestDTO, username string) (*models.PostCreateResponseDTO, *customerrors.CustomError, int)
-	FindPostsByUsername(username string, offset, limit int) (*models.UserFeedDTO, *customerrors.CustomError, int)
+	GetPostsByUsername(username string, offset, limit int) (*models.UserFeedDTO, *customerrors.CustomError, int)
 	GetPostsGlobalFeed(lastPostId string, limit int) (*models.GeneralFeedDTO, *customerrors.CustomError, int)
 	GetPostsPersonalFeed(username string, lastPostId string, limit int) (*models.GeneralFeedDTO, *customerrors.CustomError, int)
 }
@@ -96,8 +96,7 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, usernam
 	return &postDto, nil, http.StatusCreated
 }
 
-
-func (service *PostService) FindPostsByUsername(username string, offset, limit int) (*models.UserFeedDTO, *customerrors.CustomError, int) {
+func (service *PostService) GetPostsByUsername(username string, offset, limit int) (*models.UserFeedDTO, *customerrors.CustomError, int) {
 
 	// See if user exists
 	_, err := service.userRepo.FindUserByUsername(username)
@@ -109,7 +108,7 @@ func (service *PostService) FindPostsByUsername(username string, offset, limit i
 	}
 
 	// Get posts
-	posts, totalPostsCount, err := service.postRepo.FindPostsByUsername(username, offset, limit)
+	posts, totalPostsCount, err := service.postRepo.GetPostsByUsername(username, offset, limit)
 	if err != nil {
 		return nil, customerrors.DatabaseError, http.StatusInternalServerError
 	}
@@ -244,4 +243,3 @@ func (service *PostService) GetPostsPersonalFeed(username string, lastPostId str
 
 	return &feed, nil, http.StatusOK
 }
-

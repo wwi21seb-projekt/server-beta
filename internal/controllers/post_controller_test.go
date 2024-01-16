@@ -218,7 +218,7 @@ func TestCreatePostUnauthorized(t *testing.T) {
 	}
 }
 
-// TestGetPostsByUsernameSuccess tests if the FindPostsByUserUsername function returns a list of posts and 200 ok if the user exists
+// TestGetPostsByUsernameSuccess tests if the GetPostsByUserUsername function returns a list of posts and 200 ok if the user exists
 func TestFindPostsByUsernameSuccess(t *testing.T) {
 	// Arrange
 	mockUserRepository := new(repositories.MockUserRepository)
@@ -264,7 +264,7 @@ func TestFindPostsByUsernameSuccess(t *testing.T) {
 
 	// Mock expectations
 	mockUserRepository.On("FindUserByUsername", user.Username).Return(&user, nil) // User found successfully
-	mockPostRepository.On("FindPostsByUsername", user.Username, 0, 10).Return(posts, int64(len(posts)), nil)
+	mockPostRepository.On("GetPostsByUsername", user.Username, 0, 10).Return(posts, int64(len(posts)), nil)
 
 	// Setup HTTP request
 	url := "/users/" + user.Username + "/feed?offset=" + fmt.Sprint(offset) + "&limit=" + fmt.Sprint(limit)
@@ -276,7 +276,7 @@ func TestFindPostsByUsernameSuccess(t *testing.T) {
 	// Act
 	gin.SetMode(gin.TestMode)
 	router := gin.Default()
-	router.GET("/users/:username/feed", middleware.AuthorizeUser, postController.FindPostsByUserUsername)
+	router.GET("/users/:username/feed", middleware.AuthorizeUser, postController.GetPostsByUserUsername)
 	router.ServeHTTP(w, req)
 
 	// Assert
@@ -302,7 +302,7 @@ func TestFindPostsByUsernameSuccess(t *testing.T) {
 	mockPostRepository.AssertExpectations(t)
 }
 
-// TestFindPostsByUsernameBadRequest tests if the FindPostsByUserUsername function returns a 400 bad request if the offset or limit query parameters are invalid
+// TestFindPostsByUsernameBadRequest tests if the GetPostsByUserUsername function returns a 400 bad request if the offset or limit query parameters are invalid
 func TestFindPostsByUsernameBadRequest(t *testing.T) {
 	invalidQueries := []string{
 		"offset=invalid",               // invalid offset
@@ -341,7 +341,7 @@ func TestFindPostsByUsernameBadRequest(t *testing.T) {
 		// Act
 		gin.SetMode(gin.TestMode)
 		router := gin.Default()
-		router.GET("/users/:username/feed", middleware.AuthorizeUser, postController.FindPostsByUserUsername)
+		router.GET("/users/:username/feed", middleware.AuthorizeUser, postController.GetPostsByUserUsername)
 		router.ServeHTTP(w, req)
 
 		// Assert
@@ -356,7 +356,7 @@ func TestFindPostsByUsernameBadRequest(t *testing.T) {
 	}
 }
 
-// TestFindPostsByUsernameUnauthorized tests if the FindPostsByUserUsername function returns a 401 unauthorized if the user is not authenticated
+// TestFindPostsByUsernameUnauthorized tests if the GetPostsByUserUsername function returns a 401 unauthorized if the user is not authenticated
 func TestFindPostsByUsernameUnauthorized(t *testing.T) {
 	invalidTokens := []string{
 		"",                 // empty token
@@ -387,7 +387,7 @@ func TestFindPostsByUsernameUnauthorized(t *testing.T) {
 		// Act
 		gin.SetMode(gin.TestMode)
 		router := gin.Default()
-		router.GET("/users/:username/feed", middleware.AuthorizeUser, postController.FindPostsByUserUsername)
+		router.GET("/users/:username/feed", middleware.AuthorizeUser, postController.GetPostsByUserUsername)
 		router.ServeHTTP(w, req)
 
 		// Assert
@@ -402,7 +402,7 @@ func TestFindPostsByUsernameUnauthorized(t *testing.T) {
 	}
 }
 
-// TestFindPostsByUserUsernameNotFound tests if the FindPostsByUserUsername function returns a 404 not found if the user does not exist
+// TestFindPostsByUserUsernameNotFound tests if the GetPostsByUserUsername function returns a 404 not found if the user does not exist
 func TestFindPostsByUsernameUserNotFound(t *testing.T) {
 	// Arrange
 	mockUserRepository := new(repositories.MockUserRepository)
@@ -434,7 +434,7 @@ func TestFindPostsByUsernameUserNotFound(t *testing.T) {
 	// Act
 	gin.SetMode(gin.TestMode)
 	router := gin.Default()
-	router.GET("/users/:username/feed", middleware.AuthorizeUser, postController.FindPostsByUserUsername)
+	router.GET("/users/:username/feed", middleware.AuthorizeUser, postController.GetPostsByUserUsername)
 	router.ServeHTTP(w, req)
 
 	// Assert
@@ -450,7 +450,6 @@ func TestFindPostsByUsernameUserNotFound(t *testing.T) {
 	mockPostRepository.AssertExpectations(t)
 	mockUserRepository.AssertExpectations(t)
 }
-
 
 // TestGetGlobalPostFeedSuccess tests if the GetPostFeed function returns a post feed and 200 ok if the request is valid
 func TestGetGlobalPostFeedSuccess(t *testing.T) {

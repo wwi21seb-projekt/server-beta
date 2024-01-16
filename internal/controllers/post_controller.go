@@ -12,7 +12,7 @@ import (
 
 type PostControllerInterface interface {
 	CreatePost(c *gin.Context)
-	FindPostsByUserUsername(c *gin.Context)
+	GetPostsByUserUsername(c *gin.Context)
 	GetPostFeed(c *gin.Context)
 }
 
@@ -56,7 +56,7 @@ func (controller *PostController) CreatePost(c *gin.Context) {
 	c.JSON(httpStatus, postDto)
 }
 
-func (controller *PostController) FindPostsByUserUsername(c *gin.Context) {
+func (controller *PostController) GetPostsByUserUsername(c *gin.Context) {
 	username := c.Param("username")
 	offsetQuery := c.DefaultQuery("offset", "0")
 	limitQuery := c.DefaultQuery("limit", "10")
@@ -77,7 +77,7 @@ func (controller *PostController) FindPostsByUserUsername(c *gin.Context) {
 		return
 	}
 
-	feedDto, serviceErr, httpStatus := controller.postService.FindPostsByUsername(username, offset, limit)
+	feedDto, serviceErr, httpStatus := controller.postService.GetPostsByUsername(username, offset, limit)
 	if serviceErr != nil {
 		c.JSON(httpStatus, gin.H{
 			"error": serviceErr,
@@ -148,5 +148,3 @@ func (controller *PostController) GetPostFeed(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, postFeed)
 }
-
-

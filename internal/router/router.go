@@ -74,8 +74,7 @@ func SetupRouter() *gin.Engine {
 	api.PUT("/users", middleware.AuthorizeUser, userController.UpdateUserInformation)
 	api.PATCH("/users", middleware.AuthorizeUser, userController.ChangeUserPassword)
 	api.GET("/users/:username", middleware.AuthorizeUser, userController.GetUserProfile)
-	api.GET("/users/:username/feed", middleware.AuthorizeUser, postController.FindPostsByUserUsername)
-
+	api.GET("/users/:username/feed", middleware.AuthorizeUser, postController.GetPostsByUserUsername)
 
 	// Post
 	api.POST("/posts", middleware.AuthorizeUser, postController.CreatePost)
