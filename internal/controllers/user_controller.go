@@ -184,8 +184,17 @@ func (controller *UserController) SearchUser(c *gin.Context) {
 		return
 	}
 
+	// Current username from middleware
+	currentUsername, exists := c.Get("username")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": customerrors.UserUnauthorized,
+		})
+		return
+	}
+
 	// Search user
-	userDto, serviceErr, httpStatus := controller.userService.SearchUser(username, limit, offset)
+	userDto, serviceErr, httpStatus := controller.userService.SearchUser(username, limit, offset, currentUsername.(string))
 	if serviceErr != nil {
 		c.JSON(httpStatus, gin.H{
 			"error": serviceErr,

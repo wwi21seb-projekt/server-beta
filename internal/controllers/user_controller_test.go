@@ -1645,24 +1645,31 @@ func TestSearchUserSuccess(t *testing.T) {
 	limit := 10
 	offset := 0
 
+	currentUsername := "currentUser"
+	authenticationToken, err := utils.GenerateAccessToken(currentUsername)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	// Mock expectations
-	mockUserRepository.On("SearchUser", searchQuery, limit, offset).Return(foundUsers, int64(len(foundUsers)), nil) // Find foundUsers successfully
+	mockUserRepository.On("SearchUser", searchQuery, limit, offset, currentUsername).Return(foundUsers, int64(len(foundUsers)), nil) // Find foundUsers successfully
 
 	// Setup HTTP request and recorder
 	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/foundUsers?username=%s&limit=%d&offset=%d", searchQuery, limit, offset), nil)
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+authenticationToken)
 	w := httptest.NewRecorder()
 
 	// Act
 	gin.SetMode(gin.TestMode)
 	router := gin.Default()
-	router.GET("/foundUsers", userController.SearchUser)
+	router.GET("/foundUsers", middleware.AuthorizeUser, userController.SearchUser)
 	router.ServeHTTP(w, req)
 
 	// Assert Response
 	assert.Equal(t, http.StatusOK, w.Code) // Expect HTTP 200 OK status
 	var responseDto models.UserSearchResponseDTO
-	err := json.Unmarshal(w.Body.Bytes(), &responseDto)
+	err = json.Unmarshal(w.Body.Bytes(), &responseDto)
 	assert.NoError(t, err)
 
 	assert.Equal(t, len(foundUsers), len(responseDto.Records))
