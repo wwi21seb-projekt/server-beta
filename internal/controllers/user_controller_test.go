@@ -1601,6 +1601,7 @@ func TestSearchUserSuccess(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		nil,
 	)
 
 	userController := controllers.NewUserController(userService)
