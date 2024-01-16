@@ -79,6 +79,14 @@ var (
 		Message: "The request is unauthorized. Please login to your account.",
 		Code:    "ERR-014",
 	}
+	PreliminaryFileNotFound = &CustomError{
+		Message: "The file was not found. Please check the file and try again.",
+		Code:    "ERR-015",
+	}
+	PreliminaryFileTooLarge = &CustomError{
+		Message: "The file is too large. Please compress file.",
+		Code:    "ERR-016",
+  }
 	PreliminaryOldPasswordIncorrect = &CustomError{
 		Message: "To be set",
 		Code:    "To be set",
