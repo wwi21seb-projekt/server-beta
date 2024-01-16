@@ -75,6 +75,7 @@ func SetupRouter() *gin.Engine {
 	api.POST("/users/:username/activate", userController.ActivateUser)
 	api.DELETE("/users/:username/activate", userController.ResendActivationToken)
 	api.GET("/users/validate", middleware.AuthorizeUser, userController.ValidateLogin)
+	api.GET("/users", middleware.AuthorizeUser, userController.SearchUser)
 	api.PUT("/users", middleware.AuthorizeUser, userController.UpdateUserInformation)
 	api.PATCH("/users", middleware.AuthorizeUser, userController.ChangeUserPassword)
 	api.GET("/users/:username", middleware.AuthorizeUser, userController.GetUserProfile)

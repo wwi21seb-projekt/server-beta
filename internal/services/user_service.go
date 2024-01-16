@@ -19,6 +19,7 @@ type UserServiceInterface interface {
 	LoginUser(req models.UserLoginRequestDTO) (*models.UserLoginResponseDTO, *customerrors.CustomError, int)
 	ActivateUser(username string, token string) (*customerrors.CustomError, int)
 	ResendActivationToken(username string) (*customerrors.CustomError, int)
+	SearchUser(username string, limit int, offset int) (*models.UserSearchResponseDTO, *customerrors.CustomError, int)
 	UpdateUserInformation(req *models.UserInformationUpdateDTO, currentUsername string) (*models.UserInformationUpdateDTO, *customerrors.CustomError, int)
 	ChangeUserPassword(req *models.ChangePasswordDTO, currentUsername string) (*customerrors.CustomError, int)
 	GetUserProfile(username string, currentUser string) (*models.UserProfileResponseDTO, *customerrors.CustomError, int)
@@ -338,6 +339,37 @@ func (service *UserService) ResendActivationToken(username string) (*customerror
 
 }
 
+// SearchUser can be called from the controller to search for users and returns response, error and status code
+func (service *UserService) SearchUser(username string, limit int, offset int) (*models.UserSearchResponseDTO, *customerrors.CustomError, int) {
+	// Get users
+	users, totalRecordsCount, err := service.userRepo.SearchUser(username, limit, offset)
+  if err != nil {
+		return nil, customerrors.DatabaseError, http.StatusInternalServerError
+	}
+  
+  // Create response
+	var records []models.UserSearchRecordDTO
+	for _, user := range users {
+		record := models.UserSearchRecordDTO{
+			Username:          user.Username,
+			Nickname:          user.Nickname,
+			ProfilePictureUrl: user.ProfilePictureUrl,
+		}
+		records = append(records, record)
+	}
+	paginationDto := models.UserSearchPaginationDTO{
+		Offset:  offset,
+		Limit:   limit,
+		Records: totalRecordsCount,
+	}
+	response := models.UserSearchResponseDTO{
+		Records:    records,
+		Pagination: &paginationDto,
+	}
+
+	return &response, nil, http.StatusOK
+}
+  
 // UpdateUserInformation can be called from the controller to update a user's nickname and status
 func (service *UserService) UpdateUserInformation(req *models.UserInformationUpdateDTO, currentUsername string) (*models.UserInformationUpdateDTO, *customerrors.CustomError, int) {
 	// Check if the new nickname and status are valid

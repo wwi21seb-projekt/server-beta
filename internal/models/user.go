@@ -43,6 +43,23 @@ type UserResponseDTO struct {
 	Email    string `json:"email"`
 }
 
+type UserSearchResponseDTO struct {
+	Records    []UserSearchRecordDTO    `json:"records"`
+	Pagination *UserSearchPaginationDTO `json:"pagination"`
+}
+
+type UserSearchRecordDTO struct {
+	Username          string `json:"username"`
+	Nickname          string `json:"nickname"`
+	ProfilePictureUrl string `json:"profilePictureUrl"`
+}
+
+type UserSearchPaginationDTO struct {
+	Offset  int   `json:"offset"`
+	Limit   int   `json:"limit"`
+	Records int64 `json:"records"`
+}
+
 type UserInformationUpdateDTO struct {
 	Nickname string `json:"nickname" binding:"required"`
 	Status   string `json:"status" binding:"required"`
