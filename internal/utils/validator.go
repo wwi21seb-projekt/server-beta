@@ -13,6 +13,7 @@ type ValidatorInterface interface {
 	ValidateEmailSyntax(email string) bool
 	ValidateEmailExistance(email string) bool
 	ValidatePassword(password string) bool
+	ValidateStatus(status string) bool
 }
 
 type Validator struct {
@@ -82,4 +83,8 @@ func (v *Validator) ValidatePassword(password string) bool {
 
 	}
 	return hasUpper && hasLower && hasNumber && hasSpecial
+}
+
+func (v *Validator) ValidateStatus(status string) bool {
+	return len(status) <= 125
 }

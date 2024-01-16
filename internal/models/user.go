@@ -12,6 +12,7 @@ type User struct {
 	CreatedAt         time.Time `gorm:"column:created_at;not_null"`
 	Activated         bool      `gorm:"not_null"`
 	ProfilePictureUrl string    `gorm:"type:varchar(256);null"`
+	Status            string    `gorm:"type:varchar(128)"`
 }
 
 type UserCreateRequestDTO struct {
@@ -19,6 +20,7 @@ type UserCreateRequestDTO struct {
 	Password string `json:"password" binding:"required"`
 	Nickname string `json:"nickname"`
 	Email    string `json:"email" binding:"required"`
+	Status   string `json:"status"`
 }
 
 type UserLoginRequestDTO struct {
@@ -56,4 +58,25 @@ type UserSearchPaginationDTO struct {
 	Offset  int   `json:"offset"`
 	Limit   int   `json:"limit"`
 	Records int64 `json:"records"`
+}
+
+type UserInformationUpdateDTO struct {
+	Nickname string `json:"nickname" binding:"required"`
+	Status   string `json:"status" binding:"required"`
+}
+
+type ChangePasswordDTO struct {
+	OldPassword string `json:"oldPassword" binding:"required"`
+	NewPassword string `json:"newPassword" binding:"required"`
+}
+
+type UserProfileResponseDTO struct {
+	Username          string `json:"username"`
+	Nickname          string `json:"nickname"`
+	Status            string `json:"status"`
+	ProfilePictureUrl string `json:"profilePictureUrl"`
+	Follower          int64  `json:"follower"`
+	Following         int64  `json:"following"`
+	Posts             int64  `json:"posts"`
+	SubscriptionId    string `json:"subscriptionId"`
 }

@@ -22,6 +22,7 @@ func SyncDatabase() {
 		&models.ActivationToken{},
 		&models.Post{},
 		&models.Hashtag{},
+		&models.Subscription{},
 	}
 
 	for _, model := range modelsToMigrate {
