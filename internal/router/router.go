@@ -37,15 +37,18 @@ func SetupRouter() *gin.Engine {
 	userRepo := repositories.NewUserRepository(initializers.DB)
 	postRepo := repositories.NewPostRepository(initializers.DB)
 	hashtagRepo := repositories.NewHashtagRepository(initializers.DB)
+	subscriptionRepo := repositories.NewSubscriptionRepository(initializers.DB)
 
 	validator := utils.NewValidator()
 	mailService := services.NewMailService()
-	userService := services.NewUserService(userRepo, activationTokenRepo, mailService, validator)
+	userService := services.NewUserService(userRepo, activationTokenRepo, mailService, validator, postRepo)
 	postService := services.NewPostService(postRepo, userRepo, hashtagRepo)
+	subscriptionService := services.NewSubscriptionService(subscriptionRepo, userRepo)
 
 	imprintController := controllers.NewImprintController()
 	userController := controllers.NewUserController(userService)
 	postController := controllers.NewPostController(postService)
+	subscriptionController := controllers.NewSubscriptionController(subscriptionService)
 
 	// API Routes
 	api := r.Group("/api")
@@ -68,21 +71,21 @@ func SetupRouter() *gin.Engine {
 	api.POST("/users/:username/activate", userController.ActivateUser)
 	api.DELETE("/users/:username/activate", userController.ResendActivationToken)
 	api.GET("/users/validate", middleware.AuthorizeUser, userController.ValidateLogin)
-	api.GET("/users", ReturnNotImplemented)
-	api.GET("/users/:username", ReturnNotImplemented)
+	api.PUT("/users", middleware.AuthorizeUser, userController.UpdateUserInformation)
+	api.PATCH("/users", middleware.AuthorizeUser, userController.ChangeUserPassword)
+	api.GET("/users/:username", middleware.AuthorizeUser, userController.GetUserProfile)
 	api.GET("/users/:username/feed", middleware.AuthorizeUser, postController.FindPostsByUserUsername)
-	api.PUT("/users", ReturnNotImplemented)
-	api.PATCH("/users", ReturnNotImplemented)
+
 
 	// Post
 	api.POST("/posts", middleware.AuthorizeUser, postController.CreatePost)
 
-	// Subscriptions
-	api.POST("/subscriptions", ReturnNotImplemented)
-	api.DELETE("/subscriptions", ReturnNotImplemented)
-
 	// Feed
-	api.GET("/feed", ReturnNotImplemented)
+	api.GET("/feed", postController.GetPostFeed)
+
+	// Subscription
+	api.POST("/subscriptions", middleware.AuthorizeUser, subscriptionController.PostSubscription)
+	api.DELETE("/subscriptions/:subscriptionId", middleware.AuthorizeUser, subscriptionController.DeleteSubscription)
 
 	return r
 }
