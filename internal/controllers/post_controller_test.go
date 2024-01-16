@@ -620,6 +620,7 @@ func TestFindPostsByUsernameSuccess(t *testing.T) {
 		mockPostRepository,
 		mockUserRepository,
 		mockHashtagRepository,
+		nil,
 	)
 	postController := controllers.NewPostController(postService)
 
@@ -714,6 +715,7 @@ func TestFindPostsByUsernameBadRequest(t *testing.T) {
 			mockPostRepository,
 			mockUserRepository,
 			mockHashtagRepository,
+			nil,
 		)
 		postController := controllers.NewPostController(postService)
 
@@ -764,6 +766,7 @@ func TestFindPostsByUsernameUnauthorized(t *testing.T) {
 			mockPostRepository,
 			mockUserRepository,
 			mockHashtagRepository,
+			nil,
 		)
 		postController := controllers.NewPostController(postService)
 
@@ -804,6 +807,7 @@ func TestFindPostsByUsernameUserNotFound(t *testing.T) {
 		mockPostRepository,
 		mockUserRepository,
 		mockHashtagRepository,
+		nil,
 	)
 	postController := controllers.NewPostController(postService)
 
@@ -862,6 +866,7 @@ func TestGetGlobalPostFeedSuccess(t *testing.T) {
 		postService := services.NewPostService(
 			mockPostRepository,
 			mockUserRepository,
+			nil,
 			nil,
 		)
 		postController := controllers.NewPostController(postService)
@@ -976,6 +981,7 @@ func TestGetPostFeedBadRequest(t *testing.T) {
 			mockPostRepository,
 			mockUserRepository,
 			nil,
+			nil,
 		)
 		postController := controllers.NewPostController(postService)
 
@@ -1013,6 +1019,7 @@ func TestGetGlobalPostFeedPostNotFound(t *testing.T) {
 	postService := services.NewPostService(
 		mockPostRepository,
 		mockUserRepository,
+		nil,
 		nil,
 	)
 	postController := controllers.NewPostController(postService)
@@ -1053,6 +1060,7 @@ func TestGetPersonalPostFeedSuccess(t *testing.T) {
 	postService := services.NewPostService(
 		mockPostRepository,
 		mockUserRepository,
+		nil,
 		nil,
 	)
 	postController := controllers.NewPostController(postService)
@@ -1162,6 +1170,7 @@ func TestGetPersonalPostFeedPostNotFound(t *testing.T) {
 		mockPostRepository,
 		mockUserRepository,
 		nil,
+		nil,
 	)
 	postController := controllers.NewPostController(postService)
 
@@ -1213,6 +1222,7 @@ func TestGetPersonalPostFeedUnauthorized(t *testing.T) {
 		postService := services.NewPostService(
 			mockPostRepository,
 			mockUserRepository,
+			nil,
 			nil,
 		)
 		postController := controllers.NewPostController(postService)

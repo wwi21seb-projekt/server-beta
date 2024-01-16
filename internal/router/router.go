@@ -38,18 +38,13 @@ func SetupRouter() *gin.Engine {
 	postRepo := repositories.NewPostRepository(initializers.DB)
 	hashtagRepo := repositories.NewHashtagRepository(initializers.DB)
 	fileSystem := repositories.NewFileSystem()
-
-	validator := utils.NewValidator()
-	mailService := services.NewMailService()
-	imageService := services.NewImageService(fileSystem)
-	userService := services.NewUserService(userRepo, activationTokenRepo, mailService, validator)
-	postService := services.NewPostService(postRepo, userRepo, hashtagRepo, imageService)
 	subscriptionRepo := repositories.NewSubscriptionRepository(initializers.DB)
 
 	validator := utils.NewValidator()
 	mailService := services.NewMailService()
+	imageService := services.NewImageService(fileSystem)
 	userService := services.NewUserService(userRepo, activationTokenRepo, mailService, validator, postRepo)
-	postService := services.NewPostService(postRepo, userRepo, hashtagRepo)
+	postService := services.NewPostService(postRepo, userRepo, hashtagRepo, imageService)
 	subscriptionService := services.NewSubscriptionService(subscriptionRepo, userRepo)
 
 	imprintController := controllers.NewImprintController()
@@ -87,7 +82,7 @@ func SetupRouter() *gin.Engine {
 
 	// Post
 	api.POST("/posts", middleware.AuthorizeUser, postController.CreatePost)
-  
+
 	// Feed
 	api.GET("/feed", postController.GetPostFeed)
 
