@@ -31,7 +31,7 @@ func (service *SubscriptionService) PostSubscription(req *models.SubscriptionPos
 
 	// Check if user wants to follow himself
 	if req.Following == currentUsername {
-		return nil, customerrors.PreliminarySelfFollow, http.StatusNotAcceptable
+		return nil, customerrors.SelfFollow, http.StatusNotAcceptable
 	}
 
 	// Check if user exists
@@ -46,7 +46,7 @@ func (service *SubscriptionService) PostSubscription(req *models.SubscriptionPos
 	// Check if subscription already exists
 	_, err = service.subscriptionRepo.GetSubscriptionByUsernames(currentUsername, req.Following)
 	if err == nil {
-		return nil, customerrors.PreliminarySubscriptionAlreadyExists, http.StatusConflict
+		return nil, customerrors.SubscriptionAlreadyExists, http.StatusConflict
 	}
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, customerrors.DatabaseError, http.StatusInternalServerError
@@ -81,14 +81,14 @@ func (service *SubscriptionService) DeleteSubscription(subscriptionId string, cu
 	subscription, err := service.subscriptionRepo.GetSubscriptionById(subscriptionId)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return customerrors.PreliminarySubscriptionNotFound, http.StatusNotFound
+			return customerrors.SubscriptionNotFound, http.StatusNotFound
 		}
 		return customerrors.DatabaseError, http.StatusInternalServerError
 	}
 
 	// Check if user is authorized to delete subscription
 	if subscription.FollowerUsername != currentUsername {
-		return customerrors.PreliminarySubscriptionDeleteNotAuthorized, http.StatusForbidden
+		return customerrors.SubscriptionDeleteNotAuthorized, http.StatusForbidden
 	}
 
 	// Delete subscription

@@ -343,11 +343,11 @@ func (service *UserService) ResendActivationToken(username string) (*customerror
 func (service *UserService) SearchUser(username string, limit int, offset int) (*models.UserSearchResponseDTO, *customerrors.CustomError, int) {
 	// Get users
 	users, totalRecordsCount, err := service.userRepo.SearchUser(username, limit, offset)
-  if err != nil {
+	if err != nil {
 		return nil, customerrors.DatabaseError, http.StatusInternalServerError
 	}
-  
-  // Create response
+
+	// Create response
 	var records []models.UserSearchRecordDTO
 	for _, user := range users {
 		record := models.UserSearchRecordDTO{
@@ -369,7 +369,7 @@ func (service *UserService) SearchUser(username string, limit int, offset int) (
 
 	return &response, nil, http.StatusOK
 }
-  
+
 // UpdateUserInformation can be called from the controller to update a user's nickname and status
 func (service *UserService) UpdateUserInformation(req *models.UserInformationUpdateDTO, currentUsername string) (*models.UserInformationUpdateDTO, *customerrors.CustomError, int) {
 	// Check if the new nickname and status are valid
@@ -415,7 +415,7 @@ func (service *UserService) ChangeUserPassword(req *models.ChangePasswordDTO, cu
 
 	// Verify the old password
 	if !utils.CheckPassword(req.OldPassword, user.PasswordHash) {
-		return customerrors.PreliminaryOldPasswordIncorrect, http.StatusForbidden
+		return customerrors.OldPasswordIncorrect, http.StatusForbidden
 	}
 
 	// Hash the new password

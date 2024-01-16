@@ -53,14 +53,14 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *m
 	user, err := service.userRepo.FindUserByUsername(username)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, customerrors.PreliminaryUserUnauthorized, http.StatusUnauthorized // TODO: Custom error for unauthorized?
+			return nil, customerrors.UserUnauthorized, http.StatusUnauthorized // TODO: Custom error for unauthorized?
 		}
 		return nil, customerrors.InternalServerError, http.StatusInternalServerError
 	}
 
 	// Check if user is activated
 	if !user.Activated {
-		return nil, customerrors.PreliminaryUserUnauthorized, http.StatusUnauthorized
+		return nil, customerrors.UserUnauthorized, http.StatusUnauthorized
 	}
 
 	//Extract hashtags
@@ -171,7 +171,7 @@ func (service *PostService) GetPostsGlobalFeed(lastPostId string, limit int) (*m
 		post, err := service.postRepo.GetPostById(lastPostId)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return nil, customerrors.PreliminaryPostNotFound, http.StatusNotFound
+				return nil, customerrors.PostNotFound, http.StatusNotFound
 			}
 			return nil, customerrors.DatabaseError, http.StatusInternalServerError
 		}
@@ -224,7 +224,7 @@ func (service *PostService) GetPostsPersonalFeed(username string, lastPostId str
 		post, err := service.postRepo.GetPostById(lastPostId)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return nil, customerrors.PreliminaryPostNotFound, http.StatusNotFound
+				return nil, customerrors.PostNotFound, http.StatusNotFound
 			}
 			return nil, customerrors.DatabaseError, http.StatusInternalServerError
 		}

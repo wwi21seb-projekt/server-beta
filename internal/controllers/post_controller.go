@@ -31,7 +31,7 @@ func (controller *PostController) CreatePost(c *gin.Context) {
 	username, exists := c.Get("username")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": customerrors.PreliminaryUserUnauthorized,
+			"error": customerrors.UserUnauthorized,
 		})
 		return
 	}
@@ -173,7 +173,7 @@ func (controller *PostController) GetPostFeed(c *gin.Context) {
 	// If feed type is set to personal, but user is not logged in, return error
 	if feedType == "personal" && !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": customerrors.PreliminaryUserUnauthorized,
+			"error": customerrors.UserUnauthorized,
 		})
 		return
 	}

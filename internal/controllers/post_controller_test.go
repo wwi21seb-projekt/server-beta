@@ -222,7 +222,7 @@ func TestCreatePostUnauthorized(t *testing.T) {
 		err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
 		assert.NoError(t, err)
 
-		expectedCustomError := customerrors.PreliminaryUserUnauthorized
+		expectedCustomError := customerrors.UserUnauthorized
 		assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 		assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
@@ -289,7 +289,7 @@ func TestCreatePostUserNotActivated(t *testing.T) {
 	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
 
-	expectedCustomError := customerrors.PreliminaryUserUnauthorized
+	expectedCustomError := customerrors.UserUnauthorized
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
@@ -790,7 +790,7 @@ func TestFindPostsByUsernameUnauthorized(t *testing.T) {
 		err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
 		assert.NoError(t, err)
 
-		expectedCustomError := customerrors.PreliminaryUserUnauthorized
+		expectedCustomError := customerrors.UserUnauthorized
 		assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 		assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 	}
@@ -1044,7 +1044,7 @@ func TestGetGlobalPostFeedPostNotFound(t *testing.T) {
 	err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
 
-	expectedCustomError := customerrors.PreliminaryPostNotFound
+	expectedCustomError := customerrors.PostNotFound
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
@@ -1201,7 +1201,7 @@ func TestGetPersonalPostFeedPostNotFound(t *testing.T) {
 	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
 
-	expectedCustomError := customerrors.PreliminaryPostNotFound
+	expectedCustomError := customerrors.PostNotFound
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
@@ -1247,7 +1247,7 @@ func TestGetPersonalPostFeedUnauthorized(t *testing.T) {
 		err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
 		assert.NoError(t, err)
 
-		expectedCustomError := customerrors.PreliminaryUserUnauthorized
+		expectedCustomError := customerrors.UserUnauthorized
 		assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 		assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 

@@ -13,7 +13,7 @@ func AuthorizeUser(c *gin.Context) {
 	username, ok := GetLoggedInUsername(c)
 	if !ok {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-			"error": customerrors.PreliminaryUserUnauthorized,
+			"error": customerrors.UserUnauthorized,
 		})
 	}
 

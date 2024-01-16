@@ -1730,7 +1730,7 @@ func TestSearchUserUnauthorized(t *testing.T) {
 		err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
 		assert.NoError(t, err)
 
-		expectedCustomError := customerrors.PreliminaryUserUnauthorized
+		expectedCustomError := customerrors.UserUnauthorized
 		assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 		assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 	}
@@ -1917,7 +1917,7 @@ func TestUpdateUserInformationUnauthorized(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		expectedCustomError := customerrors.PreliminaryUserUnauthorized
+		expectedCustomError := customerrors.UserUnauthorized
 		assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 		assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
@@ -2099,7 +2099,7 @@ func TestChangePasswordUnauthorized(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		expectedCustomError := customerrors.PreliminaryUserUnauthorized
+		expectedCustomError := customerrors.UserUnauthorized
 		assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 		assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
@@ -2167,7 +2167,7 @@ func TestChangePasswordOldPasswordIncorrect(t *testing.T) {
 	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
 
-	expectedCustomError := customerrors.PreliminaryOldPasswordIncorrect
+	expectedCustomError := customerrors.OldPasswordIncorrect
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
@@ -2280,7 +2280,7 @@ func TestGetUserProfileUnauthorized(t *testing.T) {
 		err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
 		assert.NoError(t, err)
 
-		expectedCustomError := customerrors.PreliminaryUserUnauthorized
+		expectedCustomError := customerrors.UserUnauthorized
 		assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 		assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 

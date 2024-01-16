@@ -143,7 +143,7 @@ func (controller *UserController) ValidateLogin(c *gin.Context) {
 	username, exists := c.Get("username")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": customerrors.PreliminaryUserUnauthorized,
+			"error": customerrors.UserUnauthorized,
 		})
 		return
 	}
@@ -153,7 +153,6 @@ func (controller *UserController) ValidateLogin(c *gin.Context) {
 	})
 }
 
-
 // SearchUser searches for a user by username given in url
 func (controller *UserController) SearchUser(c *gin.Context) {
 	// Read information from url
@@ -162,47 +161,47 @@ func (controller *UserController) SearchUser(c *gin.Context) {
 	offsetStr := c.DefaultQuery("offset", "0")
 
 	if username == "" {
-    c.JSON(http.StatusBadRequest, gin.H{
+		c.JSON(http.StatusBadRequest, gin.H{
 			"error": customerrors.BadRequest,
 		})
 		return
 	}
-  
-  // Convert limit and offset to int
+
+	// Convert limit and offset to int
 	limit, err := strconv.Atoi(limitStr)
 	if err != nil {
-    c.JSON(http.StatusBadRequest, gin.H{
+		c.JSON(http.StatusBadRequest, gin.H{
 			"error": customerrors.BadRequest,
 		})
 		return
 	}
-  
-  offset, err := strconv.Atoi(offsetStr)
+
+	offset, err := strconv.Atoi(offsetStr)
 	if err != nil {
-    c.JSON(http.StatusBadRequest, gin.H{
+		c.JSON(http.StatusBadRequest, gin.H{
 			"error": customerrors.BadRequest,
 		})
 		return
 	}
-  
-  // Search user
+
+	// Search user
 	userDto, serviceErr, httpStatus := controller.userService.SearchUser(username, limit, offset)
 	if serviceErr != nil {
 		c.JSON(httpStatus, gin.H{
 			"error": serviceErr,
-    })
-	  return
-  }
-  c.JSON(httpStatus, userDto)
+		})
+		return
+	}
+	c.JSON(httpStatus, userDto)
 }
-    
+
 // UpdateUserInformation updates the user's nickname and status
 func (controller *UserController) UpdateUserInformation(c *gin.Context) {
 	// Extract the username from the context
 	username, exists := c.Get("username")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": customerrors.PreliminaryUserUnauthorized,
+			"error": customerrors.UserUnauthorized,
 		})
 		return
 	}
@@ -210,12 +209,12 @@ func (controller *UserController) UpdateUserInformation(c *gin.Context) {
 	// Bind the JSON request body to the struct
 	var userUpdateResponseDTO models.UserInformationUpdateDTO
 	if err := c.BindJSON(&userUpdateResponseDTO); err != nil {
-    c.JSON(http.StatusBadRequest, gin.H{
+		c.JSON(http.StatusBadRequest, gin.H{
 			"error": customerrors.BadRequest,
 		})
 		return
 	}
-  
+
 	// Update the user's information
 	responseDTO, customErr, status := controller.userService.UpdateUserInformation(&userUpdateResponseDTO, username.(string))
 	if customErr != nil {
@@ -234,7 +233,7 @@ func (controller *UserController) ChangeUserPassword(c *gin.Context) {
 	username, exists := c.Get("username")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": customerrors.PreliminaryUserUnauthorized,
+			"error": customerrors.UserUnauthorized,
 		})
 		return
 	}
@@ -247,7 +246,7 @@ func (controller *UserController) ChangeUserPassword(c *gin.Context) {
 		})
 		return
 	}
-  
+
 	// Update the user's password
 	customErr, status := controller.userService.ChangeUserPassword(&userPasswordChangeDTO, username.(string))
 	if customErr != nil {
@@ -266,7 +265,7 @@ func (controller *UserController) GetUserProfile(c *gin.Context) {
 	currentUsername, exists := c.Get("username")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": customerrors.PreliminaryUserUnauthorized,
+			"error": customerrors.UserUnauthorized,
 		})
 		return
 	}
