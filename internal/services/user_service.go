@@ -30,6 +30,7 @@ type UserService struct {
 	mailService         MailServiceInterface
 	validator           utils.ValidatorInterface
 	postRepo            repositories.PostRepositoryInterface
+	subscriptionRepo    repositories.SubscriptionRepositoryInterface
 }
 
 // NewUserService can be used as a constructor to generate a new UserService "object"
@@ -38,13 +39,15 @@ func NewUserService(
 	activationTokenRepo repositories.ActivationTokenRepositoryInterface,
 	maliService MailServiceInterface,
 	validator utils.ValidatorInterface,
-	postRepo repositories.PostRepositoryInterface) *UserService {
+	postRepo repositories.PostRepositoryInterface,
+	subscriptionRepo repositories.SubscriptionRepositoryInterface) *UserService {
 	return &UserService{
 		userRepo:            userRepo,
 		activationTokenRepo: activationTokenRepo,
 		mailService:         maliService,
 		validator:           validator,
-		postRepo:            postRepo}
+		postRepo:            postRepo,
+		subscriptionRepo:    subscriptionRepo}
 }
 
 // sendActivationToken deletes old activation tokens, generates a new six-digit code and sends it to user via mail
@@ -417,28 +420,24 @@ func (service *UserService) GetUserProfile(username string, currentUser string) 
 	if err != nil {
 		return nil, customerrors.DatabaseError, http.StatusInternalServerError
 	}
-	// TODO: Use subscriptions
-	//followerCount, followingCount, err := service.subscriptionRepo.GetSubscriptionCountByUsername(username)
-	//if err != nil {
-	//	return nil, customerrors.DatabaseError, http.StatusInternalServerError
-	//}
-	followerCount := int64(0)  // example
-	followingCount := int64(0) // example
+
+	followerCount, followingCount, err := service.subscriptionRepo.GetSubscriptionCountByUsername(username)
+	if err != nil {
+		return nil, customerrors.DatabaseError, http.StatusInternalServerError
+	}
 
 	// Set subscription id if current user is following
-	subscriptionId := ""
-	//if currentUser != "" {
-	//	id, err := service.subscriptionRepo.GetSubscriptionByUsernames(currentUser, username)
-	//	if err != nil {
-	//		if errors.Is(err, gorm.ErrRecordNotFound) {
-	//			subscriptionId = ""
-	//		} else {
-	//			return nil, customerrors.DatabaseError, http.StatusInternalServerError
-	//		}
-	//	} else {
-	//		subscriptionId = id
-	//	}
-	//}
+	var subscriptionId string
+	sub, err := service.subscriptionRepo.GetSubscriptionByUsernames(currentUser, username)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			subscriptionId = ""
+		} else {
+			return nil, customerrors.DatabaseError, http.StatusInternalServerError
+		}
+	} else {
+		subscriptionId = sub.Id.String()
+	}
 
 	// Create response
 	userProfile := &models.UserProfileResponseDTO{

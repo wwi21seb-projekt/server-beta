@@ -37,6 +37,7 @@ func TestCreateUserSuccess(t *testing.T) {
 		mockMailService,
 		mockValidator,
 		nil,
+		nil,
 	)
 	userController := controllers.NewUserController(userService)
 
@@ -141,6 +142,7 @@ func TestCreateUserBadRequest(t *testing.T) {
 			mockMailService,
 			mockValidator,
 			nil,
+			nil,
 		)
 
 		userController := controllers.NewUserController(userService)
@@ -184,6 +186,7 @@ func TestCreateUserUsernameExists(t *testing.T) {
 		mockActivationTokenRepository,
 		mockMailService,
 		mockValidator,
+		nil,
 		nil,
 	)
 
@@ -251,6 +254,7 @@ func TestCreateEmailExists(t *testing.T) {
 		mockMailService,
 		mockValidator,
 		nil,
+		nil,
 	)
 
 	userController := controllers.NewUserController(userService)
@@ -316,6 +320,7 @@ func TestCreateEmailExistsRollback(t *testing.T) {
 		mockActivationTokenRepository,
 		mockMailService,
 		mockValidator,
+		nil,
 		nil,
 	)
 
@@ -410,6 +415,7 @@ func TestCreateUserEmailUnreachable(t *testing.T) {
 		mockMailService,
 		mockValidator,
 		nil,
+		nil,
 	)
 
 	userController := controllers.NewUserController(userService)
@@ -468,6 +474,7 @@ func TestCreateUserInternalServerErrorDatabase(t *testing.T) {
 		mockActivationTokenRepository,
 		mockMailService,
 		mockValidator,
+		nil,
 		nil,
 	)
 
@@ -536,6 +543,7 @@ func TestCreateUserInternalServerErrorServer(t *testing.T) {
 		mockMailService,
 		mockValidator,
 		nil,
+		nil,
 	)
 
 	userController := controllers.NewUserController(userService)
@@ -603,6 +611,7 @@ func TestLoginSuccess(t *testing.T) {
 		mockActivationTokenRepository,
 		mockMailService,
 		mockValidator,
+		nil,
 		nil,
 	)
 
@@ -713,6 +722,7 @@ func TestLoginInvalidCredentialsUserNotFound(t *testing.T) {
 		mockMailService,
 		mockValidator,
 		nil,
+		nil,
 	)
 
 	userController := controllers.NewUserController(userService)
@@ -770,6 +780,7 @@ func TestLoginInvalidCredentialsPasswordIncorrect(t *testing.T) {
 		mockActivationTokenRepository,
 		mockMailService,
 		mockValidator,
+		nil,
 		nil,
 	)
 
@@ -844,6 +855,7 @@ func TestLoginUserNotActivated(t *testing.T) {
 		mockActivationTokenRepository,
 		mockMailService,
 		mockValidator,
+		nil,
 		nil,
 	)
 
@@ -929,6 +941,7 @@ func TestLoginUserNotActivatedExpiredToken(t *testing.T) {
 		mockActivationTokenRepository,
 		mockMailService,
 		mockValidator,
+		nil,
 		nil,
 	)
 
@@ -1016,6 +1029,7 @@ func TestActivateUserSuccess(t *testing.T) {
 		mockUserRepository,
 		mockActivationTokenRepository,
 		mockMailService,
+		nil,
 		nil,
 		nil,
 	)
@@ -1136,6 +1150,7 @@ func TestActivateUserAlreadyReported(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		nil,
 	)
 
 	userController := controllers.NewUserController(userService)
@@ -1210,6 +1225,7 @@ func TestActivateUserNotFound(t *testing.T) {
 		mockMailService,
 		nil,
 		nil,
+		nil,
 	)
 
 	userController := controllers.NewUserController(userService)
@@ -1265,6 +1281,7 @@ func TestActivateUserTokenNotFound(t *testing.T) {
 		mockUserRepository,
 		mockActivationTokenRepository,
 		mockMailService,
+		nil,
 		nil,
 		nil,
 	)
@@ -1340,6 +1357,7 @@ func TestActivateUserTokenExpired(t *testing.T) {
 		mockUserRepository,
 		mockActivationTokenRepository,
 		mockMailService,
+		nil,
 		nil,
 		nil,
 	)
@@ -1427,6 +1445,7 @@ func TestResendActivationTokenSuccess(t *testing.T) {
 		mockMailService,
 		nil,
 		nil,
+		nil,
 	)
 
 	userController := controllers.NewUserController(userService)
@@ -1486,6 +1505,7 @@ func TestResendActivationTokenAlreadyReported(t *testing.T) {
 		mockUserRepository,
 		mockActivationTokenRepository,
 		mockMailService,
+		nil,
 		nil,
 		nil,
 	)
@@ -1553,6 +1573,7 @@ func TestResendActivationTokenUserNotfound(t *testing.T) {
 		mockMailService,
 		nil,
 		nil,
+		nil,
 	)
 
 	userController := controllers.NewUserController(userService)
@@ -1601,6 +1622,7 @@ func TestUpdateUserInformationSuccess(t *testing.T) {
 		nil,
 		nil,
 		validator,
+		nil,
 		nil,
 	)
 	userController := controllers.NewUserController(userService)
@@ -1681,6 +1703,7 @@ func TestUpdateUserInformationBadRequest(t *testing.T) {
 			nil,
 			validator,
 			nil,
+			nil,
 		)
 
 		userController := controllers.NewUserController(userService)
@@ -1739,6 +1762,7 @@ func TestUpdateUserInformationUnauthorized(t *testing.T) {
 			nil,
 			validator,
 			nil,
+			nil,
 		)
 
 		userController := controllers.NewUserController(userService)
@@ -1790,6 +1814,7 @@ func TestChangePasswordSuccess(t *testing.T) {
 		nil,
 		nil,
 		validator,
+		nil,
 		nil,
 	)
 	userController := controllers.NewUserController(userService)
@@ -1868,6 +1893,7 @@ func TestChangePasswordBadRequest(t *testing.T) {
 			nil,
 			validator,
 			nil,
+			nil,
 		)
 		userController := controllers.NewUserController(userService)
 
@@ -1921,6 +1947,7 @@ func TestChangePasswordUnauthorized(t *testing.T) {
 			nil,
 			validator,
 			nil,
+			nil,
 		)
 
 		userController := controllers.NewUserController(userService)
@@ -1973,6 +2000,7 @@ func TestChangePasswordOldPasswordIncorrect(t *testing.T) {
 		nil,
 		nil,
 		validator,
+		nil,
 		nil,
 	)
 	userController := controllers.NewUserController(userService)
@@ -2034,12 +2062,14 @@ func TestGetUserProfileSuccess(t *testing.T) {
 	// Arrange
 	mockUserRepository := new(repositories.MockUserRepository)
 	mockPostRepository := new(repositories.MockPostRepository)
+	mockSubscriptionRepository := new(repositories.MockSubscriptionRepository)
 	userService := services.NewUserService(
 		mockUserRepository,
 		nil,
 		nil,
 		nil,
 		mockPostRepository,
+		mockSubscriptionRepository,
 	)
 	userController := controllers.NewUserController(userService)
 
@@ -2052,7 +2082,6 @@ func TestGetUserProfileSuccess(t *testing.T) {
 	postCount := int64(64)
 	followerCount := int64(0)
 	followingCount := int64(0)
-	subscriptionId := ""
 
 	currentUsername := "currentUsername"
 	authenticationToken, err := utils.GenerateAccessToken(currentUsername)
@@ -2060,9 +2089,18 @@ func TestGetUserProfileSuccess(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	subscription := models.Subscription{
+		Id:                uuid.New(),
+		SubscriptionDate:  time.Now(),
+		FollowerUsername:  currentUsername,
+		FollowingUsername: user.Username,
+	}
+
 	// Mock expectations
 	mockUserRepository.On("FindUserByUsername", user.Username).Return(&user, nil) // Find user successfully
 	mockPostRepository.On("GetPostCountByUsername", user.Username).Return(postCount, nil)
+	mockSubscriptionRepository.On("GetSubscriptionByUsernames", currentUsername, user.Username).Return(&subscription, nil)
+	mockSubscriptionRepository.On("GetSubscriptionCountByUsername", user.Username).Return(followerCount, followingCount, nil)
 
 	// Setup HTTP request and recorder
 	req, _ := http.NewRequest(http.MethodGet, "/users/testUser", nil)
@@ -2090,7 +2128,7 @@ func TestGetUserProfileSuccess(t *testing.T) {
 	assert.Equal(t, postCount, responseDto.Posts)
 	assert.Equal(t, followerCount, responseDto.Follower)
 	assert.Equal(t, followingCount, responseDto.Following)
-	assert.Equal(t, subscriptionId, responseDto.SubscriptionId)
+	assert.Equal(t, subscription.Id.String(), responseDto.SubscriptionId)
 
 	mockUserRepository.AssertExpectations(t)
 	mockPostRepository.AssertExpectations(t)
@@ -2113,6 +2151,7 @@ func TestGetUserProfileUnauthorized(t *testing.T) {
 			nil,
 			nil,
 			mockPostRepository,
+			nil,
 		)
 		userController := controllers.NewUserController(userService)
 
@@ -2155,6 +2194,7 @@ func TestGetUserProfileUserNotFound(t *testing.T) {
 		nil,
 		nil,
 		mockPostRepository,
+		nil,
 	)
 	userController := controllers.NewUserController(userService)
 

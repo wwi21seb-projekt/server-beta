@@ -13,7 +13,7 @@ import (
 	"os"
 )
 
-// SetupRouter can be used to configure the router: CORS, routes, etc.
+// SetupRouter configures the router: CORS, routes, etc.
 func SetupRouter() *gin.Engine {
 	r := gin.Default()
 
@@ -41,7 +41,7 @@ func SetupRouter() *gin.Engine {
 
 	validator := utils.NewValidator()
 	mailService := services.NewMailService()
-	userService := services.NewUserService(userRepo, activationTokenRepo, mailService, validator, postRepo)
+	userService := services.NewUserService(userRepo, activationTokenRepo, mailService, validator, postRepo, subscriptionRepo)
 	postService := services.NewPostService(postRepo, userRepo, hashtagRepo)
 	subscriptionService := services.NewSubscriptionService(subscriptionRepo, userRepo)
 

@@ -28,3 +28,8 @@ func (m *MockSubscriptionRepository) GetSubscriptionById(subscriptionId string) 
 	args := m.Called(subscriptionId)
 	return args.Get(0).(*models.Subscription), args.Error(1)
 }
+
+func (m *MockSubscriptionRepository) GetSubscriptionCountByUsername(username string) (int64, int64, error) {
+	args := m.Called(username)
+	return args.Get(0).(int64), args.Get(1).(int64), args.Error(2)
+}
