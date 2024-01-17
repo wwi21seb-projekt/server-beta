@@ -4,9 +4,9 @@ import (
 	"flag"
 	"fmt"
 	"github.com/gin-gonic/gin"
-	"github.com/marcbudd/server-beta/internal/initializers"
-	"github.com/marcbudd/server-beta/internal/router"
-	"github.com/marcbudd/server-beta/internal/routines"
+	"github.com/wwi21seb-projekt/server-beta/internal/initializers"
+	"github.com/wwi21seb-projekt/server-beta/internal/router"
+	"github.com/wwi21seb-projekt/server-beta/internal/routines"
 	"os"
 )
 

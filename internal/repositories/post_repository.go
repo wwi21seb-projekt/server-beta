@@ -1,7 +1,8 @@
 package repositories
 
 import (
-	"github.com/marcbudd/server-beta/internal/models"
+	"github.com/google/uuid"
+	"github.com/wwi21seb-projekt/server-beta/internal/models"
 	"gorm.io/gorm"
 )
 
@@ -69,8 +70,11 @@ func (repo *PostRepository) GetPostsGlobalFeed(lastPost *models.Post, limit int)
 
 	// Number of posts in global feed
 	err = baseQuery.Count(&count).Error
+	if err != nil {
+		return nil, 0, err
+	}
 
-	if lastPost != nil {
+	if lastPost.Id != uuid.Nil {
 		baseQuery = baseQuery.Where("(created_at < ?) OR (created_at = ? AND id < ?)", lastPost.CreatedAt, lastPost.CreatedAt, lastPost.Id)
 	}
 
@@ -80,7 +84,7 @@ func (repo *PostRepository) GetPostsGlobalFeed(lastPost *models.Post, limit int)
 		return nil, 0, err
 	}
 
-	return posts, count, nil
+	return posts, count, err
 }
 
 func (repo *PostRepository) GetPostsPersonalFeed(username string, lastPost *models.Post, limit int) ([]models.Post, int64, error) {
@@ -88,9 +92,9 @@ func (repo *PostRepository) GetPostsPersonalFeed(username string, lastPost *mode
 	var count int64
 	var err error
 
-	baseQuery := repo.DB.Model(&models.Post{})
-
-	// TODO: filter for subscriptions
+	baseQuery := repo.DB.Model(&models.Post{}).
+		Joins("JOIN subscriptions ON subscriptions.following = posts.username").
+		Where("subscriptions.follower = ?", username)
 
 	// Number of posts in global feed
 	err = baseQuery.Count(&count).Error
@@ -98,7 +102,7 @@ func (repo *PostRepository) GetPostsPersonalFeed(username string, lastPost *mode
 		return nil, 0, err
 	}
 
-	if lastPost != nil {
+	if lastPost.Id != uuid.Nil {
 		baseQuery = baseQuery.Where("(created_at < ?) OR (created_at = ? AND id < ?)", lastPost.CreatedAt, lastPost.CreatedAt, lastPost.Id)
 	}
 

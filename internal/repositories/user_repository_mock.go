@@ -1,8 +1,8 @@
 package repositories
 
 import (
-	"github.com/marcbudd/server-beta/internal/models"
 	"github.com/stretchr/testify/mock"
+	"github.com/wwi21seb-projekt/server-beta/internal/models"
 	"gorm.io/gorm"
 )
 
@@ -51,7 +51,7 @@ func (m *MockUserRepository) UpdateUser(user *models.User) error {
 	return args.Error(0)
 }
 
-func (m *MockUserRepository) SearchUser(username string, limit int, offset int) ([]models.User, int64, error) {
-	args := m.Called(username, limit, offset)
+func (m *MockUserRepository) SearchUser(username string, limit int, offset int, currentUsername string) ([]models.User, int64, error) {
+	args := m.Called(username, limit, offset, currentUsername)
 	return args.Get(0).([]models.User), args.Get(1).(int64), args.Error(2)
 }

@@ -3,9 +3,9 @@ package controllers
 import (
 	"fmt"
 	"github.com/gin-gonic/gin"
-	"github.com/marcbudd/server-beta/internal/customerrors"
-	"github.com/marcbudd/server-beta/internal/models"
-	"github.com/marcbudd/server-beta/internal/services"
+	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
+	"github.com/wwi21seb-projekt/server-beta/internal/models"
+	"github.com/wwi21seb-projekt/server-beta/internal/services"
 	"net/http"
 )
 
@@ -29,7 +29,7 @@ func (controller *SubscriptionController) PostSubscription(c *gin.Context) {
 	if !exists {
 		fmt.Println("test")
 		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": customerrors.PreliminaryUserUnauthorized,
+			"error": customerrors.UserUnauthorized,
 		})
 		return
 	}
@@ -68,7 +68,7 @@ func (controller *SubscriptionController) DeleteSubscription(c *gin.Context) {
 	username, exists := c.Get("username")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": customerrors.PreliminaryUserUnauthorized,
+			"error": customerrors.UserUnauthorized,
 		})
 		return
 	}

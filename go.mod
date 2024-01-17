@@ -1,4 +1,4 @@
-module github.com/marcbudd/server-beta
+module github.com/wwi21seb-projekt/server-beta
 
 go 1.21.4
 

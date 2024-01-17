@@ -3,9 +3,9 @@ package middleware
 import (
 	"encoding/json"
 	"github.com/gin-gonic/gin"
-	"github.com/marcbudd/server-beta/internal/customerrors"
-	"github.com/marcbudd/server-beta/internal/utils"
 	"github.com/stretchr/testify/assert"
+	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
+	"github.com/wwi21seb-projekt/server-beta/internal/utils"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -66,7 +66,7 @@ func TestAuthorizeUserUnauthorized(t *testing.T) {
 		err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
 		assert.NoError(t, err)
 
-		expectedCustomError := customerrors.PreliminaryUserUnauthorized
+		expectedCustomError := customerrors.UserUnauthorized
 		assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 		assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 	}

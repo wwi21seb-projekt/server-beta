@@ -3,11 +3,11 @@ package controllers
 import (
 	"encoding/json"
 	"github.com/gin-gonic/gin"
-	"github.com/marcbudd/server-beta/internal/customerrors"
-	"github.com/marcbudd/server-beta/internal/repositories"
-	"github.com/marcbudd/server-beta/internal/services"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
+	"github.com/wwi21seb-projekt/server-beta/internal/repositories"
+	"github.com/wwi21seb-projekt/server-beta/internal/services"
 	"io/fs"
 	"net/http"
 	"net/http/httptest"
@@ -79,7 +79,7 @@ func TestGetImageNotFound(t *testing.T) {
 	err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
 
-	expectedCustomError := customerrors.PreliminaryFileNotFound
+	expectedCustomError := customerrors.FileNotFound
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 

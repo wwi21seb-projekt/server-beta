@@ -1,7 +1,7 @@
 package repositories
 
 import (
-	"github.com/marcbudd/server-beta/internal/models"
+	"github.com/wwi21seb-projekt/server-beta/internal/models"
 	"gorm.io/gorm"
 )
 
@@ -14,7 +14,7 @@ type UserRepositoryInterface interface {
 	CheckEmailExistsForUpdate(email string, tx *gorm.DB) (bool, error)
 	CheckUsernameExistsForUpdate(username string, tx *gorm.DB) (bool, error)
 	UpdateUser(user *models.User) error
-	SearchUser(username string, limit int, offset int) ([]models.User, int64, error)
+	SearchUser(username string, limit int, offset int, currentUsername string) ([]models.User, int64, error)
 }
 
 type UserRepository struct {
@@ -71,14 +71,15 @@ func (repo *UserRepository) UpdateUser(user *models.User) error {
 	return err
 }
 
-func (repo *UserRepository) SearchUser(username string, limit int, offset int) ([]models.User, int64, error) {
+func (repo *UserRepository) SearchUser(username string, limit int, offset int, currentUsername string) ([]models.User, int64, error) {
 	var users []models.User
 	var count int64
-	maxLevenshteinDistance := 3 // max distance for search results is set to ensure that only relevant results are returned
+	maxLevenshteinDistance := 3.5 // max distance for search results is set to ensure that only relevant results are returned
 
 	query := repo.DB.Model(&models.User{}).
+		Where("username != ?", currentUsername). // exclude current user from search
 		Select("*, levenshtein(username, ?) as distance", username).
-		Where("levenshtein(username, ?) <= ?", username, maxLevenshteinDistance).
+		Where("levenshtein(username, ?) <= ? OR username like ?", username, maxLevenshteinDistance, username+"%").
 		Order("distance ASC")
 
 	// Count results

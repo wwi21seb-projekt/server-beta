@@ -75,40 +75,40 @@ var (
 		Message: "The user is already activated. Please login to your account.",
 		Code:    "ERR-013",
 	}
-	PreliminaryUserUnauthorized = &CustomError{
-		Message: "The user is not authorized. Please login to your account.",
+	UserUnauthorized = &CustomError{
+		Message: "The request is unauthorized. Please login to your account.",
 		Code:    "ERR-014",
 	}
-	PreliminaryFileNotFound = &CustomError{
-		Message: "The file was not found. Please check the file and try again.",
+	SubscriptionNotFound = &CustomError{
+		Message: "The subscription was not found. Please check the username and try again.",
 		Code:    "ERR-015",
 	}
-	PreliminaryFileTooLarge = &CustomError{
-		Message: "The file is too large. Please compress file.",
-		Code:    "ERR-016",
-  }
-	PreliminaryOldPasswordIncorrect = &CustomError{
-		Message: "The old password is incorrect. Please check the password and try again.",
-		Code:    "ERR-015",
-  }
-	PreliminarySelfFollow = &CustomError{
-		Message: "The user cannot follow himself.",
-		Code:    "ERR-015",
-	}
-	PreliminarySubscriptionAlreadyExists = &CustomError{
-		Message: "The subscription already exists. Please check the subscription id and try again.",
+	SubscriptionAlreadyExists = &CustomError{
+		Message: "The subscription already exists. Please check the username and try again.",
 		Code:    "ERR-016",
 	}
-	PreliminarySubscriptionNotFound = &CustomError{
-		Message: "The subscription was not found. Please check the subscription id and try again.",
+	SelfFollow = &CustomError{
+		Message: "You cannot follow yourself. Please check the username and try again.",
 		Code:    "ERR-017",
 	}
-	PreliminarySubscriptionDeleteNotAuthorized = &CustomError{
-		Message: "The user is not authorized to delete the subscription. Please check the subscription id and try again.",
+	SubscriptionDeleteNotAuthorized = &CustomError{
+		Message: "You can only delete your own subscriptions.",
 		Code:    "ERR-018",
-  }
-	PreliminaryPostNotFound = &CustomError{
-		Message: "The post was not found. Please check the post id and try again.",
-		Code:    "ERR-015",
+	}
+	OldPasswordIncorrect = &CustomError{
+		Message: "Old Password incorrect: to be defined",
+		Code:    "",
+	}
+	PostNotFound = &CustomError{
+		Message: "Post not found: to be defined",
+		Code:    "",
+	}
+	FileNotFound = &CustomError{
+		Message: "file not found: to be defined",
+		Code:    "",
+	}
+	FileTooLarge = &CustomError{
+		Message: "file too large: to be defined",
+		Code:    "",
 	}
 )

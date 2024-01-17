@@ -2,8 +2,8 @@ package routines
 
 import (
 	"fmt"
-	"github.com/marcbudd/server-beta/internal/initializers"
-	"github.com/marcbudd/server-beta/internal/models"
+	"github.com/wwi21seb-projekt/server-beta/internal/initializers"
+	"github.com/wwi21seb-projekt/server-beta/internal/models"
 	"time"
 )
 

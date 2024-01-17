@@ -3,8 +3,8 @@ package services
 import (
 	"fmt"
 	"github.com/google/uuid"
-	"github.com/marcbudd/server-beta/internal/customerrors"
-	"github.com/marcbudd/server-beta/internal/repositories"
+	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
+	"github.com/wwi21seb-projekt/server-beta/internal/repositories"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -52,7 +52,7 @@ func (service *ImageService) SaveImage(fileHeader multipart.FileHeader) (string,
 	// Check file size
 	const maxFileSize = 5 << 20 // 5 MB
 	if fileHeader.Size > maxFileSize {
-		return "", customerrors.PreliminaryFileTooLarge, http.StatusBadRequest
+		return "", customerrors.FileTooLarge, http.StatusBadRequest
 	}
 
 	// Extract file from fileHeader
@@ -97,7 +97,7 @@ func (service *ImageService) GetImage(filename string) ([]byte, *customerrors.Cu
 	imageData, err := service.fileSystem.ReadFile(filePath)
 	if err != nil { // check for file not found error
 		if os.IsNotExist(err) {
-			return nil, customerrors.PreliminaryFileNotFound, http.StatusNotFound
+			return nil, customerrors.FileNotFound, http.StatusNotFound
 		}
 		fmt.Println("test")
 		return nil, customerrors.InternalServerError, http.StatusInternalServerError // else internal server error

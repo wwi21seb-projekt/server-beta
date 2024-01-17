@@ -1,7 +1,7 @@
 package repositories
 
 import (
-	"github.com/marcbudd/server-beta/internal/models"
+	"github.com/wwi21seb-projekt/server-beta/internal/models"
 	"gorm.io/gorm"
 )
 
@@ -10,6 +10,7 @@ type SubscriptionRepositoryInterface interface {
 	DeleteSubscription(subscriptionId string) error
 	GetSubscriptionByUsernames(follower, following string) (*models.Subscription, error)
 	GetSubscriptionById(subscriptionId string) (*models.Subscription, error)
+	GetSubscriptionCountByUsername(username string) (int64, int64, error)
 }
 
 type SubscriptionRepository struct {
@@ -38,4 +39,24 @@ func (repo *SubscriptionRepository) GetSubscriptionById(subscriptionId string) (
 	var subscription models.Subscription
 	err := repo.DB.Where("id = ?", subscriptionId).First(&subscription).Error
 	return &subscription, err
+}
+
+// GetSubscriptionCountByUsername gets the number of followers and followings for a user
+func (repo *SubscriptionRepository) GetSubscriptionCountByUsername(username string) (int64, int64, error) {
+	var followerCount, followingCount int64
+
+	err := repo.DB.Model(&models.Subscription{}).
+		Where("following = ?", username). // following and follower are reversed because we want to know who is following the user
+		Count(&followerCount).
+		Error
+	if err != nil {
+		return 0, 0, err
+	}
+
+	err = repo.DB.Model(&models.Subscription{}).Where("follower = ?", username).Count(&followingCount).Error
+	if err != nil {
+		return 0, 0, err
+	}
+
+	return followerCount, followingCount, nil
 }

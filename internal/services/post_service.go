@@ -3,10 +3,10 @@ package services
 import (
 	"errors"
 	"github.com/google/uuid"
-	"github.com/marcbudd/server-beta/internal/customerrors"
-	"github.com/marcbudd/server-beta/internal/models"
-	"github.com/marcbudd/server-beta/internal/repositories"
-	"github.com/marcbudd/server-beta/internal/utils"
+	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
+	"github.com/wwi21seb-projekt/server-beta/internal/models"
+	"github.com/wwi21seb-projekt/server-beta/internal/repositories"
+	"github.com/wwi21seb-projekt/server-beta/internal/utils"
 	"gorm.io/gorm"
 	"mime/multipart"
 	"net/http"
@@ -53,14 +53,14 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *m
 	user, err := service.userRepo.FindUserByUsername(username)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, customerrors.PreliminaryUserUnauthorized, http.StatusUnauthorized // TODO: Custom error for unauthorized?
+			return nil, customerrors.UserUnauthorized, http.StatusUnauthorized
 		}
 		return nil, customerrors.InternalServerError, http.StatusInternalServerError
 	}
 
 	// Check if user is activated
 	if !user.Activated {
-		return nil, customerrors.PreliminaryUserUnauthorized, http.StatusUnauthorized
+		return nil, customerrors.UserUnauthorized, http.StatusUnauthorized
 	}
 
 	//Extract hashtags
@@ -171,7 +171,7 @@ func (service *PostService) GetPostsGlobalFeed(lastPostId string, limit int) (*m
 		post, err := service.postRepo.GetPostById(lastPostId)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return nil, customerrors.PreliminaryPostNotFound, http.StatusNotFound
+				return nil, customerrors.PostNotFound, http.StatusNotFound
 			}
 			return nil, customerrors.DatabaseError, http.StatusInternalServerError
 		}
@@ -219,12 +219,12 @@ func (service *PostService) GetPostsPersonalFeed(username string, lastPostId str
 	}
 
 	// Get last post if lastPostId is not empty
-	var lastPost models.Post
+	var lastPost = models.Post{}
 	if lastPostId != "" {
 		post, err := service.postRepo.GetPostById(lastPostId)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return nil, customerrors.PreliminaryPostNotFound, http.StatusNotFound
+				return nil, customerrors.PostNotFound, http.StatusNotFound
 			}
 			return nil, customerrors.DatabaseError, http.StatusInternalServerError
 		}

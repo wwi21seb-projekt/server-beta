@@ -6,15 +6,15 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/marcbudd/server-beta/internal/controllers"
-	"github.com/marcbudd/server-beta/internal/customerrors"
-	"github.com/marcbudd/server-beta/internal/middleware"
-	"github.com/marcbudd/server-beta/internal/models"
-	"github.com/marcbudd/server-beta/internal/repositories"
-	"github.com/marcbudd/server-beta/internal/services"
-	"github.com/marcbudd/server-beta/internal/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/wwi21seb-projekt/server-beta/internal/controllers"
+	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
+	"github.com/wwi21seb-projekt/server-beta/internal/middleware"
+	"github.com/wwi21seb-projekt/server-beta/internal/models"
+	"github.com/wwi21seb-projekt/server-beta/internal/repositories"
+	"github.com/wwi21seb-projekt/server-beta/internal/services"
+	"github.com/wwi21seb-projekt/server-beta/internal/utils"
 	"gorm.io/gorm"
 	"net/http"
 	"net/http/httptest"
@@ -170,7 +170,7 @@ func TestPostSubscriptionUnauthorized(t *testing.T) {
 		err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
 		assert.NoError(t, err)
 
-		expectedCustomError := customerrors.PreliminaryUserUnauthorized
+		expectedCustomError := customerrors.UserUnauthorized
 		assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 		assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
@@ -225,7 +225,7 @@ func TestPostSubscriptionAlreadyExists(t *testing.T) {
 	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
 
-	expectedCustomError := customerrors.PreliminarySubscriptionAlreadyExists
+	expectedCustomError := customerrors.SubscriptionAlreadyExists
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
@@ -275,7 +275,7 @@ func TestPostSubscriptionSelfFollow(t *testing.T) {
 	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
 
-	expectedCustomError := customerrors.PreliminarySelfFollow
+	expectedCustomError := customerrors.SelfFollow
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
@@ -362,7 +362,7 @@ func TestDeleteSubscriptionUnauthorized(t *testing.T) {
 		err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
 		assert.NoError(t, err)
 
-		expectedCustomError := customerrors.PreliminaryUserUnauthorized
+		expectedCustomError := customerrors.UserUnauthorized
 		assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 		assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
@@ -410,7 +410,7 @@ func TestDeleteSubscriptionNotFound(t *testing.T) {
 	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
 
-	expectedCustomError := customerrors.PreliminarySubscriptionNotFound
+	expectedCustomError := customerrors.SubscriptionNotFound
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
@@ -462,7 +462,7 @@ func TestDeleteSubscriptionForbidden(t *testing.T) {
 	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
 
-	expectedCustomError := customerrors.PreliminarySubscriptionDeleteNotAuthorized
+	expectedCustomError := customerrors.SubscriptionDeleteNotAuthorized
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 

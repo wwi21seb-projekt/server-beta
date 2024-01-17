@@ -3,10 +3,10 @@ package services
 import (
 	"errors"
 	"github.com/google/uuid"
-	"github.com/marcbudd/server-beta/internal/customerrors"
-	"github.com/marcbudd/server-beta/internal/models"
-	"github.com/marcbudd/server-beta/internal/repositories"
-	"github.com/marcbudd/server-beta/internal/utils"
+	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
+	"github.com/wwi21seb-projekt/server-beta/internal/models"
+	"github.com/wwi21seb-projekt/server-beta/internal/repositories"
+	"github.com/wwi21seb-projekt/server-beta/internal/utils"
 	"gorm.io/gorm"
 	"net/http"
 	"strconv"
@@ -19,7 +19,7 @@ type UserServiceInterface interface {
 	LoginUser(req models.UserLoginRequestDTO) (*models.UserLoginResponseDTO, *customerrors.CustomError, int)
 	ActivateUser(username string, token string) (*customerrors.CustomError, int)
 	ResendActivationToken(username string) (*customerrors.CustomError, int)
-	SearchUser(username string, limit int, offset int) (*models.UserSearchResponseDTO, *customerrors.CustomError, int)
+	SearchUser(username string, limit int, offset int, currentUsername string) (*models.UserSearchResponseDTO, *customerrors.CustomError, int)
 	UpdateUserInformation(req *models.UserInformationUpdateDTO, currentUsername string) (*models.UserInformationUpdateDTO, *customerrors.CustomError, int)
 	ChangeUserPassword(req *models.ChangePasswordDTO, currentUsername string) (*customerrors.CustomError, int)
 	GetUserProfile(username string, currentUser string) (*models.UserProfileResponseDTO, *customerrors.CustomError, int)
@@ -31,6 +31,7 @@ type UserService struct {
 	mailService         MailServiceInterface
 	validator           utils.ValidatorInterface
 	postRepo            repositories.PostRepositoryInterface
+	subscriptionRepo    repositories.SubscriptionRepositoryInterface
 }
 
 // NewUserService can be used as a constructor to generate a new UserService "object"
@@ -39,13 +40,15 @@ func NewUserService(
 	activationTokenRepo repositories.ActivationTokenRepositoryInterface,
 	maliService MailServiceInterface,
 	validator utils.ValidatorInterface,
-	postRepo repositories.PostRepositoryInterface) *UserService {
+	postRepo repositories.PostRepositoryInterface,
+	subscriptionRepo repositories.SubscriptionRepositoryInterface) *UserService {
 	return &UserService{
 		userRepo:            userRepo,
 		activationTokenRepo: activationTokenRepo,
 		mailService:         maliService,
 		validator:           validator,
-		postRepo:            postRepo}
+		postRepo:            postRepo,
+		subscriptionRepo:    subscriptionRepo}
 }
 
 // sendActivationToken deletes old activation tokens, generates a new six-digit code and sends it to user via mail
@@ -340,14 +343,14 @@ func (service *UserService) ResendActivationToken(username string) (*customerror
 }
 
 // SearchUser can be called from the controller to search for users and returns response, error and status code
-func (service *UserService) SearchUser(username string, limit int, offset int) (*models.UserSearchResponseDTO, *customerrors.CustomError, int) {
+func (service *UserService) SearchUser(username string, limit int, offset int, currentUsername string) (*models.UserSearchResponseDTO, *customerrors.CustomError, int) {
 	// Get users
-	users, totalRecordsCount, err := service.userRepo.SearchUser(username, limit, offset)
-  if err != nil {
+	users, totalRecordsCount, err := service.userRepo.SearchUser(username, limit, offset, currentUsername)
+	if err != nil {
 		return nil, customerrors.DatabaseError, http.StatusInternalServerError
 	}
-  
-  // Create response
+
+	// Create response
 	var records []models.UserSearchRecordDTO
 	for _, user := range users {
 		record := models.UserSearchRecordDTO{
@@ -369,7 +372,7 @@ func (service *UserService) SearchUser(username string, limit int, offset int) (
 
 	return &response, nil, http.StatusOK
 }
-  
+
 // UpdateUserInformation can be called from the controller to update a user's nickname and status
 func (service *UserService) UpdateUserInformation(req *models.UserInformationUpdateDTO, currentUsername string) (*models.UserInformationUpdateDTO, *customerrors.CustomError, int) {
 	// Check if the new nickname and status are valid
@@ -415,7 +418,7 @@ func (service *UserService) ChangeUserPassword(req *models.ChangePasswordDTO, cu
 
 	// Verify the old password
 	if !utils.CheckPassword(req.OldPassword, user.PasswordHash) {
-		return customerrors.PreliminaryOldPasswordIncorrect, http.StatusForbidden
+		return customerrors.OldPasswordIncorrect, http.StatusForbidden
 	}
 
 	// Hash the new password
@@ -449,28 +452,24 @@ func (service *UserService) GetUserProfile(username string, currentUser string) 
 	if err != nil {
 		return nil, customerrors.DatabaseError, http.StatusInternalServerError
 	}
-	// TODO: Use subscriptions
-	//followerCount, followingCount, err := service.subscriptionRepo.GetSubscriptionCountByUsername(username)
-	//if err != nil {
-	//	return nil, customerrors.DatabaseError, http.StatusInternalServerError
-	//}
-	followerCount := int64(0)  // example
-	followingCount := int64(0) // example
+
+	followerCount, followingCount, err := service.subscriptionRepo.GetSubscriptionCountByUsername(username)
+	if err != nil {
+		return nil, customerrors.DatabaseError, http.StatusInternalServerError
+	}
 
 	// Set subscription id if current user is following
-	subscriptionId := ""
-	//if currentUser != "" {
-	//	id, err := service.subscriptionRepo.GetSubscriptionByUsernames(currentUser, username)
-	//	if err != nil {
-	//		if errors.Is(err, gorm.ErrRecordNotFound) {
-	//			subscriptionId = ""
-	//		} else {
-	//			return nil, customerrors.DatabaseError, http.StatusInternalServerError
-	//		}
-	//	} else {
-	//		subscriptionId = id
-	//	}
-	//}
+	var subscriptionId string
+	sub, err := service.subscriptionRepo.GetSubscriptionByUsernames(currentUser, username)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			subscriptionId = ""
+		} else {
+			return nil, customerrors.DatabaseError, http.StatusInternalServerError
+		}
+	} else {
+		subscriptionId = sub.Id.String()
+	}
 
 	// Create response
 	userProfile := &models.UserProfileResponseDTO{
