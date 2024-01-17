@@ -40,7 +40,7 @@ func (controller *PostController) CreatePost(c *gin.Context) {
 	if c.ContentType() == "application/json" {
 		// Read body
 		var postCreateRequestDTO models.PostCreateRequestDTO
-		if c.Bind(&postCreateRequestDTO) != nil {
+		if c.ShouldBindJSON(&postCreateRequestDTO) != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error": customerrors.BadRequest,
 			})

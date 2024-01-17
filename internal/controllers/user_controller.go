@@ -35,7 +35,7 @@ func (controller *UserController) CreateUser(c *gin.Context) {
 	// Read body
 	var userCreateRequestDTO models.UserCreateRequestDTO
 
-	if c.Bind(&userCreateRequestDTO) != nil {
+	if c.ShouldBindJSON(&userCreateRequestDTO) != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": customerrors.BadRequest,
 		})
@@ -61,7 +61,7 @@ func (controller *UserController) Login(c *gin.Context) {
 	// Read body
 	var userLoginRequestDTO models.UserLoginRequestDTO
 
-	if c.Bind(&userLoginRequestDTO) != nil {
+	if c.ShouldBindJSON(&userLoginRequestDTO) != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": customerrors.BadRequest,
 		})
@@ -87,7 +87,7 @@ func (controller *UserController) ActivateUser(c *gin.Context) {
 	// Read body
 	var verificationTokenRequestDTO models.UserActivationRequestDTO
 
-	if c.Bind(&verificationTokenRequestDTO) != nil {
+	if c.ShouldBindJSON(&verificationTokenRequestDTO) != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": customerrors.BadRequest,
 		})
@@ -142,7 +142,7 @@ func (controller *UserController) ResendActivationToken(c *gin.Context) {
 func (controller *UserController) RefreshToken(c *gin.Context) {
 	// Read body
 	var refreshTokenRequestDTO models.UserRefreshTokenRequestDTO
-	if c.Bind(&refreshTokenRequestDTO) != nil {
+	if c.ShouldBindJSON(&refreshTokenRequestDTO) != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": customerrors.BadRequest,
 		})
@@ -225,7 +225,7 @@ func (controller *UserController) UpdateUserInformation(c *gin.Context) {
 
 	// Bind the JSON request body to the struct
 	var userUpdateResponseDTO models.UserInformationUpdateDTO
-	if err := c.BindJSON(&userUpdateResponseDTO); err != nil {
+	if err := c.ShouldBindJSON(&userUpdateResponseDTO); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": customerrors.BadRequest,
 		})
@@ -257,7 +257,7 @@ func (controller *UserController) ChangeUserPassword(c *gin.Context) {
 
 	// Bind the JSON request body to the struct
 	var userPasswordChangeDTO models.ChangePasswordDTO
-	if err := c.BindJSON(&userPasswordChangeDTO); err != nil {
+	if err := c.ShouldBindJSON(&userPasswordChangeDTO); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": customerrors.BadRequest,
 		})
