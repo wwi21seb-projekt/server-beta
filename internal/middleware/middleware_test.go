@@ -38,9 +38,14 @@ func TestAuthorizeUserSuccess(t *testing.T) {
 
 // TestAuthorizeUserUnauthorized tests the AuthorizeUser function if it returns 404 when user does not use authentication or a valid token
 func TestAuthorizeUserUnauthorized(t *testing.T) {
+	refreshToken, err := utils.GenerateRefreshToken("testUsername")
+	if err != nil {
+		t.Fatal(err)
+	}
 	invalidTokens := []string{
 		"",
 		"invalidToken",
+		refreshToken, // Refresh token is not allowed
 	}
 
 	for _, token := range invalidTokens {

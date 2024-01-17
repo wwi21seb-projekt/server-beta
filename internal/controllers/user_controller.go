@@ -14,7 +14,7 @@ type UserControllerInterface interface {
 	Login(c *gin.Context)
 	ActivateUser(c *gin.Context)
 	ResendActivationToken(c *gin.Context)
-	ValidateLogin(c *gin.Context)
+	RefreshToken(c *gin.Context)
 	SearchUser(c *gin.Context)
 	UpdateUserInformation(c *gin.Context)
 	ChangeUserPassword(c *gin.Context)
@@ -104,7 +104,7 @@ func (controller *UserController) ActivateUser(c *gin.Context) {
 	}
 
 	// Activate user
-	serviceErr, httpStatus := controller.userService.ActivateUser(username, verificationTokenRequestDTO.Token)
+	loginResponse, serviceErr, httpStatus := controller.userService.ActivateUser(username, verificationTokenRequestDTO.Token)
 	if serviceErr != nil {
 		c.JSON(httpStatus, gin.H{
 			"error": serviceErr,
@@ -112,7 +112,7 @@ func (controller *UserController) ActivateUser(c *gin.Context) {
 		return
 	}
 
-	c.JSON(httpStatus, gin.H{})
+	c.JSON(httpStatus, loginResponse)
 }
 
 // ResendActivationToken sends a new six-digit verification code to the user
@@ -138,19 +138,27 @@ func (controller *UserController) ResendActivationToken(c *gin.Context) {
 	c.JSON(httpStatus, gin.H{})
 }
 
-// ValidateLogin is a test function to see whether the user is logged in and returns username
-func (controller *UserController) ValidateLogin(c *gin.Context) {
-	username, exists := c.Get("username")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": customerrors.UserUnauthorized,
+// RefreshToken creates a new jwt token with the refresh token
+func (controller *UserController) RefreshToken(c *gin.Context) {
+	// Read body
+	var refreshTokenRequestDTO models.UserRefreshTokenRequestDTO
+	if c.Bind(&refreshTokenRequestDTO) != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": customerrors.BadRequest,
 		})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"username": username,
-	})
+	// Resend code
+	loginResponse, serviceErr, httpStatus := controller.userService.RefreshToken(&refreshTokenRequestDTO)
+	if serviceErr != nil {
+		c.JSON(httpStatus, gin.H{
+			"error": serviceErr,
+		})
+		return
+	}
+
+	c.JSON(httpStatus, loginResponse)
 }
 
 // SearchUser searches for a user by username given in url

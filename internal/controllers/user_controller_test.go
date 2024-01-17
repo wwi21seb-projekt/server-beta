@@ -666,6 +666,16 @@ func TestLoginSuccess(t *testing.T) {
 	assert.NotEmpty(t, responseDto.Token)
 	assert.NotEmpty(t, responseDto.RefreshToken)
 
+	extractedUsername, isRefresh, err := utils.VerifyJWTToken(responseDto.Token)
+	assert.NoError(t, err)
+	assert.False(t, isRefresh)
+	assert.Equal(t, username, extractedUsername)
+
+	extractedUsername, isRefresh, err = utils.VerifyJWTToken(responseDto.RefreshToken)
+	assert.NoError(t, err)
+	assert.True(t, isRefresh)
+	assert.Equal(t, username, extractedUsername)
+
 	// Verify that all expectations are met
 	mockUserRepository.AssertExpectations(t)
 	mockActivationTokenRepository.AssertExpectations(t)
@@ -1018,7 +1028,7 @@ func TestLoginUserNotActivatedExpiredToken(t *testing.T) {
 	mockMailService.AssertExpectations(t)
 }
 
-// TestActivateUserSuccess tests if ActivateUser returns 204-No Content when user is activated successfully
+// TestActivateUserSuccess tests if ActivateUser returns 200-OK and tokens when user is activated successfully
 func TestActivateUserSuccess(t *testing.T) {
 	// Setup mocks
 	mockUserRepository := new(repositories.MockUserRepository)
@@ -1093,7 +1103,24 @@ func TestActivateUserSuccess(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	// Assert Response
-	assert.Equal(t, http.StatusNoContent, w.Code) // Expect HTTP 204 No Content status
+	assert.Equal(t, http.StatusOK, w.Code) // Expect HTTP 200 OK status
+
+	var loginResponse models.UserLoginResponseDTO
+	err = json.Unmarshal(w.Body.Bytes(), &loginResponse)
+	assert.NoError(t, err)
+
+	assert.NotEmpty(t, loginResponse.Token)
+	assert.NotEmpty(t, loginResponse.RefreshToken)
+
+	extractedUsername, isRefresh, err := utils.VerifyJWTToken(loginResponse.Token)
+	assert.NoError(t, err)
+	assert.False(t, isRefresh)
+	assert.Equal(t, username, extractedUsername)
+
+	extractedUsername, isRefresh, err = utils.VerifyJWTToken(loginResponse.RefreshToken)
+	assert.NoError(t, err)
+	assert.True(t, isRefresh)
+	assert.Equal(t, username, extractedUsername)
 
 	// Verify that all expectations are met
 	mockUserRepository.AssertExpectations(t)
@@ -1610,6 +1637,153 @@ func TestResendActivationTokenUserNotfound(t *testing.T) {
 	mockUserRepository.AssertExpectations(t)
 	mockActivationTokenRepository.AssertExpectations(t)
 	mockMailService.AssertExpectations(t)
+}
+
+// TestRefreshTokenSuccess tests if RefreshToken returns 200-OK and new tokens when refresh token is valid
+func TestRefreshTokenSuccess(t *testing.T) {
+	// Setup
+	userService := services.NewUserService(
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+	)
+	userController := controllers.NewUserController(userService)
+
+	currentUsername := "testUser"
+	refreshToken, err := utils.GenerateRefreshToken(currentUsername)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	request := models.UserRefreshTokenRequestDTO{
+		RefreshToken: refreshToken,
+	}
+
+	// Setup HTTP request and recorder
+	requestBody, err := json.Marshal(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req, _ := http.NewRequest(http.MethodPost, "/users/refresh", bytes.NewBuffer(requestBody))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	// Act
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+	router.POST("/users/refresh", userController.RefreshToken)
+	router.ServeHTTP(w, req)
+
+	// Assert Response
+	assert.Equal(t, http.StatusOK, w.Code) // Expect HTTP 200 OK status
+
+	var loginResponse models.UserLoginResponseDTO
+	err = json.Unmarshal(w.Body.Bytes(), &loginResponse)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.NotEmpty(t, loginResponse.Token)
+	assert.NotEmpty(t, loginResponse.RefreshToken)
+
+	extractedUsername, isRefresh, err := utils.VerifyJWTToken(loginResponse.Token)
+	assert.NoError(t, err)
+	assert.False(t, isRefresh)
+	assert.Equal(t, currentUsername, extractedUsername)
+
+	extractedUsername, isRefresh, err = utils.VerifyJWTToken(loginResponse.RefreshToken)
+	assert.NoError(t, err)
+	assert.True(t, isRefresh)
+	assert.Equal(t, currentUsername, extractedUsername)
+}
+
+// TestRefreshTokenBadRequest tests if RefreshToken returns 400-Bad Request when request body is invalid
+func TestRefreshTokenBadRequest(t *testing.T) {
+	invalidBodies := []string{
+		`{"invalidField": "value"}`, // invalid field
+		`{}`,                        // empty body
+	}
+
+	for _, body := range invalidBodies {
+		controller := controllers.NewUserController(nil)
+
+		gin.SetMode(gin.TestMode)
+		router := gin.Default()
+		router.POST("/users/refresh", controller.RefreshToken)
+
+		// Create request
+		req, err := http.NewRequest(http.MethodPost, "/users/refresh", bytes.NewBufferString(body))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		// Assertions
+		assert.Equal(t, http.StatusBadRequest, w.Code) // Expect HTTP 400 Bad Request status
+		var errorResponse customerrors.ErrorResponse
+		err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
+		assert.NoError(t, err)
+
+		expectedCustomError := customerrors.BadRequest
+		assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
+		assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
+	}
+}
+
+// TestRefreshTokenInvalidToken tests if RefreshToken returns 401-Unauthorized when refresh token is invalid
+func TestRefreshTokenInvalidToken(t *testing.T) {
+	accessToken, err := utils.GenerateAccessToken("testUser")
+	if err != nil {
+		t.Fatal(err)
+	}
+	invalidTokens := []string{
+		"invalidToken",
+		"Bearer invalidToken",
+		accessToken,
+	}
+
+	for _, token := range invalidTokens {
+		service := services.NewUserService(nil, nil, nil, nil, nil, nil)
+		controller := controllers.NewUserController(service)
+
+		gin.SetMode(gin.TestMode)
+		router := gin.Default()
+		router.POST("/users/refresh", controller.RefreshToken)
+
+		// Create request
+		refreshReq := models.UserRefreshTokenRequestDTO{
+			RefreshToken: token,
+		}
+		requestBody, err := json.Marshal(refreshReq)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		req, err := http.NewRequest(http.MethodPost, "/users/refresh", bytes.NewBuffer(requestBody))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		// Assertions
+		assert.Equal(t, http.StatusUnauthorized, w.Code) // Expect HTTP 401 Unauthorized status
+		var errorResponse customerrors.ErrorResponse
+		err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
+		assert.NoError(t, err)
+
+		expectedCustomError := customerrors.InvalidToken
+		assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
+		assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
+	}
 }
 
 // TestSearchUserSuccess tests if SearchUser returns 200-OK and list of users

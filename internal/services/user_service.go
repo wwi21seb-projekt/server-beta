@@ -17,8 +17,9 @@ type UserServiceInterface interface {
 	sendActivationToken(email string, tokenObject *models.ActivationToken) *customerrors.CustomError
 	CreateUser(req models.UserCreateRequestDTO) (*models.UserResponseDTO, *customerrors.CustomError, int)
 	LoginUser(req models.UserLoginRequestDTO) (*models.UserLoginResponseDTO, *customerrors.CustomError, int)
-	ActivateUser(username string, token string) (*customerrors.CustomError, int)
+	ActivateUser(username string, token string) (*models.UserLoginResponseDTO, *customerrors.CustomError, int)
 	ResendActivationToken(username string) (*customerrors.CustomError, int)
+	RefreshToken(req *models.UserRefreshTokenRequestDTO) (*models.UserLoginResponseDTO, *customerrors.CustomError, int)
 	SearchUser(username string, limit int, offset int, currentUsername string) (*models.UserSearchResponseDTO, *customerrors.CustomError, int)
 	UpdateUserInformation(req *models.UserInformationUpdateDTO, currentUsername string) (*models.UserInformationUpdateDTO, *customerrors.CustomError, int)
 	ChangeUserPassword(req *models.ChangePasswordDTO, currentUsername string) (*customerrors.CustomError, int)
@@ -238,29 +239,29 @@ func (service *UserService) LoginUser(req models.UserLoginRequestDTO) (*models.U
 }
 
 // ActivateUser can be called from the controller to verify email using token and returns response, error and status code
-func (service *UserService) ActivateUser(username string, token string) (*customerrors.CustomError, int) {
+func (service *UserService) ActivateUser(username string, token string) (*models.UserLoginResponseDTO, *customerrors.CustomError, int) {
 
 	// Get user
 	user, err := service.userRepo.FindUserByUsername(username)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return customerrors.UserNotFound, http.StatusNotFound
+			return nil, customerrors.UserNotFound, http.StatusNotFound
 		}
-		return customerrors.DatabaseError, http.StatusInternalServerError
+		return nil, customerrors.DatabaseError, http.StatusInternalServerError
 	}
 
 	// If user is already activated --> send already reported
 	if user.Activated == true {
-		return customerrors.UserAlreadyActivated, http.StatusAlreadyReported
+		return nil, customerrors.UserAlreadyActivated, http.StatusAlreadyReported
 	}
 
 	// Get token
 	activationToken, err := service.activationTokenRepo.FindActivationToken(username, token)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return customerrors.InvalidToken, http.StatusNotFound
+			return nil, customerrors.InvalidToken, http.StatusNotFound
 		}
-		return customerrors.DatabaseError, http.StatusInternalServerError
+		return nil, customerrors.DatabaseError, http.StatusInternalServerError
 	}
 
 	// Check if activation token is expired
@@ -268,28 +269,42 @@ func (service *UserService) ActivateUser(username string, token string) (*custom
 
 		// Resend token
 		_, _ = service.ResendActivationToken(user.Username)
-		return customerrors.ActivationTokenExpired, http.StatusUnauthorized
+		return nil, customerrors.ActivationTokenExpired, http.StatusUnauthorized
 	}
 
 	// Activate user
 	user.Activated = true
 	if err := service.userRepo.UpdateUser(user); err != nil {
-		return customerrors.DatabaseError, http.StatusInternalServerError
+		return nil, customerrors.DatabaseError, http.StatusInternalServerError
 	}
 
 	// Send welcome email
 	subject := "Welcome to Server Beta"
 	body := "Welcome to Server Beta!\n\nYour account was successfully verified. Now you can use our network!"
 	if err := service.mailService.SendMail(user.Email, subject, body); err != nil {
-		return customerrors.InternalServerError, http.StatusInternalServerError
+		return nil, customerrors.InternalServerError, http.StatusInternalServerError
 	}
 
 	// Delete token
 	if err := service.activationTokenRepo.DeleteActivationTokenByUsername(user.Username); err != nil {
-		return customerrors.DatabaseError, http.StatusInternalServerError
+		return nil, customerrors.DatabaseError, http.StatusInternalServerError
 	}
 
-	return nil, http.StatusNoContent
+	// Generate access and refresh token
+	accessTokenString, err := utils.GenerateAccessToken(user.Username)
+	if err != nil {
+		return nil, customerrors.InternalServerError, http.StatusInternalServerError
+	}
+	refreshTokenString, err := utils.GenerateRefreshToken(user.Username)
+	if err != nil {
+		return nil, customerrors.InternalServerError, http.StatusInternalServerError
+	}
+	loginResponse := models.UserLoginResponseDTO{
+		Token:        accessTokenString,
+		RefreshToken: refreshTokenString,
+	}
+
+	return &loginResponse, nil, http.StatusOK
 
 }
 
@@ -340,6 +355,34 @@ func (service *UserService) ResendActivationToken(username string) (*customerror
 
 	return nil, http.StatusNoContent
 
+}
+
+// RefreshToken can be called from the controller with refresh token to return a new access token
+func (service *UserService) RefreshToken(req *models.UserRefreshTokenRequestDTO) (*models.UserLoginResponseDTO, *customerrors.CustomError, int) {
+
+	// Verify refresh token
+	username, isRefreshToken, err := utils.VerifyJWTToken(req.RefreshToken)
+	if err != nil || !isRefreshToken {
+		return nil, customerrors.InvalidToken, http.StatusUnauthorized
+	}
+
+	// Generate new access token
+	accessTokenString, err := utils.GenerateAccessToken(username)
+	if err != nil {
+		return nil, customerrors.InternalServerError, http.StatusInternalServerError
+	}
+	refreshTokenString, err := utils.GenerateRefreshToken(username)
+	if err != nil {
+		return nil, customerrors.InternalServerError, http.StatusInternalServerError
+	}
+
+	// Create response
+	loginResponse := models.UserLoginResponseDTO{
+		Token:        accessTokenString,
+		RefreshToken: refreshTokenString,
+	}
+
+	return &loginResponse, nil, http.StatusOK
 }
 
 // SearchUser can be called from the controller to search for users and returns response, error and status code
