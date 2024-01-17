@@ -219,7 +219,7 @@ func (service *PostService) GetPostsPersonalFeed(username string, lastPostId str
 	}
 
 	// Get last post if lastPostId is not empty
-	var lastPost models.Post
+	var lastPost = models.Post{}
 	if lastPostId != "" {
 		post, err := service.postRepo.GetPostById(lastPostId)
 		if err != nil {

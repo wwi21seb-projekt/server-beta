@@ -74,12 +74,12 @@ func (repo *UserRepository) UpdateUser(user *models.User) error {
 func (repo *UserRepository) SearchUser(username string, limit int, offset int, currentUsername string) ([]models.User, int64, error) {
 	var users []models.User
 	var count int64
-	maxLevenshteinDistance := 3 // max distance for search results is set to ensure that only relevant results are returned
+	maxLevenshteinDistance := 3.5 // max distance for search results is set to ensure that only relevant results are returned
 
 	query := repo.DB.Model(&models.User{}).
 		Where("username != ?", currentUsername). // exclude current user from search
 		Select("*, levenshtein(username, ?) as distance", username).
-		Where("levenshtein(username, ?) <= ?", username, maxLevenshteinDistance).
+		Where("levenshtein(username, ?) <= ? OR username like ?", username, maxLevenshteinDistance, username+"%").
 		Order("distance ASC")
 
 	// Count results
