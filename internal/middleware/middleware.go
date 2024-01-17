@@ -34,8 +34,8 @@ func GetLoggedInUsername(c *gin.Context) (string, bool) {
 	}
 
 	tokenString := strings.TrimPrefix(authHeader, bearerSchema)
-	username, err := utils.VerifyAccessToken(tokenString)
-	if err != nil {
+	username, isRefresh, err := utils.VerifyJWTToken(tokenString)
+	if err != nil || isRefresh {
 		return "", false
 	}
 

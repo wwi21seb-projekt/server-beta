@@ -57,15 +57,6 @@ func SetupRouter() *gin.Engine {
 	// API Routes
 	api := r.Group("/api")
 
-	// Example:
-	api.GET("/test/:number", func(context *gin.Context) {
-		// Get number from url
-		number := context.Param("number")
-
-		//Respond
-		context.JSON(http.StatusOK, number)
-	})
-
 	// Imprint
 	api.GET("/imprint", imprintController.GetImprint)
 
@@ -74,7 +65,7 @@ func SetupRouter() *gin.Engine {
 	api.POST("/users/login", userController.Login)
 	api.POST("/users/:username/activate", userController.ActivateUser)
 	api.DELETE("/users/:username/activate", userController.ResendActivationToken)
-	api.GET("/users/validate", middleware.AuthorizeUser, userController.ValidateLogin)
+	api.POST("/users/refresh", userController.RefreshToken)
 	api.GET("/users", middleware.AuthorizeUser, userController.SearchUser)
 	api.PUT("/users", middleware.AuthorizeUser, userController.UpdateUserInformation)
 	api.PATCH("/users", middleware.AuthorizeUser, userController.ChangeUserPassword)
