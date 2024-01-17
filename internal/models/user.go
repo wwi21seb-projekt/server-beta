@@ -65,8 +65,8 @@ type UserSearchPaginationDTO struct {
 }
 
 type UserInformationUpdateDTO struct {
-	Nickname string `json:"nickname" binding:"required"`
-	Status   string `json:"status" binding:"required"`
+	Nickname string `json:"nickname"`
+	Status   string `json:"status"`
 }
 
 type ChangePasswordDTO struct {

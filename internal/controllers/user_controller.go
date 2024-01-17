@@ -223,13 +223,32 @@ func (controller *UserController) UpdateUserInformation(c *gin.Context) {
 		return
 	}
 
-	// Bind the JSON request body to the struct
-	var userUpdateResponseDTO models.UserInformationUpdateDTO
-	if err := c.ShouldBindJSON(&userUpdateResponseDTO); err != nil {
+	// Bind the JSON request body to a map
+	var requestData map[string]interface{} // either nickname or status can be empty but ensure that the keys are present
+	if err := c.ShouldBindJSON(&requestData); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": customerrors.BadRequest,
 		})
 		return
+	}
+
+	// Check if the keys are present in the request
+	_, nicknamePresent := requestData["nickname"]
+	_, statusPresent := requestData["status"]
+	if !nicknamePresent && !statusPresent {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": customerrors.BadRequest,
+		})
+		return
+	}
+
+	// Map the data to DTO
+	var userUpdateResponseDTO models.UserInformationUpdateDTO
+	if nickname, ok := requestData["nickname"].(string); ok {
+		userUpdateResponseDTO.Nickname = nickname
+	}
+	if status, ok := requestData["status"].(string); ok {
+		userUpdateResponseDTO.Status = status
 	}
 
 	// Update the user's information
