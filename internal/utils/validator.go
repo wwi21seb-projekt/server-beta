@@ -87,5 +87,5 @@ func (v *Validator) ValidatePassword(password string) bool {
 
 // ValidateStatus validates if a status meets specifications
 func (v *Validator) ValidateStatus(status string) bool {
-	return len(status) <= 125
+	return len(status) <= 128
 }

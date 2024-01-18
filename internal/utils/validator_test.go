@@ -108,8 +108,8 @@ func TestValidateStatus(t *testing.T) {
 	}{
 		{"Empty Status", "", true},
 		{"Valid Status", "This is a valid status.", true},
-		{"Exact Limit Status", string(make([]rune, 125)), true},
-		{"Too Long Status", string(make([]rune, 126)), false},
+		{"Exact Limit Status", string(make([]rune, 128)), true},
+		{"Too Long Status", string(make([]rune, 129)), false},
 	}
 
 	validator := utils.NewValidator()
