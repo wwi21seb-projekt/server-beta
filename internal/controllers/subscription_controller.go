@@ -35,7 +35,7 @@ func (controller *SubscriptionController) PostSubscription(c *gin.Context) {
 	}
 
 	var req models.SubscriptionPostRequestDTO
-	if err := c.Bind(&req); err != nil {
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": customerrors.BadRequest,
 		})

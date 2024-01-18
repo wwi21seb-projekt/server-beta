@@ -1941,72 +1941,91 @@ func TestSearchUserUnauthorized(t *testing.T) {
 
 // TestUpdateUserInformationSuccess tests if UpdateUserInformation returns 200-OK when user information is updated successfully
 func TestUpdateUserInformationSuccess(t *testing.T) {
-	// Arrange
-	mockUserRepository := new(repositories.MockUserRepository)
-	validator := utils.NewValidator()
-	userService := services.NewUserService(
-		mockUserRepository,
-		nil,
-		nil,
-		validator,
-		nil,
-		nil,
-	)
-	userController := controllers.NewUserController(userService)
+	requests := []models.UserInformationUpdateDTO{
+		{
+			Nickname: "New Nickname",
+			Status:   "New status",
+		},
 
-	user := models.User{
-		Username: "testUser",
-		Nickname: "Old Nickname",
-		Status:   "Old status",
+		// Regression test
+		// No failures when either nickname or status is empty
+		{
+			Nickname: "New Nickname",
+			Status:   "", // New status is empty/delete nickname
+		},
+		{
+			Nickname: "", // New nickname is empty/delete nickname
+			Status:   "New status",
+		},
+		{
+			Nickname: "", // New nickname is empty/delete nickname
+			Status:   "", // New status is empty/delete nickname
+		},
 	}
 
-	authenticationToken, err := utils.GenerateAccessToken(user.Username)
-	if err != nil {
-		t.Fatal(err)
+	for _, request := range requests {
+		// Arrange
+		mockUserRepository := new(repositories.MockUserRepository)
+		validator := utils.NewValidator()
+		userService := services.NewUserService(
+			mockUserRepository,
+			nil,
+			nil,
+			validator,
+			nil,
+			nil,
+		)
+		userController := controllers.NewUserController(userService)
+
+		user := models.User{
+			Username: "testUser",
+			Nickname: "Old Nickname",
+			Status:   "Old status",
+		}
+
+		authenticationToken, err := utils.GenerateAccessToken(user.Username)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Mock expectations
+		var capturedUpdatedUser *models.User
+		mockUserRepository.On("FindUserByUsername", user.Username).Return(&user, nil) // Find user successfully
+		mockUserRepository.On("UpdateUser", mock.AnythingOfType("*models.User")).
+			Run(func(args mock.Arguments) {
+				capturedUpdatedUser = args.Get(0).(*models.User)
+			}).Return(nil) // Update user successfully
+
+		// Setup HTTP request and recorder
+		requestBody, err := json.Marshal(request)
+		if err != nil {
+			t.Fatal(err)
+		}
+		req, _ := http.NewRequest(http.MethodPut, "/users", bytes.NewBuffer(requestBody))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", authenticationToken))
+		w := httptest.NewRecorder()
+
+		// Act
+		gin.SetMode(gin.TestMode)
+		router := gin.Default()
+		router.PUT("/users", middleware.AuthorizeUser, userController.UpdateUserInformation)
+		router.ServeHTTP(w, req)
+
+		// Assert
+		assert.Equal(t, http.StatusOK, w.Code) // Expect HTTP 200 OK status
+
+		var responseDto models.UserInformationUpdateDTO
+		err = json.Unmarshal(w.Body.Bytes(), &responseDto)
+		assert.NoError(t, err)
+
+		assert.Equal(t, request.Nickname, responseDto.Nickname)
+		assert.Equal(t, request.Status, responseDto.Status)
+		assert.Equal(t, request.Nickname, capturedUpdatedUser.Nickname)
+		assert.Equal(t, request.Status, capturedUpdatedUser.Status)
+
+		mockUserRepository.AssertExpectations(t)
 	}
-
-	userRequest := models.UserInformationUpdateDTO{
-		Nickname: "New Nickname",
-		Status:   "New status",
-	}
-
-	// Mock expectations
-	var capturedUpdatedUser *models.User
-	mockUserRepository.On("FindUserByUsername", user.Username).Return(&user, nil) // Find user successfully
-	mockUserRepository.On("UpdateUser", mock.AnythingOfType("*models.User")).
-		Run(func(args mock.Arguments) {
-			capturedUpdatedUser = args.Get(0).(*models.User)
-		}).Return(nil) // Update user successfully
-
-	// Setup HTTP request and recorder
-	requestBody, err := json.Marshal(userRequest)
-	if err != nil {
-		t.Fatal(err)
-	}
-	req, _ := http.NewRequest(http.MethodPut, "/users", bytes.NewBuffer(requestBody))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", authenticationToken))
-	w := httptest.NewRecorder()
-
-	// Act
-	gin.SetMode(gin.TestMode)
-	router := gin.Default()
-	router.PUT("/users", middleware.AuthorizeUser, userController.UpdateUserInformation)
-	router.ServeHTTP(w, req)
-
-	// Assert
-	assert.Equal(t, http.StatusOK, w.Code) // Expect HTTP 200 OK status
-
-	var responseDto models.UserInformationUpdateDTO
-	err = json.Unmarshal(w.Body.Bytes(), &responseDto)
-	assert.NoError(t, err)
-
-	assert.Equal(t, userRequest.Nickname, responseDto.Nickname)
-	assert.Equal(t, userRequest.Status, responseDto.Status)
-	assert.Equal(t, userRequest.Nickname, capturedUpdatedUser.Nickname)
-	assert.Equal(t, userRequest.Status, capturedUpdatedUser.Status)
-
-	mockUserRepository.AssertExpectations(t)
 }
 
 // TestUpdateUserInformationBadRequest tests if UpdateUserInformation returns 400-Bad Request when request body is invalid
