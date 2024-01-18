@@ -79,7 +79,11 @@ func (repo *PostRepository) GetPostsGlobalFeed(lastPost *models.Post, limit int)
 	}
 
 	// Posts subset based on pagination
-	err = baseQuery.Order("created_at desc, id desc").Limit(limit).Find(&posts).Error
+	err = baseQuery.
+		Order("created_at desc, id desc").
+		Limit(limit).
+		Preload("User").
+		Find(&posts).Error
 	if err != nil {
 		return nil, 0, err
 	}
@@ -107,7 +111,10 @@ func (repo *PostRepository) GetPostsPersonalFeed(username string, lastPost *mode
 	}
 
 	// Posts subset based on pagination
-	err = baseQuery.Order("created_at desc, id desc").Limit(limit).Find(&posts).Error
+	err = baseQuery.Order("created_at desc, id desc").
+		Limit(limit).
+		Preload("User").
+		Find(&posts).Error
 	if err != nil {
 		return nil, 0, err
 	}
