@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/mock"
 	"github.com/wwi21seb-projekt/server-beta/internal/models"
 )
@@ -37,4 +38,9 @@ func (m *MockPostRepository) GetPostsGlobalFeed(lastPost *models.Post, limit int
 func (m *MockPostRepository) GetPostsPersonalFeed(username string, lastPost *models.Post, limit int) ([]models.Post, int64, error) {
 	args := m.Called(username, lastPost, limit)
 	return args.Get(0).([]models.Post), args.Get(1).(int64), args.Error(2)
+}
+
+func (m *MockPostRepository) DeletePostById(postId uuid.UUID) error {
+	args := m.Called(postId)
+	return args.Error(0)
 }

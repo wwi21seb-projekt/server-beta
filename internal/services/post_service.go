@@ -20,6 +20,7 @@ type PostServiceInterface interface {
 	GetPostsByUsername(username string, offset, limit int) (*models.UserFeedDTO, *customerrors.CustomError, int)
 	GetPostsGlobalFeed(lastPostId string, limit int) (*models.GeneralFeedDTO, *customerrors.CustomError, int)
 	GetPostsPersonalFeed(username string, lastPostId string, limit int) (*models.GeneralFeedDTO, *customerrors.CustomError, int)
+	DeletePost(postId uuid.UUID, username string) (*customerrors.CustomError, int)
 }
 
 type PostService struct {
@@ -264,4 +265,28 @@ func (service *PostService) GetPostsPersonalFeed(username string, lastPostId str
 	feed.Pagination.Records = totalPostsCount
 
 	return &feed, nil, http.StatusOK
+}
+
+func (service *PostService) DeletePost(postId uuid.UUID, username string) (*customerrors.CustomError, int) {
+	// Find post by ID
+	post, err := service.postRepo.GetPostById(postId.String())
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return customerrors.PostNotFound, http.StatusNotFound
+		}
+		return customerrors.InternalServerError, http.StatusInternalServerError
+	}
+
+	// Check if the requesting user is the author of the post
+	if post.Username != username {
+		return customerrors.UserUnauthorized, http.StatusUnauthorized
+	}
+
+	// Delete post
+	err = service.postRepo.DeletePostById(postId)
+	if err != nil {
+		return customerrors.DatabaseError, http.StatusInternalServerError
+	}
+
+	return nil, http.StatusOK
 }

@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
 	"github.com/wwi21seb-projekt/server-beta/internal/middleware"
 	"github.com/wwi21seb-projekt/server-beta/internal/models"
@@ -14,6 +15,7 @@ type PostControllerInterface interface {
 	CreatePost(c *gin.Context)
 	GetPostsByUserUsername(c *gin.Context)
 	GetPostFeed(c *gin.Context)
+	DeletePost(c *gin.Context)
 }
 
 type PostController struct {
@@ -187,4 +189,33 @@ func (controller *PostController) GetPostFeed(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, postFeed)
+}
+
+func (controller *PostController) DeletePost(c *gin.Context) {
+	postIdStr := c.Param("postId")
+	postId, err := uuid.Parse(postIdStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": customerrors.BadRequest,
+		})
+		return
+	}
+
+	username, exists := c.Get("username")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": customerrors.UserUnauthorized,
+		})
+		return
+	}
+
+	serviceErr, httpStatus := controller.postService.DeletePost(postId, username.(string))
+	if serviceErr != nil {
+		c.JSON(httpStatus, gin.H{
+			"error": serviceErr,
+		})
+		return
+	}
+
+	c.Status(http.StatusOK)
 }
