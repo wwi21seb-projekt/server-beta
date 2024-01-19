@@ -217,5 +217,5 @@ func (controller *PostController) DeletePost(c *gin.Context) {
 		return
 	}
 
-	c.Status(http.StatusOK)
+	c.Status(httpStatus)
 }
