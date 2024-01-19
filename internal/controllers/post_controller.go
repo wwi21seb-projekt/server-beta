@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
 	"github.com/wwi21seb-projekt/server-beta/internal/middleware"
 	"github.com/wwi21seb-projekt/server-beta/internal/models"
@@ -192,14 +191,7 @@ func (controller *PostController) GetPostFeed(c *gin.Context) {
 }
 
 func (controller *PostController) DeletePost(c *gin.Context) {
-	postIdStr := c.Param("postId")
-	postId, err := uuid.Parse(postIdStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": customerrors.BadRequest,
-		})
-		return
-	}
+	postId := c.Param("postId")
 
 	username, exists := c.Get("username")
 	if !exists {

@@ -20,7 +20,7 @@ type PostServiceInterface interface {
 	GetPostsByUsername(username string, offset, limit int) (*models.UserFeedDTO, *customerrors.CustomError, int)
 	GetPostsGlobalFeed(lastPostId string, limit int) (*models.GeneralFeedDTO, *customerrors.CustomError, int)
 	GetPostsPersonalFeed(username string, lastPostId string, limit int) (*models.GeneralFeedDTO, *customerrors.CustomError, int)
-	DeletePost(postId uuid.UUID, username string) (*customerrors.CustomError, int)
+	DeletePost(postId string, username string) (*customerrors.CustomError, int)
 }
 
 type PostService struct {
@@ -267,9 +267,9 @@ func (service *PostService) GetPostsPersonalFeed(username string, lastPostId str
 	return &feed, nil, http.StatusOK
 }
 
-func (service *PostService) DeletePost(postId uuid.UUID, username string) (*customerrors.CustomError, int) {
+func (service *PostService) DeletePost(postId string, username string) (*customerrors.CustomError, int) {
 	// Find post by ID
-	post, err := service.postRepo.GetPostById(postId.String())
+	post, err := service.postRepo.GetPostById(postId)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return customerrors.PostNotFound, http.StatusNotFound

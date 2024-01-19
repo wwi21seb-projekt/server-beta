@@ -13,7 +13,7 @@ type PostRepositoryInterface interface {
 	GetPostById(postId string) (models.Post, error)
 	GetPostsGlobalFeed(lastPost *models.Post, limit int) ([]models.Post, int64, error)
 	GetPostsPersonalFeed(username string, lastPost *models.Post, limit int) ([]models.Post, int64, error)
-	DeletePostById(postId uuid.UUID) error
+	DeletePostById(postId string) error
 }
 
 type PostRepository struct {
@@ -123,6 +123,6 @@ func (repo *PostRepository) GetPostsPersonalFeed(username string, lastPost *mode
 	return posts, count, nil
 }
 
-func (repo *PostRepository) DeletePostById(postId uuid.UUID) error {
+func (repo *PostRepository) DeletePostById(postId string) error {
 	return repo.DB.Where("id = ?", postId).Delete(&models.Post{}).Error
 }
