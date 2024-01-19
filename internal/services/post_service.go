@@ -137,7 +137,7 @@ func (service *PostService) GetPostsByUsername(username string, offset, limit in
 	var postDtos []models.UserFeedRecordDTO
 	for _, post := range posts {
 		postDto := models.UserFeedRecordDTO{
-			PostId:       post.Id,
+			PostId:       post.Id.String(),
 			CreationDate: post.CreatedAt,
 			Content:      post.Content,
 		}
@@ -160,22 +160,32 @@ func (service *PostService) GetPostsByUsername(username string, offset, limit in
 
 // GetPostsGlobalFeed returns a pagination object with the posts in the global feed using pagination parameters
 func (service *PostService) GetPostsGlobalFeed(lastPostId string, limit int) (*models.GeneralFeedDTO, *customerrors.CustomError, int) {
-	// Initialise empty GeneralFeedDTO
-	feed := models.GeneralFeedDTO{
-		Records:    []models.PostCreateResponseDTO{},
-		Pagination: &models.GeneralFeedPaginationDTO{},
-	}
-
 	// Get last post if lastPostId is not empty
 	var lastPost models.Post
 	if lastPostId != "" {
 		post, err := service.postRepo.GetPostById(lastPostId)
 		if err != nil {
+
+			// If post is not found, return empty feed with number of records
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return nil, customerrors.PostNotFound, http.StatusNotFound
+				_, totalPostsCount, err := service.postRepo.GetPostsGlobalFeed(&lastPost, limit)
+				if err != nil {
+					return nil, customerrors.DatabaseError, http.StatusInternalServerError
+				}
+				emptyFeed := models.GeneralFeedDTO{
+					Records: []models.PostCreateResponseDTO{},
+					Pagination: &models.GeneralFeedPaginationDTO{
+						LastPostId: lastPostId,
+						Limit:      limit,
+						Records:    totalPostsCount,
+					},
+				}
+				return &emptyFeed, nil, http.StatusOK
 			}
+
 			return nil, customerrors.DatabaseError, http.StatusInternalServerError
 		}
+
 		lastPost = post
 	}
 
@@ -185,7 +195,15 @@ func (service *PostService) GetPostsGlobalFeed(lastPostId string, limit int) (*m
 		return nil, customerrors.DatabaseError, http.StatusInternalServerError
 	}
 
-	// Fill GeneralFeedDTO with posts
+	// Create response dto
+	feed := models.GeneralFeedDTO{
+		Records: []models.PostCreateResponseDTO{},
+		Pagination: &models.GeneralFeedPaginationDTO{
+			LastPostId: lastPostId,
+			Limit:      limit,
+			Records:    totalPostsCount,
+		},
+	}
 	for _, post := range posts {
 		authorDto := models.AuthorDTO{
 			Username:          post.User.Username,
@@ -201,34 +219,37 @@ func (service *PostService) GetPostsGlobalFeed(lastPostId string, limit int) (*m
 		feed.Records = append(feed.Records, postDto)
 	}
 
-	// Set pagination details
-	if len(posts) > 0 {
-		feed.Pagination.LastPostId = posts[len(posts)-1].Id
-	}
-	feed.Pagination.Limit = limit
-	feed.Pagination.Records = totalPostsCount
-
 	return &feed, nil, http.StatusOK
 }
 
 // GetPostsPersonalFeed returns a pagination object with the posts in the personal feed using pagination parameters
 func (service *PostService) GetPostsPersonalFeed(username string, lastPostId string, limit int) (*models.GeneralFeedDTO, *customerrors.CustomError, int) {
-	// Initialise empty GeneralFeedDTO
-	feed := models.GeneralFeedDTO{
-		Records:    []models.PostCreateResponseDTO{},
-		Pagination: &models.GeneralFeedPaginationDTO{},
-	}
-
 	// Get last post if lastPostId is not empty
-	var lastPost = models.Post{}
+	var lastPost models.Post
 	if lastPostId != "" {
 		post, err := service.postRepo.GetPostById(lastPostId)
 		if err != nil {
+
+			// If post is not found, return empty feed with number of records
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return nil, customerrors.PostNotFound, http.StatusNotFound
+				_, totalPostsCount, err := service.postRepo.GetPostsPersonalFeed(username, &lastPost, limit)
+				if err != nil {
+					return nil, customerrors.DatabaseError, http.StatusInternalServerError
+				}
+				emptyFeed := models.GeneralFeedDTO{
+					Records: []models.PostCreateResponseDTO{},
+					Pagination: &models.GeneralFeedPaginationDTO{
+						LastPostId: lastPostId,
+						Limit:      limit,
+						Records:    totalPostsCount,
+					},
+				}
+				return &emptyFeed, nil, http.StatusOK
 			}
+
 			return nil, customerrors.DatabaseError, http.StatusInternalServerError
 		}
+
 		lastPost = post
 	}
 
@@ -238,7 +259,15 @@ func (service *PostService) GetPostsPersonalFeed(username string, lastPostId str
 		return nil, customerrors.DatabaseError, http.StatusInternalServerError
 	}
 
-	// Fill GeneralFeedDTO with posts
+	// Create response dto
+	feed := models.GeneralFeedDTO{
+		Records: []models.PostCreateResponseDTO{},
+		Pagination: &models.GeneralFeedPaginationDTO{
+			LastPostId: lastPostId,
+			Limit:      limit,
+			Records:    totalPostsCount,
+		},
+	}
 	for _, post := range posts {
 		authorDto := models.AuthorDTO{
 			Username:          post.User.Username,
@@ -253,13 +282,6 @@ func (service *PostService) GetPostsPersonalFeed(username string, lastPostId str
 		}
 		feed.Records = append(feed.Records, postDto)
 	}
-
-	// Set pagination details
-	if len(posts) > 0 {
-		feed.Pagination.LastPostId = posts[len(posts)-1].Id
-	}
-	feed.Pagination.Limit = limit
-	feed.Pagination.Records = totalPostsCount
 
 	return &feed, nil, http.StatusOK
 }

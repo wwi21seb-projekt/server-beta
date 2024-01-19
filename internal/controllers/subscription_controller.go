@@ -57,12 +57,6 @@ func (controller *SubscriptionController) PostSubscription(c *gin.Context) {
 func (controller *SubscriptionController) DeleteSubscription(c *gin.Context) {
 
 	subscriptionId := c.Param("subscriptionId")
-	if subscriptionId == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": customerrors.BadRequest,
-		})
-		return
-	}
 
 	// Get current user from middleware
 	username, exists := c.Get("username")

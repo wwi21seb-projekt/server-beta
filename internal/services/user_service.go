@@ -394,7 +394,7 @@ func (service *UserService) SearchUser(username string, limit int, offset int, c
 	}
 
 	// Create response
-	var records []models.UserSearchRecordDTO
+	records := []models.UserSearchRecordDTO{}
 	for _, user := range users {
 		record := models.UserSearchRecordDTO{
 			Username:          user.Username,

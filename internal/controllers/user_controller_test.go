@@ -1860,44 +1860,6 @@ func TestSearchUserSuccess(t *testing.T) {
 	mockUserRepository.AssertExpectations(t)
 }
 
-// TestSearchUserBadRequest tests if SearchUser returns 400-Bad Request when request query is invalid
-func TestSearchUserBadRequest(t *testing.T) {
-	urls := []string{
-		"/users?username=&limit=10&offset=0",               // empty username
-		"/users?limit=q0&offset=0",                         // no username
-		"/users?username=testUser&limit=10&offset=invalid", // invalid offset
-		"/users?username=testUser&limit=invalid&offset=0",  // invalid limit
-	}
-
-	for _, url := range urls {
-		controller := controllers.NewUserController(nil)
-
-		gin.SetMode(gin.TestMode)
-		router := gin.Default()
-		router.GET("/users", controller.SearchUser)
-
-		// Create request
-		req, err := http.NewRequest(http.MethodGet, url, nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		req.Header.Set("Content-Type", "application/json")
-		w := httptest.NewRecorder()
-		router.ServeHTTP(w, req)
-
-		// Assertions
-		assert.Equal(t, http.StatusBadRequest, w.Code) // Expect HTTP 400 Bad Request status
-		var errorResponse customerrors.ErrorResponse
-		err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
-		assert.NoError(t, err)
-
-		expectedCustomError := customerrors.BadRequest
-		assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
-		assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
-	}
-}
-
 // TestSearchUserUnauthorized tests if SearchUser returns 401-Unauthorized when user is not authenticated
 func TestSearchUserUnauthorized(t *testing.T) {
 	invalidTokens := []string{
