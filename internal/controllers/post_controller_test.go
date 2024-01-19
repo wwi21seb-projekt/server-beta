@@ -1255,28 +1255,22 @@ func TestGetPersonalPostFeedUnauthorized(t *testing.T) {
 	}
 }
 
-// TestDeletePostSuccess checks successful deletion of a post for an authorized user.
 func TestDeletePostSuccess(t *testing.T) {
 	// Arrange
 	mockPostRepository := new(repositories.MockPostRepository)
 
-	postService := services.NewPostService(
-		mockPostRepository,
-		nil,
-		nil,
-		nil,
-	)
+	postService := services.NewPostService(mockPostRepository, nil, nil, nil)
 	postController := controllers.NewPostController(postService)
 
-	postId := uuid.New()
+	postId := uuid.New().String() // Änderung: UUID zu String konvertieren
 	username := "testUser"
 	authenticationToken, _ := utils.GenerateAccessToken(username)
 
-	mockPostRepository.On("GetPostById", postId.String()).Return(models.Post{Username: username}, nil)
+	mockPostRepository.On("GetPostById", postId).Return(models.Post{Username: username}, nil)
 	mockPostRepository.On("DeletePostById", postId).Return(nil)
 
 	// Setup HTTP request
-	req, _ := http.NewRequest("DELETE", "/posts/"+postId.String(), nil)
+	req, _ := http.NewRequest("DELETE", "/posts/"+postId, nil) // Aktualisiert
 	req.Header.Set("Authorization", "Bearer "+authenticationToken)
 	w := httptest.NewRecorder()
 
@@ -1328,22 +1322,17 @@ func TestDeletePostForbidden(t *testing.T) {
 	// Arrange
 	mockPostRepository := new(repositories.MockPostRepository)
 
-	postService := services.NewPostService(
-		mockPostRepository,
-		nil,
-		nil,
-		nil,
-	)
+	postService := services.NewPostService(mockPostRepository, nil, nil, nil)
 	postController := controllers.NewPostController(postService)
 
-	postId := uuid.New()
+	postId := uuid.New().String() // Änderung: UUID zu String konvertieren
 	username := "testUser"
 	authenticationToken, _ := utils.GenerateAccessToken(username)
 
-	mockPostRepository.On("GetPostById", postId.String()).Return(models.Post{Username: "anotherUser"}, nil)
+	mockPostRepository.On("GetPostById", postId).Return(models.Post{Username: "anotherUser"}, nil)
 
 	// Setup HTTP request
-	req, _ := http.NewRequest("DELETE", "/posts/"+postId.String(), nil)
+	req, _ := http.NewRequest("DELETE", "/posts/"+postId, nil) // Aktualisiert
 	req.Header.Set("Authorization", "Bearer "+authenticationToken)
 	w := httptest.NewRecorder()
 
@@ -1364,22 +1353,17 @@ func TestDeletePostNotFound(t *testing.T) {
 	// Arrange
 	mockPostRepository := new(repositories.MockPostRepository)
 
-	postService := services.NewPostService(
-		mockPostRepository,
-		nil,
-		nil,
-		nil,
-	)
+	postService := services.NewPostService(mockPostRepository, nil, nil, nil)
 	postController := controllers.NewPostController(postService)
 
-	postId := uuid.New()
+	postId := uuid.New().String() // Änderung: UUID zu String konvertieren
 	username := "testUser"
 	authenticationToken, _ := utils.GenerateAccessToken(username)
 
-	mockPostRepository.On("GetPostById", postId.String()).Return(models.Post{}, gorm.ErrRecordNotFound)
+	mockPostRepository.On("GetPostById", postId).Return(models.Post{}, gorm.ErrRecordNotFound)
 
 	// Setup HTTP request
-	req, _ := http.NewRequest("DELETE", "/posts/"+postId.String(), nil)
+	req, _ := http.NewRequest("DELETE", "/posts/"+postId, nil) // Aktualisiert
 	req.Header.Set("Authorization", "Bearer "+authenticationToken)
 	w := httptest.NewRecorder()
 
