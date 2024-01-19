@@ -1287,7 +1287,7 @@ func TestDeletePostSuccess(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	// Assert
-	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, http.StatusNoContent, w.Code)
 
 	mockPostRepository.AssertExpectations(t)
 }

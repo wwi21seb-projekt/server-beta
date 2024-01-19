@@ -274,12 +274,12 @@ func (service *PostService) DeletePost(postId uuid.UUID, username string) (*cust
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return customerrors.PostNotFound, http.StatusNotFound
 		}
-		return customerrors.InternalServerError, http.StatusInternalServerError
+		return customerrors.DatabaseError, http.StatusInternalServerError
 	}
 
 	// Check if the requesting user is the author of the post
 	if post.Username != username {
-		return customerrors.UserUnauthorized, http.StatusUnauthorized
+		return customerrors.PostDeleteNotAuthorized, http.StatusForbidden
 	}
 
 	// Delete post
@@ -288,5 +288,5 @@ func (service *PostService) DeletePost(postId uuid.UUID, username string) (*cust
 		return customerrors.DatabaseError, http.StatusInternalServerError
 	}
 
-	return nil, http.StatusOK
+	return nil, http.StatusNoContent
 }
