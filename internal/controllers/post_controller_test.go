@@ -96,7 +96,7 @@ func TestCreatePostSuccess(t *testing.T) {
 
 	// Assert
 	assert.Equal(t, http.StatusCreated, w.Code) // Expect 201 created
-	var responsePost models.PostCreateResponseDTO
+	var responsePost models.PostResponseDTO
 	err = json.Unmarshal(w.Body.Bytes(), &responsePost)
 	assert.NoError(t, err)
 
@@ -398,7 +398,7 @@ func TestCreatePostWithImageSuccess(t *testing.T) {
 
 		// Assert
 		assert.Equal(t, http.StatusCreated, w.Code) // Expect 201 created
-		var responsePost models.PostCreateResponseDTO
+		var responsePost models.PostResponseDTO
 		err = json.Unmarshal(w.Body.Bytes(), &responsePost)
 		assert.NoError(t, err)
 
@@ -587,7 +587,7 @@ func TestCreatePostWithEmptyImageSuccess(t *testing.T) {
 
 	// Assert
 	assert.Equal(t, http.StatusCreated, w.Code) // Expect 201 created
-	var responsePost models.PostCreateResponseDTO
+	var responsePost models.PostResponseDTO
 	err = json.Unmarshal(w.Body.Bytes(), &responsePost)
 	assert.NoError(t, err)
 

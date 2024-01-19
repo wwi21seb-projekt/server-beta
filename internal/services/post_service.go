@@ -15,7 +15,7 @@ import (
 )
 
 type PostServiceInterface interface {
-	CreatePost(req *models.PostCreateRequestDTO, file *multipart.FileHeader, username string) (*models.PostCreateResponseDTO, *customerrors.CustomError, int)
+	CreatePost(req *models.PostCreateRequestDTO, file *multipart.FileHeader, username string) (*models.PostResponseDTO, *customerrors.CustomError, int)
 	GetPostsByUsername(username string, offset, limit int) (*models.UserFeedDTO, *customerrors.CustomError, int)
 	GetPostsGlobalFeed(lastPostId string, limit int) (*models.GeneralFeedDTO, *customerrors.CustomError, int)
 	GetPostsPersonalFeed(username string, lastPostId string, limit int) (*models.GeneralFeedDTO, *customerrors.CustomError, int)
@@ -37,7 +37,7 @@ func NewPostService(postRepo repositories.PostRepositoryInterface,
 	return &PostService{postRepo: postRepo, userRepo: userRepo, hashtagRepo: hashtagRepo, imageService: imageService}
 }
 
-func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *multipart.FileHeader, username string) (*models.PostCreateResponseDTO, *customerrors.CustomError, int) {
+func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *multipart.FileHeader, username string) (*models.PostResponseDTO, *customerrors.CustomError, int) {
 
 	// Validations: 0-256 characters and utf8 characters
 	if len(req.Content) > 256 {
@@ -102,7 +102,7 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *m
 	}
 
 	// Create response dto and return
-	postDto := models.PostCreateResponseDTO{
+	postDto := models.PostResponseDTO{
 		PostId: post.Id,
 		Author: &models.AuthorDTO{
 			Username:          user.Username,
@@ -173,7 +173,7 @@ func (service *PostService) GetPostsGlobalFeed(lastPostId string, limit int) (*m
 					return nil, customerrors.DatabaseError, http.StatusInternalServerError
 				}
 				emptyFeed := models.GeneralFeedDTO{
-					Records: []models.PostCreateResponseDTO{},
+					Records: []models.PostResponseDTO{},
 					Pagination: &models.GeneralFeedPaginationDTO{
 						LastPostId: lastPostId,
 						Limit:      limit,
@@ -197,7 +197,7 @@ func (service *PostService) GetPostsGlobalFeed(lastPostId string, limit int) (*m
 
 	// Create response dto
 	feed := models.GeneralFeedDTO{
-		Records: []models.PostCreateResponseDTO{},
+		Records: []models.PostResponseDTO{},
 		Pagination: &models.GeneralFeedPaginationDTO{
 			LastPostId: lastPostId,
 			Limit:      limit,
@@ -210,7 +210,7 @@ func (service *PostService) GetPostsGlobalFeed(lastPostId string, limit int) (*m
 			Nickname:          post.User.Nickname,
 			ProfilePictureUrl: post.User.ProfilePictureUrl,
 		}
-		postDto := models.PostCreateResponseDTO{
+		postDto := models.PostResponseDTO{
 			PostId:       post.Id,
 			Author:       &authorDto,
 			CreationDate: post.CreatedAt,
@@ -237,7 +237,7 @@ func (service *PostService) GetPostsPersonalFeed(username string, lastPostId str
 					return nil, customerrors.DatabaseError, http.StatusInternalServerError
 				}
 				emptyFeed := models.GeneralFeedDTO{
-					Records: []models.PostCreateResponseDTO{},
+					Records: []models.PostResponseDTO{},
 					Pagination: &models.GeneralFeedPaginationDTO{
 						LastPostId: lastPostId,
 						Limit:      limit,
@@ -261,7 +261,7 @@ func (service *PostService) GetPostsPersonalFeed(username string, lastPostId str
 
 	// Create response dto
 	feed := models.GeneralFeedDTO{
-		Records: []models.PostCreateResponseDTO{},
+		Records: []models.PostResponseDTO{},
 		Pagination: &models.GeneralFeedPaginationDTO{
 			LastPostId: lastPostId,
 			Limit:      limit,
@@ -274,7 +274,7 @@ func (service *PostService) GetPostsPersonalFeed(username string, lastPostId str
 			Nickname:          post.User.Nickname,
 			ProfilePictureUrl: post.User.ProfilePictureUrl,
 		}
-		postDto := models.PostCreateResponseDTO{
+		postDto := models.PostResponseDTO{
 			PostId:       post.Id,
 			Author:       &authorDto,
 			CreationDate: post.CreatedAt,

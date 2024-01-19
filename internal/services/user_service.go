@@ -394,23 +394,22 @@ func (service *UserService) SearchUser(username string, limit int, offset int, c
 	}
 
 	// Create response
-	records := []models.UserSearchRecordDTO{}
+	response := models.UserSearchResponseDTO{
+		Records: []models.UserSearchRecordDTO{},
+		Pagination: &models.UserSearchPaginationDTO{
+			Offset:  offset,
+			Limit:   limit,
+			Records: totalRecordsCount,
+		},
+	}
+
 	for _, user := range users {
 		record := models.UserSearchRecordDTO{
 			Username:          user.Username,
 			Nickname:          user.Nickname,
 			ProfilePictureUrl: user.ProfilePictureUrl,
 		}
-		records = append(records, record)
-	}
-	paginationDto := models.UserSearchPaginationDTO{
-		Offset:  offset,
-		Limit:   limit,
-		Records: totalRecordsCount,
-	}
-	response := models.UserSearchResponseDTO{
-		Records:    records,
-		Pagination: &paginationDto,
+		response.Records = append(response.Records, record)
 	}
 
 	return &response, nil, http.StatusOK
