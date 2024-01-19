@@ -111,4 +111,9 @@ var (
 		Message: "file too large: to be defined",
 		Code:    "",
 	}
+
+	PostDeleteNotAuthorized = &CustomError{
+		Message: "You can only delete your own posts: to be defined",
+		Code:    "",
+	}
 )

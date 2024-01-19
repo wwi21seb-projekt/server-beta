@@ -1254,3 +1254,127 @@ func TestGetPersonalPostFeedUnauthorized(t *testing.T) {
 		mockPostRepository.AssertExpectations(t)
 	}
 }
+
+func TestDeletePostSuccess(t *testing.T) {
+	// Arrange
+	mockPostRepository := new(repositories.MockPostRepository)
+
+	postService := services.NewPostService(mockPostRepository, nil, nil, nil)
+	postController := controllers.NewPostController(postService)
+
+	postId := uuid.New().String()
+	username := "testUser"
+	authenticationToken, _ := utils.GenerateAccessToken(username)
+
+	mockPostRepository.On("GetPostById", postId).Return(models.Post{Username: username}, nil)
+	mockPostRepository.On("DeletePostById", postId).Return(nil)
+
+	// Setup HTTP request
+	req, _ := http.NewRequest("DELETE", "/posts/"+postId, nil)
+	req.Header.Set("Authorization", "Bearer "+authenticationToken)
+	w := httptest.NewRecorder()
+
+	// Act
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+	router.DELETE("/posts/:postId", middleware.AuthorizeUser, postController.DeletePost)
+	router.ServeHTTP(w, req)
+
+	// Assert
+	assert.Equal(t, http.StatusNoContent, w.Code)
+
+	mockPostRepository.AssertExpectations(t)
+}
+
+// TestDeletePostUnauthorized verifies response for deletion requests without valid authentication.
+func TestDeletePostUnauthorized(t *testing.T) {
+	// Arrange
+	mockPostRepository := new(repositories.MockPostRepository)
+
+	postService := services.NewPostService(
+		mockPostRepository,
+		nil,
+		nil,
+		nil,
+	)
+	postController := controllers.NewPostController(postService)
+
+	postId := uuid.New()
+
+	// Setup HTTP request ohne Authorization Header
+	req, _ := http.NewRequest("DELETE", "/posts/"+postId.String(), nil)
+	w := httptest.NewRecorder()
+
+	// Act
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+	router.DELETE("/posts/:postId", middleware.AuthorizeUser, postController.DeletePost)
+	router.ServeHTTP(w, req)
+
+	// Assert
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+
+	mockPostRepository.AssertExpectations(t)
+}
+
+// TestDeletePostForbidden checks for forbidden access when a user tries to delete others' posts.
+func TestDeletePostForbidden(t *testing.T) {
+	// Arrange
+	mockPostRepository := new(repositories.MockPostRepository)
+
+	postService := services.NewPostService(mockPostRepository, nil, nil, nil)
+	postController := controllers.NewPostController(postService)
+
+	postId := uuid.New().String()
+	username := "testUser"
+	authenticationToken, _ := utils.GenerateAccessToken(username)
+
+	mockPostRepository.On("GetPostById", postId).Return(models.Post{Username: "anotherUser"}, nil)
+
+	// Setup HTTP request
+	req, _ := http.NewRequest("DELETE", "/posts/"+postId, nil)
+	req.Header.Set("Authorization", "Bearer "+authenticationToken)
+	w := httptest.NewRecorder()
+
+	// Act
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+	router.DELETE("/posts/:postId", middleware.AuthorizeUser, postController.DeletePost)
+	router.ServeHTTP(w, req)
+
+	// Assert
+	assert.Equal(t, http.StatusForbidden, w.Code)
+
+	mockPostRepository.AssertExpectations(t)
+}
+
+// TestDeletePostNotFound verifies response when a post to delete is not found.
+func TestDeletePostNotFound(t *testing.T) {
+	// Arrange
+	mockPostRepository := new(repositories.MockPostRepository)
+
+	postService := services.NewPostService(mockPostRepository, nil, nil, nil)
+	postController := controllers.NewPostController(postService)
+
+	postId := uuid.New().String()
+	username := "testUser"
+	authenticationToken, _ := utils.GenerateAccessToken(username)
+
+	mockPostRepository.On("GetPostById", postId).Return(models.Post{}, gorm.ErrRecordNotFound)
+
+	// Setup HTTP request
+	req, _ := http.NewRequest("DELETE", "/posts/"+postId, nil)
+	req.Header.Set("Authorization", "Bearer "+authenticationToken)
+	w := httptest.NewRecorder()
+
+	// Act
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+	router.DELETE("/posts/:postId", middleware.AuthorizeUser, postController.DeletePost)
+	router.ServeHTTP(w, req)
+
+	// Assert
+	assert.Equal(t, http.StatusNotFound, w.Code)
+
+	mockPostRepository.AssertExpectations(t)
+}

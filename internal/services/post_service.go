@@ -2,7 +2,6 @@ package services
 
 import (
 	"errors"
-	"fmt"
 	"github.com/google/uuid"
 	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
 	"github.com/wwi21seb-projekt/server-beta/internal/models"
@@ -20,6 +19,7 @@ type PostServiceInterface interface {
 	GetPostsByUsername(username string, offset, limit int) (*models.UserFeedDTO, *customerrors.CustomError, int)
 	GetPostsGlobalFeed(lastPostId string, limit int) (*models.GeneralFeedDTO, *customerrors.CustomError, int)
 	GetPostsPersonalFeed(username string, lastPostId string, limit int) (*models.GeneralFeedDTO, *customerrors.CustomError, int)
+	DeletePost(postId string, username string) (*customerrors.CustomError, int)
 }
 
 type PostService struct {
@@ -187,8 +187,6 @@ func (service *PostService) GetPostsGlobalFeed(lastPostId string, limit int) (*m
 
 	// Fill GeneralFeedDTO with posts
 	for _, post := range posts {
-		fmt.Println("Username: " + post.User.Username)
-		fmt.Println("Nickname: " + post.Username)
 		authorDto := models.AuthorDTO{
 			Username:          post.User.Username,
 			Nickname:          post.User.Nickname,
@@ -264,4 +262,28 @@ func (service *PostService) GetPostsPersonalFeed(username string, lastPostId str
 	feed.Pagination.Records = totalPostsCount
 
 	return &feed, nil, http.StatusOK
+}
+
+func (service *PostService) DeletePost(postId string, username string) (*customerrors.CustomError, int) {
+	// Find post by ID
+	post, err := service.postRepo.GetPostById(postId)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return customerrors.PostNotFound, http.StatusNotFound
+		}
+		return customerrors.DatabaseError, http.StatusInternalServerError
+	}
+
+	// Check if the requesting user is the author of the post
+	if post.Username != username {
+		return customerrors.PostDeleteNotAuthorized, http.StatusForbidden
+	}
+
+	// Delete post
+	err = service.postRepo.DeletePostById(postId)
+	if err != nil {
+		return customerrors.DatabaseError, http.StatusInternalServerError
+	}
+
+	return nil, http.StatusNoContent
 }
