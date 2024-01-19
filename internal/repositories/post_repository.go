@@ -47,7 +47,7 @@ func (repo *PostRepository) GetPostsByUsername(username string, offset, limit in
 	}
 
 	// Get posts using pagination information
-	err = baseQuery.Offset(offset).Limit(limit).Find(&posts).Error
+	err = baseQuery.Offset(offset).Limit(limit).Order("created_at desc, id desc").Find(&posts).Error
 	if err != nil {
 		return nil, 0, err
 	}
