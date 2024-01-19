@@ -7,8 +7,8 @@ import (
 
 type Post struct {
 	Id        uuid.UUID `gorm:"column:id;primary_key"`
-	Username  string    `gorm:"column:username;type:varchar(20)"`
-	User      User      `gorm:"foreignKey:username"`
+	Username  string    `gorm:"column:username"`
+	User      User      `gorm:"foreignKey:username;references:username"`
 	Content   string    `gorm:"column:content;type:varchar(256);null"`
 	ImageUrl  string    `gorm:"column:image_url;type:varchar(256);null"`
 	Hashtags  []Hashtag `gorm:"many2many:post_hashtags;"` // gorm handles the join table
@@ -31,7 +31,6 @@ type AuthorDTO struct { // to be used in post response dto
 	Nickname          string `json:"nickname"`
 	ProfilePictureUrl string `json:"profilePictureUrl"`
 }
-
 
 type UserFeedDTO struct {
 	Records    []UserFeedRecordDTO    `json:"records"`

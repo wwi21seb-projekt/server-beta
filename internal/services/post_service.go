@@ -2,6 +2,7 @@ package services
 
 import (
 	"errors"
+	"fmt"
 	"github.com/google/uuid"
 	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
 	"github.com/wwi21seb-projekt/server-beta/internal/models"
@@ -186,6 +187,8 @@ func (service *PostService) GetPostsGlobalFeed(lastPostId string, limit int) (*m
 
 	// Fill GeneralFeedDTO with posts
 	for _, post := range posts {
+		fmt.Println("Username: " + post.User.Username)
+		fmt.Println("Nickname: " + post.Username)
 		authorDto := models.AuthorDTO{
 			Username:          post.User.Username,
 			Nickname:          post.User.Nickname,
