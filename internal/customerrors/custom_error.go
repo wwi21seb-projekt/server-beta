@@ -95,13 +95,13 @@ var (
 		Message: "You can only delete your own subscriptions.",
 		Code:    "ERR-018",
 	}
-	OldPasswordIncorrect = &CustomError{
-		Message: "Old Password incorrect: to be defined",
-		Code:    "",
+	PostDeleteForbidden = &CustomError{
+		Message: "You can only delete your own posts.",
+		Code:    "ERR-019",
 	}
 	PostNotFound = &CustomError{
-		Message: "Post not found: to be defined",
-		Code:    "",
+		Message: "The post was not found. Please check the post ID and try again.",
+		Code:    "ERR-020",
 	}
 	FileNotFound = &CustomError{
 		Message: "file not found: to be defined",
@@ -109,11 +109,6 @@ var (
 	}
 	FileTooLarge = &CustomError{
 		Message: "file too large: to be defined",
-		Code:    "",
-	}
-
-	PostDeleteNotAuthorized = &CustomError{
-		Message: "You can only delete your own posts: to be defined",
 		Code:    "",
 	}
 )

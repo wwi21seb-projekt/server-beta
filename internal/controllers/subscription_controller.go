@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
 	"github.com/wwi21seb-projekt/server-beta/internal/models"
@@ -27,7 +26,6 @@ func (controller *SubscriptionController) PostSubscription(c *gin.Context) {
 	// Get current user from middleware
 	username, exists := c.Get("username")
 	if !exists {
-		fmt.Println("test")
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"error": customerrors.UserUnauthorized,
 		})

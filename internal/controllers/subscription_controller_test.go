@@ -418,7 +418,7 @@ func TestDeleteSubscriptionNotFound(t *testing.T) {
 	mockUserRepo.AssertExpectations(t)
 }
 
-// TestDeleteSubscriptionForbidden tests if DeleteSubscription returns 403-Forbidden when user tries to delete a subscription of another user
+// TestDeleteSubscriptionForbidden tests if DeleteSubscription returns 403-PostDeleteForbidden when user tries to delete a subscription of another user
 func TestDeleteSubscriptionForbidden(t *testing.T) {
 	// Arrange
 	mockSubscriptionRepo := new(repositories.MockSubscriptionRepository)
@@ -456,7 +456,7 @@ func TestDeleteSubscriptionForbidden(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	// Assert
-	assert.Equal(t, http.StatusForbidden, w.Code) // Expect HTTP 403 Forbidden status
+	assert.Equal(t, http.StatusForbidden, w.Code) // Expect HTTP 403 PostDeleteForbidden status
 
 	var errorResponse customerrors.ErrorResponse
 	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)

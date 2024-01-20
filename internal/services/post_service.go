@@ -298,7 +298,7 @@ func (service *PostService) DeletePost(postId string, username string) (*custome
 
 	// Check if the requesting user is the author of the post
 	if post.Username != username {
-		return customerrors.PostDeleteNotAuthorized, http.StatusForbidden
+		return customerrors.PostDeleteForbidden, http.StatusForbidden
 	}
 
 	// Delete post

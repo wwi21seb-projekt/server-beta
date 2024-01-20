@@ -460,7 +460,7 @@ func (service *UserService) ChangeUserPassword(req *models.ChangePasswordDTO, cu
 
 	// Verify the old password
 	if !utils.CheckPassword(req.OldPassword, user.PasswordHash) {
-		return customerrors.OldPasswordIncorrect, http.StatusForbidden
+		return customerrors.InvalidCredentials, http.StatusForbidden
 	}
 
 	// Hash the new password

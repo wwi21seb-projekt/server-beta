@@ -852,7 +852,7 @@ func TestLoginInvalidCredentialsPasswordIncorrect(t *testing.T) {
 	mockUserRepository.AssertExpectations(t)
 }
 
-// TestLoginUserNotActivated tests if Login returns 403-Forbidden when user is not activated
+// TestLoginUserNotActivated tests if Login returns 403-PostDeleteForbidden when user is not activated
 func TestLoginUserNotActivated(t *testing.T) {
 	// Setup mocks
 	mockUserRepository := new(repositories.MockUserRepository)
@@ -924,7 +924,7 @@ func TestLoginUserNotActivated(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	// Assert Response
-	assert.Equal(t, http.StatusForbidden, w.Code) // Expect HTTP 403 Forbidden status
+	assert.Equal(t, http.StatusForbidden, w.Code) // Expect HTTP 403 PostDeleteForbidden status
 	var errorResponse customerrors.ErrorResponse
 	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
@@ -938,7 +938,7 @@ func TestLoginUserNotActivated(t *testing.T) {
 	mockActivationTokenRepository.AssertExpectations(t)
 }
 
-// TestLoginUserNotActivated tests if Login returns 403-Forbidden when user is not activated and send new token if all are expired
+// TestLoginUserNotActivated tests if Login returns 403-PostDeleteForbidden when user is not activated and send new token if all are expired
 func TestLoginUserNotActivatedExpiredToken(t *testing.T) {
 	// Setup mocks
 	mockUserRepository := new(repositories.MockUserRepository)
@@ -1013,7 +1013,7 @@ func TestLoginUserNotActivatedExpiredToken(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	// Assert Response
-	assert.Equal(t, http.StatusForbidden, w.Code) // Expect HTTP 403 Forbidden status
+	assert.Equal(t, http.StatusForbidden, w.Code) // Expect HTTP 403 PostDeleteForbidden status
 	var errorResponse customerrors.ErrorResponse
 	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
@@ -2297,7 +2297,7 @@ func TestChangePasswordUnauthorized(t *testing.T) {
 	}
 }
 
-// TestChangePasswordOldPasswordIncorrect tests if ChangePassword returns 403-Forbidden when old password is incorrect
+// TestChangePasswordOldPasswordIncorrect tests if ChangePassword returns 403-PostDeleteForbidden when old password is incorrect
 func TestChangePasswordOldPasswordIncorrect(t *testing.T) {
 	// Arrange
 	mockUserRepository := new(repositories.MockUserRepository)
@@ -2353,12 +2353,12 @@ func TestChangePasswordOldPasswordIncorrect(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	// Assert
-	assert.Equal(t, http.StatusForbidden, w.Code) // Expect HTTP 403 Forbidden status
+	assert.Equal(t, http.StatusForbidden, w.Code) // Expect HTTP 403 PostDeleteForbidden status
 	var errorResponse customerrors.ErrorResponse
 	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
 
-	expectedCustomError := customerrors.OldPasswordIncorrect
+	expectedCustomError := customerrors.InvalidCredentials
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
