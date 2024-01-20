@@ -19,7 +19,7 @@ type PostCreateRequestDTO struct {
 	Content string `json:"content" binding:"required"`
 }
 
-type PostCreateResponseDTO struct {
+type PostResponseDTO struct {
 	PostId       uuid.UUID  `json:"postId"`
 	Author       *AuthorDTO `json:"author"`
 	CreationDate time.Time  `json:"creationDate"`
@@ -38,7 +38,7 @@ type UserFeedDTO struct {
 }
 
 type UserFeedRecordDTO struct {
-	PostId       uuid.UUID `json:"postId"`
+	PostId       string    `json:"postId"`
 	CreationDate time.Time `json:"creationDate"`
 	Content      string    `json:"content"`
 }
@@ -50,12 +50,12 @@ type UserFeedPaginationDTO struct {
 }
 
 type GeneralFeedDTO struct { // to be used for response to feed request
-	Records    []PostCreateResponseDTO   `json:"records"`
+	Records    []PostResponseDTO         `json:"records"`
 	Pagination *GeneralFeedPaginationDTO `json:"pagination"`
 }
 
 type GeneralFeedPaginationDTO struct {
-	LastPostId uuid.UUID `json:"lastPostId"`
-	Limit      int       `json:"limit"`
-	Records    int64     `json:"records"`
+	LastPostId string `json:"lastPostId"`
+	Limit      int    `json:"limit"`
+	Records    int64  `json:"records"`
 }

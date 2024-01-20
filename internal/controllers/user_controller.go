@@ -96,12 +96,6 @@ func (controller *UserController) ActivateUser(c *gin.Context) {
 
 	// Read username from url
 	username := c.Param("username")
-	if username == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": customerrors.BadRequest,
-		})
-		return
-	}
 
 	// Activate user
 	loginResponse, serviceErr, httpStatus := controller.userService.ActivateUser(username, verificationTokenRequestDTO.Token)
@@ -119,12 +113,6 @@ func (controller *UserController) ActivateUser(c *gin.Context) {
 func (controller *UserController) ResendActivationToken(c *gin.Context) {
 	// Read username from url
 	username := c.Param("username")
-	if username == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": customerrors.BadRequest,
-		})
-		return
-	}
 
 	// Resend code
 	serviceErr, httpStatus := controller.userService.ResendActivationToken(username)
@@ -165,31 +153,17 @@ func (controller *UserController) RefreshToken(c *gin.Context) {
 func (controller *UserController) SearchUser(c *gin.Context) {
 	// Read information from url
 	username := c.DefaultQuery("username", "")
-	limitStr := c.DefaultQuery("limit", "0")
+	limitStr := c.DefaultQuery("limit", "10")
 	offsetStr := c.DefaultQuery("offset", "0")
-
-	if username == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": customerrors.BadRequest,
-		})
-		return
-	}
 
 	// Convert limit and offset to int
 	limit, err := strconv.Atoi(limitStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": customerrors.BadRequest,
-		})
-		return
+		limit = 10
 	}
-
 	offset, err := strconv.Atoi(offsetStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": customerrors.BadRequest,
-		})
-		return
+		offset = 0
 	}
 
 	// Current username from middleware
@@ -308,12 +282,6 @@ func (controller *UserController) GetUserProfile(c *gin.Context) {
 
 	// Get username from url
 	username := c.Param("username")
-	if username == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": customerrors.BadRequest,
-		})
-		return
-	}
 
 	// Get user profile
 	userProfileDTO, customErr, status := controller.userService.GetUserProfile(username, currentUsername.(string))

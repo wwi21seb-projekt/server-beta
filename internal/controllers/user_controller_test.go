@@ -852,7 +852,7 @@ func TestLoginInvalidCredentialsPasswordIncorrect(t *testing.T) {
 	mockUserRepository.AssertExpectations(t)
 }
 
-// TestLoginUserNotActivated tests if Login returns 403-Forbidden when user is not activated
+// TestLoginUserNotActivated tests if Login returns 403-PostDeleteForbidden when user is not activated
 func TestLoginUserNotActivated(t *testing.T) {
 	// Setup mocks
 	mockUserRepository := new(repositories.MockUserRepository)
@@ -924,7 +924,7 @@ func TestLoginUserNotActivated(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	// Assert Response
-	assert.Equal(t, http.StatusForbidden, w.Code) // Expect HTTP 403 Forbidden status
+	assert.Equal(t, http.StatusForbidden, w.Code) // Expect HTTP 403 PostDeleteForbidden status
 	var errorResponse customerrors.ErrorResponse
 	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
@@ -938,7 +938,7 @@ func TestLoginUserNotActivated(t *testing.T) {
 	mockActivationTokenRepository.AssertExpectations(t)
 }
 
-// TestLoginUserNotActivated tests if Login returns 403-Forbidden when user is not activated and send new token if all are expired
+// TestLoginUserNotActivated tests if Login returns 403-PostDeleteForbidden when user is not activated and send new token if all are expired
 func TestLoginUserNotActivatedExpiredToken(t *testing.T) {
 	// Setup mocks
 	mockUserRepository := new(repositories.MockUserRepository)
@@ -1013,7 +1013,7 @@ func TestLoginUserNotActivatedExpiredToken(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	// Assert Response
-	assert.Equal(t, http.StatusForbidden, w.Code) // Expect HTTP 403 Forbidden status
+	assert.Equal(t, http.StatusForbidden, w.Code) // Expect HTTP 403 PostDeleteForbidden status
 	var errorResponse customerrors.ErrorResponse
 	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
@@ -1860,44 +1860,6 @@ func TestSearchUserSuccess(t *testing.T) {
 	mockUserRepository.AssertExpectations(t)
 }
 
-// TestSearchUserBadRequest tests if SearchUser returns 400-Bad Request when request query is invalid
-func TestSearchUserBadRequest(t *testing.T) {
-	urls := []string{
-		"/users?username=&limit=10&offset=0",               // empty username
-		"/users?limit=q0&offset=0",                         // no username
-		"/users?username=testUser&limit=10&offset=invalid", // invalid offset
-		"/users?username=testUser&limit=invalid&offset=0",  // invalid limit
-	}
-
-	for _, url := range urls {
-		controller := controllers.NewUserController(nil)
-
-		gin.SetMode(gin.TestMode)
-		router := gin.Default()
-		router.GET("/users", controller.SearchUser)
-
-		// Create request
-		req, err := http.NewRequest(http.MethodGet, url, nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		req.Header.Set("Content-Type", "application/json")
-		w := httptest.NewRecorder()
-		router.ServeHTTP(w, req)
-
-		// Assertions
-		assert.Equal(t, http.StatusBadRequest, w.Code) // Expect HTTP 400 Bad Request status
-		var errorResponse customerrors.ErrorResponse
-		err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
-		assert.NoError(t, err)
-
-		expectedCustomError := customerrors.BadRequest
-		assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
-		assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
-	}
-}
-
 // TestSearchUserUnauthorized tests if SearchUser returns 401-Unauthorized when user is not authenticated
 func TestSearchUserUnauthorized(t *testing.T) {
 	invalidTokens := []string{
@@ -2335,7 +2297,7 @@ func TestChangePasswordUnauthorized(t *testing.T) {
 	}
 }
 
-// TestChangePasswordOldPasswordIncorrect tests if ChangePassword returns 403-Forbidden when old password is incorrect
+// TestChangePasswordOldPasswordIncorrect tests if ChangePassword returns 403-PostDeleteForbidden when old password is incorrect
 func TestChangePasswordOldPasswordIncorrect(t *testing.T) {
 	// Arrange
 	mockUserRepository := new(repositories.MockUserRepository)
@@ -2391,12 +2353,12 @@ func TestChangePasswordOldPasswordIncorrect(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	// Assert
-	assert.Equal(t, http.StatusForbidden, w.Code) // Expect HTTP 403 Forbidden status
+	assert.Equal(t, http.StatusForbidden, w.Code) // Expect HTTP 403 PostDeleteForbidden status
 	var errorResponse customerrors.ErrorResponse
 	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
 
-	expectedCustomError := customerrors.OldPasswordIncorrect
+	expectedCustomError := customerrors.InvalidCredentials
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
@@ -2474,7 +2436,77 @@ func TestGetUserProfileSuccess(t *testing.T) {
 	assert.Equal(t, postCount, responseDto.Posts)
 	assert.Equal(t, followerCount, responseDto.Follower)
 	assert.Equal(t, followingCount, responseDto.Following)
-	assert.Equal(t, subscription.Id.String(), responseDto.SubscriptionId)
+	assert.Equal(t, subscription.Id.String(), *responseDto.SubscriptionId)
+
+	mockUserRepository.AssertExpectations(t)
+	mockPostRepository.AssertExpectations(t)
+}
+
+// TestGetUserProfileSuccessNoSubscription tests if GetUserProfile returns 200-OK and nil subscription id
+func TestGetUserProfileSuccessNoSubscription(t *testing.T) {
+	// Arrange
+	mockUserRepository := new(repositories.MockUserRepository)
+	mockPostRepository := new(repositories.MockPostRepository)
+	mockSubscriptionRepository := new(repositories.MockSubscriptionRepository)
+	userService := services.NewUserService(
+		mockUserRepository,
+		nil,
+		nil,
+		nil,
+		mockPostRepository,
+		mockSubscriptionRepository,
+	)
+	userController := controllers.NewUserController(userService)
+
+	user := models.User{
+		Username:          "testUser",
+		Nickname:          "Test User",
+		Status:            "Test status",
+		ProfilePictureUrl: "",
+	}
+	postCount := int64(64)
+	followerCount := int64(1)
+	followingCount := int64(1)
+
+	currentUsername := "currentUsername"
+	authenticationToken, err := utils.GenerateAccessToken(currentUsername)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Mock expectations
+	mockUserRepository.On("FindUserByUsername", user.Username).Return(&user, nil) // Find user successfully
+	mockPostRepository.On("GetPostCountByUsername", user.Username).Return(postCount, nil)
+	mockSubscriptionRepository.On("GetSubscriptionByUsernames", currentUsername, user.Username).Return(&models.Subscription{}, gorm.ErrRecordNotFound)
+	mockSubscriptionRepository.On("GetSubscriptionCountByUsername", user.Username).Return(followerCount, followingCount, nil)
+
+	// Setup HTTP request and recorder
+	req, _ := http.NewRequest(http.MethodGet, "/users/testUser", nil)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+authenticationToken)
+	w := httptest.NewRecorder()
+
+	// Act
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+	router.GET("/users/:username", middleware.AuthorizeUser, userController.GetUserProfile)
+	router.ServeHTTP(w, req)
+
+	// Assert
+	assert.Equal(t, http.StatusOK, w.Code) // Expect HTTP 200 OK status
+
+	var responseDto models.UserProfileResponseDTO
+	err = json.Unmarshal(w.Body.Bytes(), &responseDto)
+	assert.NoError(t, err)
+
+	assert.Equal(t, user.Username, responseDto.Username)
+	assert.Equal(t, user.Nickname, responseDto.Nickname)
+	assert.Equal(t, user.Status, responseDto.Status)
+	assert.Equal(t, user.ProfilePictureUrl, responseDto.ProfilePictureUrl)
+	assert.Equal(t, postCount, responseDto.Posts)
+	assert.Equal(t, followerCount, responseDto.Follower)
+	assert.Equal(t, followingCount, responseDto.Following)
+	assert.Nil(t, responseDto.SubscriptionId)
 
 	mockUserRepository.AssertExpectations(t)
 	mockPostRepository.AssertExpectations(t)

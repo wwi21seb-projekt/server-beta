@@ -394,23 +394,22 @@ func (service *UserService) SearchUser(username string, limit int, offset int, c
 	}
 
 	// Create response
-	var records []models.UserSearchRecordDTO
+	response := models.UserSearchResponseDTO{
+		Records: []models.UserSearchRecordDTO{},
+		Pagination: &models.UserSearchPaginationDTO{
+			Offset:  offset,
+			Limit:   limit,
+			Records: totalRecordsCount,
+		},
+	}
+
 	for _, user := range users {
 		record := models.UserSearchRecordDTO{
 			Username:          user.Username,
 			Nickname:          user.Nickname,
 			ProfilePictureUrl: user.ProfilePictureUrl,
 		}
-		records = append(records, record)
-	}
-	paginationDto := models.UserSearchPaginationDTO{
-		Offset:  offset,
-		Limit:   limit,
-		Records: totalRecordsCount,
-	}
-	response := models.UserSearchResponseDTO{
-		Records:    records,
-		Pagination: &paginationDto,
+		response.Records = append(response.Records, record)
 	}
 
 	return &response, nil, http.StatusOK
@@ -461,7 +460,7 @@ func (service *UserService) ChangeUserPassword(req *models.ChangePasswordDTO, cu
 
 	// Verify the old password
 	if !utils.CheckPassword(req.OldPassword, user.PasswordHash) {
-		return customerrors.OldPasswordIncorrect, http.StatusForbidden
+		return customerrors.InvalidCredentials, http.StatusForbidden
 	}
 
 	// Hash the new password
@@ -502,16 +501,17 @@ func (service *UserService) GetUserProfile(username string, currentUser string) 
 	}
 
 	// Set subscription id if current user is following
-	var subscriptionId string
+	var subscriptionId *string
 	sub, err := service.subscriptionRepo.GetSubscriptionByUsernames(currentUser, username)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			subscriptionId = ""
+			subscriptionId = nil // if user is not following, return null
 		} else {
 			return nil, customerrors.DatabaseError, http.StatusInternalServerError
 		}
 	} else {
-		subscriptionId = sub.Id.String()
+		id := sub.Id.String()
+		subscriptionId = &id
 	}
 
 	// Create response

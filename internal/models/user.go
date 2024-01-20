@@ -75,12 +75,12 @@ type ChangePasswordDTO struct {
 }
 
 type UserProfileResponseDTO struct {
-	Username          string `json:"username"`
-	Nickname          string `json:"nickname"`
-	Status            string `json:"status"`
-	ProfilePictureUrl string `json:"profilePictureUrl"`
-	Follower          int64  `json:"follower"`
-	Following         int64  `json:"following"`
-	Posts             int64  `json:"posts"`
-	SubscriptionId    string `json:"subscriptionId"`
+	Username          string  `json:"username"`
+	Nickname          string  `json:"nickname"`
+	Status            string  `json:"status"`
+	ProfilePictureUrl string  `json:"profilePictureUrl"`
+	Follower          int64   `json:"follower"`
+	Following         int64   `json:"following"`
+	Posts             int64   `json:"posts"`
+	SubscriptionId    *string `json:"subscriptionId"`
 }

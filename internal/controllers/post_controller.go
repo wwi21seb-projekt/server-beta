@@ -98,24 +98,18 @@ func (controller *PostController) CreatePost(c *gin.Context) {
 }
 
 func (controller *PostController) GetPostsByUserUsername(c *gin.Context) {
+	// Read parameters from url
 	username := c.Param("username")
 	offsetQuery := c.DefaultQuery("offset", "0")
 	limitQuery := c.DefaultQuery("limit", "10")
 
 	offset, err := strconv.Atoi(offsetQuery)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": customerrors.BadRequest,
-		})
-		return
+		offset = 0
 	}
-
 	limit, err := strconv.Atoi(limitQuery)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": customerrors.BadRequest,
-		})
-		return
+		limit = 10
 	}
 
 	feedDto, serviceErr, httpStatus := controller.postService.GetPostsByUsername(username, offset, limit)
@@ -131,16 +125,13 @@ func (controller *PostController) GetPostsByUserUsername(c *gin.Context) {
 
 // GetPostFeed is a controller function that gets a global or personal post feed and can be called from router
 func (controller *PostController) GetPostFeed(c *gin.Context) {
-	// Read query parameters for lastPostId and limit
+	// Read query parameters for lastPostId, limit and feedType
 	lastPostId := c.DefaultQuery("postId", "")
-	limitStr := c.DefaultQuery("limit", "0")
+	limitStr := c.DefaultQuery("limit", "10")
 	feedType := c.DefaultQuery("feedType", "global")
 
 	if feedType != "global" && feedType != "personal" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": customerrors.BadRequest,
-		})
-		return
+		feedType = "global"
 	}
 
 	var limit int
@@ -149,10 +140,7 @@ func (controller *PostController) GetPostFeed(c *gin.Context) {
 	// convert limit from string to int value
 	limit, err = strconv.Atoi(limitStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": customerrors.BadRequest,
-		})
-		return
+		limit = 10
 	}
 
 	// Get username from request using middleware function
@@ -167,7 +155,7 @@ func (controller *PostController) GetPostFeed(c *gin.Context) {
 			})
 			return
 		}
-		c.JSON(http.StatusOK, postFeed)
+		c.JSON(httpStatus, postFeed)
 		return
 	}
 
@@ -187,7 +175,7 @@ func (controller *PostController) GetPostFeed(c *gin.Context) {
 		})
 		return
 	}
-	c.JSON(http.StatusOK, postFeed)
+	c.JSON(httpStatus, postFeed)
 }
 
 func (controller *PostController) DeletePost(c *gin.Context) {
