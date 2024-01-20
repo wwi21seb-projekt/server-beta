@@ -2436,7 +2436,77 @@ func TestGetUserProfileSuccess(t *testing.T) {
 	assert.Equal(t, postCount, responseDto.Posts)
 	assert.Equal(t, followerCount, responseDto.Follower)
 	assert.Equal(t, followingCount, responseDto.Following)
-	assert.Equal(t, subscription.Id.String(), responseDto.SubscriptionId)
+	assert.Equal(t, subscription.Id.String(), *responseDto.SubscriptionId)
+
+	mockUserRepository.AssertExpectations(t)
+	mockPostRepository.AssertExpectations(t)
+}
+
+// TestGetUserProfileSuccessNoSubscription tests if GetUserProfile returns 200-OK and nil subscription id
+func TestGetUserProfileSuccessNoSubscription(t *testing.T) {
+	// Arrange
+	mockUserRepository := new(repositories.MockUserRepository)
+	mockPostRepository := new(repositories.MockPostRepository)
+	mockSubscriptionRepository := new(repositories.MockSubscriptionRepository)
+	userService := services.NewUserService(
+		mockUserRepository,
+		nil,
+		nil,
+		nil,
+		mockPostRepository,
+		mockSubscriptionRepository,
+	)
+	userController := controllers.NewUserController(userService)
+
+	user := models.User{
+		Username:          "testUser",
+		Nickname:          "Test User",
+		Status:            "Test status",
+		ProfilePictureUrl: "",
+	}
+	postCount := int64(64)
+	followerCount := int64(1)
+	followingCount := int64(1)
+
+	currentUsername := "currentUsername"
+	authenticationToken, err := utils.GenerateAccessToken(currentUsername)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Mock expectations
+	mockUserRepository.On("FindUserByUsername", user.Username).Return(&user, nil) // Find user successfully
+	mockPostRepository.On("GetPostCountByUsername", user.Username).Return(postCount, nil)
+	mockSubscriptionRepository.On("GetSubscriptionByUsernames", currentUsername, user.Username).Return(&models.Subscription{}, gorm.ErrRecordNotFound)
+	mockSubscriptionRepository.On("GetSubscriptionCountByUsername", user.Username).Return(followerCount, followingCount, nil)
+
+	// Setup HTTP request and recorder
+	req, _ := http.NewRequest(http.MethodGet, "/users/testUser", nil)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+authenticationToken)
+	w := httptest.NewRecorder()
+
+	// Act
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+	router.GET("/users/:username", middleware.AuthorizeUser, userController.GetUserProfile)
+	router.ServeHTTP(w, req)
+
+	// Assert
+	assert.Equal(t, http.StatusOK, w.Code) // Expect HTTP 200 OK status
+
+	var responseDto models.UserProfileResponseDTO
+	err = json.Unmarshal(w.Body.Bytes(), &responseDto)
+	assert.NoError(t, err)
+
+	assert.Equal(t, user.Username, responseDto.Username)
+	assert.Equal(t, user.Nickname, responseDto.Nickname)
+	assert.Equal(t, user.Status, responseDto.Status)
+	assert.Equal(t, user.ProfilePictureUrl, responseDto.ProfilePictureUrl)
+	assert.Equal(t, postCount, responseDto.Posts)
+	assert.Equal(t, followerCount, responseDto.Follower)
+	assert.Equal(t, followingCount, responseDto.Following)
+	assert.Nil(t, responseDto.SubscriptionId)
 
 	mockUserRepository.AssertExpectations(t)
 	mockPostRepository.AssertExpectations(t)

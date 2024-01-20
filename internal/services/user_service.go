@@ -501,16 +501,17 @@ func (service *UserService) GetUserProfile(username string, currentUser string) 
 	}
 
 	// Set subscription id if current user is following
-	var subscriptionId string
+	var subscriptionId *string
 	sub, err := service.subscriptionRepo.GetSubscriptionByUsernames(currentUser, username)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			subscriptionId = ""
+			subscriptionId = nil // if user is not following, return null
 		} else {
 			return nil, customerrors.DatabaseError, http.StatusInternalServerError
 		}
 	} else {
-		subscriptionId = sub.Id.String()
+		id := sub.Id.String()
+		subscriptionId = &id
 	}
 
 	// Create response
