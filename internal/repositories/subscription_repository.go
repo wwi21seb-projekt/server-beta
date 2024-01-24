@@ -77,7 +77,7 @@ func (repo *SubscriptionRepository) GetFollowers(limit int, offset int, username
 	}
 
 	// Get users
-	err = baseQuery.Limit(limit).Offset(offset).Preload("Following").Find(&followers).Error
+	err = baseQuery.Limit(limit).Offset(offset).Preload("Follower").Find(&followers).Error
 	if err != nil {
 		return nil, 0, err
 	}
@@ -98,7 +98,7 @@ func (repo *SubscriptionRepository) GetFollowings(limit int, offset int, usernam
 	}
 
 	// Get users
-	err = baseQuery.Limit(limit).Offset(offset).Preload("Follower").Find(&followings).Error
+	err = baseQuery.Limit(limit).Offset(offset).Preload("Following").Find(&followings).Error
 	if err != nil {
 		return nil, 0, err
 	}

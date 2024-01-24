@@ -58,6 +58,12 @@ type UserSearchRecordDTO struct {
 	ProfilePictureUrl string `json:"profilePictureUrl"`
 }
 
+type UserSubscriptionSearchRecordDTO struct {
+	Username          string `json:"username"`
+	Nickname          string `json:"nickname"`
+	ProfilePictureUrl string `json:"profilePictureUrl"`
+}
+
 type UserSearchPaginationDTO struct {
 	Offset  int   `json:"offset"`
 	Limit   int   `json:"limit"`

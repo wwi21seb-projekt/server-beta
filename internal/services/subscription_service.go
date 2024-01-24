@@ -134,7 +134,7 @@ func (service *SubscriptionService) GetSubscriptions(ftype string, limit int, of
 		}
 
 		for _, following := range followings {
-			userDto := models.UserSearchRecordDTO{
+			userDto := models.UserSubscriptionSearchRecordDTO{
 				Username:          following.Following.Username,
 				Nickname:          following.Following.Nickname,
 				ProfilePictureUrl: following.Following.ProfilePictureUrl,
@@ -167,7 +167,7 @@ func (service *SubscriptionService) GetSubscriptions(ftype string, limit int, of
 		}
 
 		for _, follower := range followers {
-			userDto := models.UserSearchRecordDTO{
+			userDto := models.UserSubscriptionSearchRecordDTO{
 				Username:          follower.Follower.Username,
 				Nickname:          follower.Follower.Nickname,
 				ProfilePictureUrl: follower.Follower.ProfilePictureUrl,
