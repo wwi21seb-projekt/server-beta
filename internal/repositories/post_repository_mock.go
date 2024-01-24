@@ -43,3 +43,8 @@ func (m *MockPostRepository) DeletePostById(postId string) error {
 	args := m.Called(postId)
 	return args.Error(0)
 }
+
+func (m *MockPostRepository) GetPostsByHashtag(hashtag string, lastPost *models.Post, limit int) ([]models.Post, int64, error) {
+	args := m.Called(hashtag, lastPost, limit)
+	return args.Get(0).([]models.Post), args.Get(1).(int64), args.Error(2)
+}

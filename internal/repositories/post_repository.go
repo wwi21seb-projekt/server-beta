@@ -4,6 +4,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/wwi21seb-projekt/server-beta/internal/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
+	"log"
+	"os"
+	"time"
 )
 
 type PostRepositoryInterface interface {
@@ -14,6 +18,7 @@ type PostRepositoryInterface interface {
 	GetPostsGlobalFeed(lastPost *models.Post, limit int) ([]models.Post, int64, error)
 	GetPostsPersonalFeed(username string, lastPost *models.Post, limit int) ([]models.Post, int64, error)
 	DeletePostById(postId string) error
+	GetPostsByHashtag(hashtag string, lastPost *models.Post, limit int) ([]models.Post, int64, error)
 }
 
 type PostRepository struct {
@@ -125,4 +130,47 @@ func (repo *PostRepository) GetPostsPersonalFeed(username string, lastPost *mode
 
 func (repo *PostRepository) DeletePostById(postId string) error {
 	return repo.DB.Where("id = ?", postId).Delete(&models.Post{}).Error
+}
+
+func (repo *PostRepository) GetPostsByHashtag(hashtag string, lastPost *models.Post, limit int) ([]models.Post, int64, error) {
+	var posts []models.Post
+	var count int64
+	var err error
+
+	newLogger := logger.New(
+		log.New(os.Stdout, "\r\n", log.LstdFlags), // io writer
+		logger.Config{
+			SlowThreshold: time.Second, // Slow SQL threshold
+			LogLevel:      logger.Info, // Log level
+			Colorful:      true,        // Disable color
+		},
+	)
+	repo.DB.Logger = newLogger
+
+	baseQuery := repo.DB.Model(&models.Post{}).
+		Joins("JOIN post_hashtags ON post_hashtags.post_id = posts.id").
+		Joins("JOIN hashtags ON hashtags.id = post_hashtags.hashtag_id").
+		Where("hashtags.name = ?", hashtag)
+
+	// Number of posts in global feed
+	err = baseQuery.Count(&count).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	if lastPost.Id != uuid.Nil {
+		baseQuery = baseQuery.Where("(created_at < ?) OR (created_at = ? AND id < ?)", lastPost.CreatedAt, lastPost.CreatedAt, lastPost.Id)
+	}
+
+	// Posts subset based on pagination
+	err = baseQuery.
+		Order("created_at desc, id desc").
+		Limit(limit).
+		Preload("User").
+		Find(&posts).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return posts, count, err
 }

@@ -905,7 +905,7 @@ func TestGetGlobalPostFeedSuccess(t *testing.T) {
 
 		assert.Equal(t, limit, responsePostFeed.Pagination.Limit)
 		assert.Equal(t, totalCount, responsePostFeed.Pagination.Records)
-		assert.Equal(t, lastPost.Id.String(), responsePostFeed.Pagination.LastPostId)
+		assert.Equal(t, responsePostFeed.Records[1].PostId.String(), responsePostFeed.Pagination.LastPostId)
 
 		mockPostRepository.AssertExpectations(t)
 	}
@@ -951,7 +951,7 @@ func TestGetGlobalPostFeedDefaultParameters(t *testing.T) {
 	assert.True(t, len(response.Records) == 0)
 	assert.Equal(t, totalRecords, response.Pagination.Records)
 	assert.Equal(t, 10, response.Pagination.Limit)
-	assert.Equal(t, "invalid", response.Pagination.LastPostId)
+	assert.Equal(t, "", response.Pagination.LastPostId)
 
 	mockPostRepository.AssertExpectations(t)
 }
@@ -1060,7 +1060,7 @@ func TestGetPersonalPostFeedSuccess(t *testing.T) {
 
 	assert.Equal(t, limit, responsePostFeed.Pagination.Limit)
 	assert.Equal(t, totalCount, responsePostFeed.Pagination.Records)
-	assert.Equal(t, lastPost.Id.String(), responsePostFeed.Pagination.LastPostId)
+	assert.Equal(t, responsePostFeed.Records[1].PostId.String(), responsePostFeed.Pagination.LastPostId)
 
 	mockPostRepository.AssertExpectations(t)
 }
@@ -1113,7 +1113,7 @@ func TestGetPersonalPostFeeDefaultParameters(t *testing.T) {
 	assert.True(t, len(response.Records) == 0)
 	assert.Equal(t, postCount, response.Pagination.Records)
 	assert.Equal(t, defaultLimit, response.Pagination.Limit)
-	assert.Equal(t, "invalid", response.Pagination.LastPostId)
+	assert.Equal(t, "", response.Pagination.LastPostId)
 
 	mockPostRepository.AssertExpectations(t)
 }
@@ -1288,4 +1288,166 @@ func TestDeletePostNotFound(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, w.Code)
 
 	mockPostRepository.AssertExpectations(t)
+}
+
+// TestGetPostsByHashtagSuccess tests if the GetPostsByHashtag function returns a list of posts and 200 ok if the hashtag exists
+func TestGetPostsByHashtagSuccess(t *testing.T) {
+	// Arrange
+	mockPostRepository := new(repositories.MockPostRepository)
+
+	postService := services.NewPostService(
+		mockPostRepository,
+		nil,
+		nil,
+		nil,
+	)
+	postController := controllers.NewPostController(postService)
+
+	hashtag := "Post"
+	posts := []models.Post{
+		{
+			Id:       uuid.New(),
+			Username: "testUser",
+			User: models.User{
+				Username:          "testUser",
+				Nickname:          "testNickname",
+				ProfilePictureUrl: "",
+			},
+			Content:   "Test #Post 2",
+			CreatedAt: time.Now(),
+		},
+		{
+			Id:       uuid.New(),
+			Username: "testUser",
+			User: models.User{
+				Username:          "testUser",
+				Nickname:          "testNickname",
+				ProfilePictureUrl: "",
+			},
+			Content:   "Test #Post 3",
+			CreatedAt: time.Now().Add(-1 * time.Hour),
+		},
+	}
+
+	currentUsername := "someOtherUser"
+	authenticationToken, err := utils.GenerateAccessToken(currentUsername)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	totalCount := int64(4)
+	limit := 2
+	lastPost := models.Post{
+		Id:        uuid.New(),
+		Username:  "testUser",
+		Content:   "Test #Post 1",
+		ImageUrl:  "",
+		CreatedAt: time.Now().Add(-2 * time.Hour),
+	}
+
+	// Mock expectations
+	var capturedLastPost *models.Post
+	mockPostRepository.On("GetPostById", lastPost.Id.String()).Return(lastPost, nil)
+	mockPostRepository.On("GetPostsByHashtag", hashtag, &lastPost, limit).
+		Run(func(args mock.Arguments) {
+			capturedLastPost = args.Get(1).(*models.Post) // Save argument to captor
+		}).Return(posts, totalCount, nil)
+
+	// Setup HTTP request
+	url := "/posts?q=" + hashtag + "&postId=" + lastPost.Id.String() + "&limit=" + fmt.Sprint(limit)
+	req, _ := http.NewRequest("GET", url, nil)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+authenticationToken)
+	w := httptest.NewRecorder()
+
+	// Act
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+	router.GET("/posts", middleware.AuthorizeUser, postController.GetPostsByHashtag)
+	router.ServeHTTP(w, req)
+
+	// Assert
+	assert.Equal(t, http.StatusOK, w.Code) // Expect 200 ok
+
+	var responsePostFeed models.GeneralFeedDTO
+	err = json.Unmarshal(w.Body.Bytes(), &responsePostFeed)
+	assert.NoError(t, err)
+
+	assert.Equal(t, lastPost.Id, capturedLastPost.Id)
+	assert.Equal(t, lastPost.Username, capturedLastPost.Username)
+	assert.Equal(t, lastPost.Content, capturedLastPost.Content)
+	assert.Equal(t, lastPost.ImageUrl, capturedLastPost.ImageUrl)
+	assert.True(t, lastPost.CreatedAt.Equal(capturedLastPost.CreatedAt))
+	assert.Equal(t, lastPost.Hashtags, capturedLastPost.Hashtags)
+
+	assert.Equal(t, posts[0].Id, responsePostFeed.Records[0].PostId)
+	assert.Equal(t, posts[0].Username, responsePostFeed.Records[0].Author.Username)
+	assert.Equal(t, posts[0].User.Nickname, responsePostFeed.Records[0].Author.Nickname)
+	assert.Equal(t, posts[0].User.ProfilePictureUrl, responsePostFeed.Records[0].Author.ProfilePictureUrl)
+	assert.Equal(t, posts[0].Content, responsePostFeed.Records[0].Content)
+	assert.True(t, posts[0].CreatedAt.Equal(responsePostFeed.Records[0].CreationDate))
+
+	assert.Equal(t, posts[1].Id, responsePostFeed.Records[1].PostId)
+	assert.Equal(t, posts[1].Username, responsePostFeed.Records[1].Author.Username)
+	assert.Equal(t, posts[1].User.Nickname, responsePostFeed.Records[1].Author.Nickname)
+	assert.Equal(t, posts[1].User.ProfilePictureUrl, responsePostFeed.Records[1].Author.ProfilePictureUrl)
+	assert.Equal(t, posts[1].Content, responsePostFeed.Records[1].Content)
+	assert.True(t, posts[1].CreatedAt.Equal(responsePostFeed.Records[1].CreationDate))
+
+	assert.Equal(t, limit, responsePostFeed.Pagination.Limit)
+	assert.Equal(t, totalCount, responsePostFeed.Pagination.Records)
+	assert.Equal(t, responsePostFeed.Records[1].PostId.String(), responsePostFeed.Pagination.LastPostId)
+
+	mockPostRepository.AssertExpectations(t)
+}
+
+// TestGetPostsByHashtagUnauthorized tests if the GetPostsByHashtag function returns a 401 unauthorized if the user is not authenticated
+func TestGetPostsByHashtagUnauthorized(t *testing.T) {
+	invalidTokens := []string{
+		"",               // empty token
+		"invalidToken",   // invalid token
+		"Bearer invalid", // invalid token
+	}
+	for _, token := range invalidTokens {
+		// Arrange
+		mockPostRepository := new(repositories.MockPostRepository)
+
+		postService := services.NewPostService(
+			mockPostRepository,
+			nil,
+			nil,
+			nil,
+		)
+		postController := controllers.NewPostController(postService)
+
+		hashtag := "Post"
+		limit := 2
+		lastPost := models.Post{
+			Id: uuid.New(),
+		}
+
+		// Setup HTTP request
+		url := "/posts?q=" + hashtag + "&postId=" + lastPost.Id.String() + "&limit=" + fmt.Sprint(limit)
+		req, _ := http.NewRequest("GET", url, nil)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+token)
+		w := httptest.NewRecorder()
+
+		// Act
+		gin.SetMode(gin.TestMode)
+		router := gin.Default()
+		router.GET("/posts", middleware.AuthorizeUser, postController.GetPostsByHashtag)
+		router.ServeHTTP(w, req)
+
+		// Assert
+		assert.Equal(t, http.StatusUnauthorized, w.Code) // Expect 401 Unauthorized
+
+		var errorResponse customerrors.ErrorResponse
+		err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
+		assert.NoError(t, err)
+
+		expectedCustomError := customerrors.UserUnauthorized
+		assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
+		assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
+	}
 }
