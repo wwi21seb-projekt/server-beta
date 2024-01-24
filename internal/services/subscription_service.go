@@ -14,7 +14,7 @@ import (
 type SubscriptionServiceInterface interface {
 	PostSubscription(req *models.SubscriptionPostRequestDTO, currentUsername string) (*models.SubscriptionPostResponseDTO, *customerrors.CustomError, int)
 	DeleteSubscription(subscriptionId string, currentUsername string) (*customerrors.CustomError, int)
-	GetSubscriptions(ftype string, limit int, offset int, currentUsername string) (*models.SubscriptionSearchResponseDTO, *customerrors.CustomError, int)
+	GetSubscriptions(ftype string, limit int, offset int, username string) (*models.SubscriptionSearchResponseDTO, *customerrors.CustomError, int)
 }
 
 type SubscriptionService struct {

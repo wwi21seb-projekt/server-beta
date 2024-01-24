@@ -471,6 +471,7 @@ func TestDeleteSubscriptionForbidden(t *testing.T) {
 
 }
 
+// TestGetSubscriptionsFollowersSuccess tests if GetSubscriptions returns 200-OK and correct response body when followers are found
 func TestGetSubscriptionsFollowerSuccess(t *testing.T) {
 	// Setup Mocks
 	// Arrange
@@ -548,9 +549,15 @@ func TestGetSubscriptionsFollowerSuccess(t *testing.T) {
 		assert.Equal(t, follower.SubscriptionDate.Format(time.RFC3339), responseDto.Records[i].SubscriptionDate.Format(time.RFC3339))
 	}
 
+	assert.Equal(t, limit, responseDto.Pagination.Limit)
+	assert.Equal(t, offset, responseDto.Pagination.Offset)
+	assert.Equal(t, int64(len(foundSubscriptions)), responseDto.Pagination.Records)
+
 	mockSubscriptionRepo.AssertExpectations(t)
+	mockUserRepo.AssertExpectations(t)
 }
 
+// TestGetSubscriptionsFollowingSuccess tests if GetSubscriptions returns 200-OK and correct response body when subscriptions are found successfully
 func TestGetSubscriptionsFollowingSuccess(t *testing.T) {
 	// Setup Mocks
 	// Arrange
@@ -628,9 +635,15 @@ func TestGetSubscriptionsFollowingSuccess(t *testing.T) {
 		assert.Equal(t, follower.SubscriptionDate.Format(time.RFC3339), responseDto.Records[i].SubscriptionDate.Format(time.RFC3339))
 	}
 
+	assert.Equal(t, limit, responseDto.Pagination.Limit)
+	assert.Equal(t, offset, responseDto.Pagination.Offset)
+	assert.Equal(t, int64(len(foundSubscriptions)), responseDto.Pagination.Records)
+
 	mockSubscriptionRepo.AssertExpectations(t)
+	mockUserRepo.AssertExpectations(t)
 }
 
+// TestGetSubscriptionsBadRequest tests if GetSubscriptions returns 400-Bad Request when request body is invalid
 func TestGetSubscriptionsBadRequest(t *testing.T) {
 
 	// Arrange
@@ -677,6 +690,7 @@ func TestGetSubscriptionsBadRequest(t *testing.T) {
 	mockSubscriptionRepo.AssertExpectations(t)
 }
 
+// TestGetSubscriptionsUserNotFound tests if GetSubscriptions returns 404-Not Found when user is not found
 func TestGetSubscriptionsUserNotFound(t *testing.T) {
 
 	// Arrange
@@ -728,6 +742,7 @@ func TestGetSubscriptionsUserNotFound(t *testing.T) {
 
 }
 
+// TestGetSubscriptionsUnauthorized tests if GetSubscriptions returns 401-Unauthorized when user is not authenticated
 func TestGetSubscriptionsUnauthorized(t *testing.T) {
 
 	ftype := "following"
