@@ -106,7 +106,7 @@ func (controller *SubscriptionController) GetSubscriptions(c *gin.Context) {
 	}
 
 	// Search user
-	subscriptionsDto, serviceErr, httpStatus := controller.subscriptionService.SearchSubscriptions(ftype, limit, offset, username)
+	subscriptionsDto, serviceErr, httpStatus := controller.subscriptionService.GetSubscriptions(ftype, limit, offset, username)
 	if serviceErr != nil {
 		c.JSON(httpStatus, gin.H{
 			"error": serviceErr,

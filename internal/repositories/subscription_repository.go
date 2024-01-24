@@ -11,8 +11,8 @@ type SubscriptionRepositoryInterface interface {
 	GetSubscriptionByUsernames(follower, following string) (*models.Subscription, error)
 	GetSubscriptionById(subscriptionId string) (*models.Subscription, error)
 	GetSubscriptionCountByUsername(username string) (int64, int64, error)
-	GetFollowers(limit int, offset int, currentUsername string) ([]models.SubscriptionSearchRecordDTO, int64, error)
-	GetFollowings(limit int, offset int, currentUsername string) ([]models.SubscriptionSearchRecordDTO, int64, error)
+	GetFollowers(limit int, offset int, currentUsername string) ([]models.Subscription, int64, error)
+	GetFollowings(limit int, offset int, currentUsername string) ([]models.Subscription, int64, error)
 }
 
 type SubscriptionRepository struct {
@@ -63,56 +63,45 @@ func (repo *SubscriptionRepository) GetSubscriptionCountByUsername(username stri
 	return followerCount, followingCount, nil
 }
 
-func (repo *SubscriptionRepository) GetFollowers(limit int, offset int, username string) ([]models.SubscriptionSearchRecordDTO, int64, error) {
-	var follower []models.SubscriptionSearchRecordDTO
+func (repo *SubscriptionRepository) GetFollowers(limit int, offset int, username string) ([]models.Subscription, int64, error) {
+	var followers []models.Subscription
 	var count int64
 
+	baseQuery := repo.DB.Model(&models.Subscription{}).
+		Where("following = ?", username)
+
 	// Count results
-	err := repo.DB.Table("subscriptions").
-		Joins("join users on users.username = subscriptions.follower").
-		Where("subscriptions.following = ?", username).
-		Count(&count).Error
+	err := baseQuery.Count(&count).Error
 	if err != nil {
 		return nil, 0, err
 	}
 
 	// Get users
-	err = repo.DB.Table("subscriptions").
-		Select("subscriptions.id as subscription_id, subscriptions.date as subscription_date, users.username, users.nickname, users.profile_picture_url").
-		Joins("join users on users.username = subscriptions.follower").
-		Where("subscriptions.following = ?", username).
-		Limit(limit).Offset(offset).
-		Scan(&follower).Error
+	err = baseQuery.Limit(limit).Offset(offset).Preload("Following").Find(&followers).Error
 	if err != nil {
 		return nil, 0, err
 	}
 
-	return follower, count, nil
+	return followers, count, nil
 }
-
-func (repo *SubscriptionRepository) GetFollowings(limit int, offset int, username string) ([]models.SubscriptionSearchRecordDTO, int64, error) {
-	var following []models.SubscriptionSearchRecordDTO
+func (repo *SubscriptionRepository) GetFollowings(limit int, offset int, username string) ([]models.Subscription, int64, error) {
+	var followings []models.Subscription
 	var count int64
 
+	baseQuery := repo.DB.Model(&models.Subscription{}).
+		Where("follower = ?", username)
+
 	// Count results
-	err := repo.DB.Table("subscriptions").
-		Joins("join users on users.username = subscriptions.following").
-		Where("subscriptions.follower = ?", username).
-		Count(&count).Error
+	err := baseQuery.Count(&count).Error
 	if err != nil {
 		return nil, 0, err
 	}
 
 	// Get users
-	err = repo.DB.Table("subscriptions").
-		Select("subscriptions.id as subscription_id, subscriptions.date as subscription_date, users.username, users.nickname, users.profile_picture_url").
-		Joins("join users on users.username = subscriptions.following").
-		Where("subscriptions.follower = ?", username).
-		Limit(limit).Offset(offset).
-		Scan(&following).Error
+	err = baseQuery.Limit(limit).Offset(offset).Preload("Follower").Find(&followings).Error
 	if err != nil {
 		return nil, 0, err
 	}
 
-	return following, count, nil
+	return followings, count, nil
 }

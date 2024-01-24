@@ -488,33 +488,33 @@ func TestGetSubscriptionsFollowerSuccess(t *testing.T) {
 
 	id1 := uuid.New()
 	id2 := uuid.New()
-	foundSubscriptions := []models.SubscriptionSearchRecordDTO{
+
+	foundSubscriptions := []models.Subscription{
 		{
-			SubscriptionId:   id1,
-			SubscriptionDate: time.Date(2024, time.January, 24, 15, 42, 58, 0, time.UTC),
-			User: models.UserSearchRecordDTO{
-				Username:          "theo",
-				Nickname:          "theotester",
-				ProfilePictureUrl: "",
-			},
+			Id:                id1,
+			SubscriptionDate:  time.Date(2024, time.January, 24, 15, 42, 58, 0, time.UTC),
+			FollowerUsername:  "theotester",
+			Follower:          models.User{},
+			FollowingUsername: "testUser",
+			Following:         models.User{},
 		},
 		{
-			SubscriptionId:   id2,
-			SubscriptionDate: time.Date(2024, time.January, 23, 15, 42, 58, 0, time.UTC),
-			User: models.UserSearchRecordDTO{
-				Username:          "tina",
-				Nickname:          "tinatester",
-				ProfilePictureUrl: "",
-			},
+			Id:                id2,
+			SubscriptionDate:  time.Date(2024, time.January, 24, 15, 42, 58, 0, time.UTC),
+			FollowerUsername:  "theotester",
+			Follower:          models.User{},
+			FollowingUsername: "testUser",
+			Following:         models.User{},
 		},
 	}
 
-	ftype := "follower"
+	ftype := "followers"
 	limit := 10
 	offset := 0
 
 	// Mock Erwartungen
-	mockSubscriptionRepo.On("GetFollower", limit, offset, currentUsername).Return(foundSubscriptions, int64(len(foundSubscriptions)), nil)
+	mockUserRepo.On("FindUserByUsername", "testUser").Return(&models.User{}, nil)
+	mockSubscriptionRepo.On("GetFollowers", limit, offset, currentUsername).Return(foundSubscriptions, int64(len(foundSubscriptions)), nil)
 
 	// Setup HTTP request und recorder
 	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/subscriptions/%s?type=%s&limit=%d&offset=%d", currentUsername, ftype, limit, offset), nil)
@@ -525,7 +525,7 @@ func TestGetSubscriptionsFollowerSuccess(t *testing.T) {
 	// Act
 	gin.SetMode(gin.TestMode)
 	router := gin.Default()
-	router.GET("/subscriptions/:username", subscriptionController.GetSubscriptions)
+	router.GET("/subscriptions/:username", middleware.AuthorizeUser, subscriptionController.GetSubscriptions)
 	router.ServeHTTP(w, req)
 
 	// Assert Response
