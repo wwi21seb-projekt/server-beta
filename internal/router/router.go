@@ -75,9 +75,8 @@ func SetupRouter() *gin.Engine {
 
 	// Post
 	api.POST("/posts", middleware.AuthorizeUser, postController.CreatePost)
-
-	// Feed
 	api.GET("/feed", postController.GetPostFeed)
+	api.GET("/posts", middleware.AuthorizeUser, postController.GetPostsByHashtag)
 
 	// Image
 	api.GET("/images/:filename", imageController.GetImage)
