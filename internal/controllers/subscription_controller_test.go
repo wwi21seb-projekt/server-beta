@@ -470,3 +470,71 @@ func TestDeleteSubscriptionForbidden(t *testing.T) {
 	mockUserRepo.AssertExpectations(t)
 
 }
+
+func TestGetSubscriptionsFollowerSuccess(t *testing.T) {
+	// Setup Mocks
+	// Arrange
+	mockSubscriptionRepo := new(repositories.MockSubscriptionRepository)
+	mockUserRepo := new(repositories.MockUserRepository)
+
+	subscriptionService := services.NewSubscriptionService(mockSubscriptionRepo, mockUserRepo)
+	subscriptionController := controllers.NewSubscriptionController(subscriptionService)
+
+	currentUsername := "testUser"
+	authenticationToken, err := utils.GenerateAccessToken(currentUsername)
+	if err != nil {
+		t.Error(err)
+	}
+
+	id1 := uuid.New()
+	id2 := uuid.New()
+	foundSubscriptions := []models.SubscriptionSearchRecordDTO{
+		{
+			SubscriptionId:   id1,
+			SubscriptionDate: time.Date(2024, time.January, 24, 15, 42, 58, 0, time.UTC),
+			User: models.UserSearchRecordDTO{
+				Username:          "theo",
+				Nickname:          "theotester",
+				ProfilePictureUrl: "",
+			},
+		},
+		{
+			SubscriptionId:   id2,
+			SubscriptionDate: time.Date(2024, time.January, 23, 15, 42, 58, 0, time.UTC),
+			User: models.UserSearchRecordDTO{
+				Username:          "tina",
+				Nickname:          "tinatester",
+				ProfilePictureUrl: "",
+			},
+		},
+	}
+
+	ftype := "follower"
+	limit := 10
+	offset := 0
+
+	// Mock Erwartungen
+	mockSubscriptionRepo.On("GetFollower", limit, offset, currentUsername).Return(foundSubscriptions, int64(len(foundSubscriptions)), nil)
+
+	// Setup HTTP request und recorder
+	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/subscriptions/%s?type=%s&limit=%d&offset=%d", currentUsername, ftype, limit, offset), nil)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", authenticationToken))
+	w := httptest.NewRecorder()
+
+	// Act
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+	router.GET("/subscriptions/:username", subscriptionController.GetSubscriptions)
+	router.ServeHTTP(w, req)
+
+	// Assert Response
+	assert.Equal(t, http.StatusOK, w.Code) // Erwarte HTTP 200 OK Status
+	var responseDto models.SubscriptionSearchResponseDTO
+	err = json.Unmarshal(w.Body.Bytes(), &responseDto)
+	assert.NoError(t, err)
+
+	// Hier weitere Überprüfungen der responseDto Daten ...
+
+	mockSubscriptionRepo.AssertExpectations(t)
+}

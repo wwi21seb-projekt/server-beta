@@ -6,11 +6,13 @@ import (
 	"github.com/wwi21seb-projekt/server-beta/internal/models"
 	"github.com/wwi21seb-projekt/server-beta/internal/services"
 	"net/http"
+	"strconv"
 )
 
 type SubscriptionControllerInterface interface {
 	PostSubscription(c *gin.Context)
 	DeleteSubscription(c *gin.Context)
+	GetSubscriptions(c *gin.Context)
 }
 
 type SubscriptionController struct {
@@ -75,4 +77,41 @@ func (controller *SubscriptionController) DeleteSubscription(c *gin.Context) {
 	}
 
 	c.JSON(httpStatus, gin.H{})
+}
+
+func (controller *SubscriptionController) GetSubscriptions(c *gin.Context) {
+
+	// Read information from url
+	ftype := c.DefaultQuery("type", "followers")
+	limitStr := c.DefaultQuery("limit", "10")
+	offsetStr := c.DefaultQuery("offset", "0")
+	username := c.Param("username")
+
+	// Convert limit and offset to int
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil {
+		limit = 10
+	}
+	offset, err := strconv.Atoi(offsetStr)
+	if err != nil {
+		offset = 0
+	}
+
+	// Get current user from middleware
+	if _, exists := c.Get("username"); !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": customerrors.UserUnauthorized,
+		})
+		return
+	}
+
+	// Search user
+	subscriptionsDto, serviceErr, httpStatus := controller.subscriptionService.SearchSubscriptions(ftype, limit, offset, username)
+	if serviceErr != nil {
+		c.JSON(httpStatus, gin.H{
+			"error": serviceErr,
+		})
+		return
+	}
+	c.JSON(httpStatus, subscriptionsDto)
 }

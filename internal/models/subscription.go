@@ -24,3 +24,20 @@ type SubscriptionPostResponseDTO struct {
 	Follower         string    `json:"username"`
 	Following        string    `json:"following"`
 }
+
+type SubscriptionSearchResponseDTO struct {
+	Records    []SubscriptionSearchRecordDTO    `json:"records"`
+	Pagination *SubscriptionSearchPaginationDTO `json:"pagination"`
+}
+
+type SubscriptionSearchRecordDTO struct {
+	SubscriptionId   uuid.UUID           `json:"subscriptionId"`
+	SubscriptionDate time.Time           `json:"subscriptionDate"`
+	User             UserSearchRecordDTO `json:"user"`
+}
+
+type SubscriptionSearchPaginationDTO struct {
+	Offset  int   `json:"offset"`
+	Limit   int   `json:"limit"`
+	Records int64 `json:"records"`
+}
