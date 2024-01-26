@@ -8,6 +8,7 @@ import (
 	"github.com/wwi21seb-projekt/server-beta/internal/repositories"
 	"github.com/wwi21seb-projekt/server-beta/internal/utils"
 	"gorm.io/gorm"
+	"html"
 	"mime/multipart"
 	"net/http"
 	"time"
@@ -39,6 +40,8 @@ func NewPostService(postRepo repositories.PostRepositoryInterface,
 }
 
 func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *multipart.FileHeader, username string) (*models.PostResponseDTO, *customerrors.CustomError, int) {
+	// Escape html content to prevent XSS
+	req.Content = html.EscapeString(req.Content)
 
 	// Validations: 0-256 characters and utf8 characters
 	if len(req.Content) > 256 {

@@ -1,9 +1,13 @@
 package utils
 
 import (
+	"bytes"
 	"github.com/truemail-rb/truemail-go"
+	_ "golang.org/x/image/webp" // Needs to be imported for webp decoding, but is used implicitly
+	"image"
 	"os"
 	"regexp"
+	"strings"
 	"unicode"
 )
 
@@ -14,6 +18,7 @@ type ValidatorInterface interface {
 	ValidateEmailExistance(email string) bool
 	ValidatePassword(password string) bool
 	ValidateStatus(status string) bool
+	ValidateImage(imageData []byte, contentType string) bool
 }
 
 type Validator struct {
@@ -88,4 +93,33 @@ func (v *Validator) ValidatePassword(password string) bool {
 // ValidateStatus validates if a status meets specifications
 func (v *Validator) ValidateStatus(status string) bool {
 	return len(status) <= 128
+}
+
+// ValidateImage validates if an image is correct file type and can be decoded, additionally returns file format
+func (v *Validator) ValidateImage(imageData []byte, contentType string) bool {
+	// First check magic numbers of image data
+	if contentType == "image/jpeg" {
+		if !bytes.HasPrefix(imageData, []byte{0xff, 0xd8, 0xff}) {
+			return false
+		}
+	} else if contentType == "image/webp" {
+		if !bytes.HasPrefix(imageData, []byte{'R', 'I', 'F', 'F'}) || !bytes.Contains(imageData[:16], []byte{'W', 'E', 'B', 'P'}) {
+			return false
+		}
+	} else {
+		return false
+	}
+
+	// Then check if image can be decoded
+	_, fileFormat, err := image.Decode(bytes.NewReader(imageData))
+	if err != nil {
+		return false
+	}
+
+	// Check if file format matches content type
+	if !strings.Contains(contentType, fileFormat) {
+		return false
+	}
+
+	return true
 }

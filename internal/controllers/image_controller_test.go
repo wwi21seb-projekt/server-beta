@@ -8,6 +8,7 @@ import (
 	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
 	"github.com/wwi21seb-projekt/server-beta/internal/repositories"
 	"github.com/wwi21seb-projekt/server-beta/internal/services"
+	"github.com/wwi21seb-projekt/server-beta/internal/utils"
 	"io/fs"
 	"net/http"
 	"net/http/httptest"
@@ -24,13 +25,14 @@ func TestGetImageSuccess(t *testing.T) {
 	for _, filename := range filenames {
 		// Arrange
 		mockFileSystem := new(repositories.MockFileSystem)
+		mockValidator := new(utils.MockValidator)
 
 		// Mock expectations
 		mockFileSystem.On("CreateDirectory", mock.AnythingOfType("string"), mock.AnythingOfType("fs.FileMode")).Return(nil)
 		mockFileSystem.On("ReadFile", filename).Return([]byte("test"), nil)
 
 		// Arrange
-		imageService := services.NewImageService(mockFileSystem)
+		imageService := services.NewImageService(mockFileSystem, mockValidator)
 		imageController := NewImageController(imageService)
 
 		// Setup HTTP request
@@ -54,13 +56,14 @@ func TestGetImageSuccess(t *testing.T) {
 func TestGetImageNotFound(t *testing.T) {
 	// Arrange
 	mockFileSystem := new(repositories.MockFileSystem)
+	mockValidator := new(utils.MockValidator)
 
 	// Mock expectations
 	mockFileSystem.On("CreateDirectory", mock.AnythingOfType("string"), mock.AnythingOfType("fs.FileMode")).Return(nil)
 	mockFileSystem.On("ReadFile", mock.AnythingOfType("string")).Return([]byte{}, fs.ErrNotExist)
 
 	// Arrange
-	imageService := services.NewImageService(mockFileSystem)
+	imageService := services.NewImageService(mockFileSystem, mockValidator)
 	imageController := NewImageController(imageService)
 
 	// Setup HTTP request
