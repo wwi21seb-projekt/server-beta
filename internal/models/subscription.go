@@ -31,11 +31,11 @@ type SubscriptionResponseDTO struct {
 }
 
 type UserSubscriptionRecordDTO struct {
-	FollowerId        uuid.UUID `json:"followerId"`        // SubscriptionID, wenn Nutzer mir folgt - ggf. null
-	FollowingId       uuid.UUID `json:"followingId"`       // SubscriptionID, wenn ich Nutzer folge - ggf. null
-	Username          string    `json:"username"`          // Der Benutzername des Followers/Following
-	Nickname          string    `json:"nickname"`          // Der Spitzname des Followers/Following
-	ProfilePictureUrl string    `json:"profilePictureUrl"` // Die URL des Profilbildes des Followers/Following
+	FollowerId        *uuid.UUID `gorm:"column:follower_id" json:"followerId"`                // SubscriptionID, wenn Nutzer mir folgt - ggf. null
+	FollowingId       *uuid.UUID `gorm:"column:following_id" json:"followingId"`              // SubscriptionID, wenn ich Nutzer folge - ggf. null
+	Username          string     `gorm:"column:username" json:"username"`                     // Der Benutzername des Followers/Following
+	Nickname          string     `gorm:"column:nickname" json:"nickname"`                     // Der Spitzname des Followers/Following
+	ProfilePictureUrl string     `gorm:"column:profile_picture_url" json:"profilePictureUrl"` // Die URL des Profilbildes des Followers/Following
 }
 
 type SubscriptionPaginationDTO struct {

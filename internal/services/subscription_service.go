@@ -12,7 +12,7 @@ import (
 )
 
 type SubscriptionServiceInterface interface {
-	PostSubscription(req *models.SubscriptionPostRequestDTO, currentUsername string) (*models.SubscriptionResponseDTO, *customerrors.CustomError, int)
+	PostSubscription(req *models.SubscriptionPostRequestDTO, currentUsername string) (*models.SubscriptionPostResponseDTO, *customerrors.CustomError, int)
 	DeleteSubscription(subscriptionId string, currentUsername string) (*customerrors.CustomError, int)
 	GetSubscriptions(ftype string, limit int, offset int, username string, currentUsername string) (*models.SubscriptionResponseDTO, *customerrors.CustomError, int)
 }
@@ -115,16 +115,17 @@ func (service *SubscriptionService) GetSubscriptions(ftype string, limit int, of
 		}
 		return nil, customerrors.DatabaseError, http.StatusInternalServerError
 	}
-	// prüfe ob Follower oder Followings abgefragt werden
+
+	// Check if following or followers was requested
 	if ftype == "following" {
-		//Ziehe Liste mit Benutzern, denen der User folgt
+		// Get list of users that the user follows
 		records, totalRecordsCount, err = service.subscriptionRepo.GetFollowings(limit, offset, username, currentUsername)
 		if err != nil {
 			return nil, customerrors.DatabaseError, http.StatusInternalServerError
 		}
 
 	} else if ftype == "followers" {
-		//Ziehe Liste mit Benutzern, die dem User folgen
+		// Get list of users that follow the user
 		records, totalRecordsCount, err = service.subscriptionRepo.GetFollowers(limit, offset, username, currentUsername)
 		if err != nil {
 			return nil, customerrors.DatabaseError, http.StatusInternalServerError
@@ -135,14 +136,16 @@ func (service *SubscriptionService) GetSubscriptions(ftype string, limit int, of
 
 	// Create response
 	response := &models.SubscriptionResponseDTO{
-		Records: records,
+		Records: []models.UserSubscriptionRecordDTO{},
 		Pagination: &models.SubscriptionPaginationDTO{
 			Offset:  offset,
 			Limit:   limit,
 			Records: totalRecordsCount,
 		},
 	}
+	if records != nil { // If records are nil, return empty array
+		response.Records = records
+	}
 
 	return response, nil, http.StatusOK
-
 }
