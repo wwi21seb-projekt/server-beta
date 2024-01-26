@@ -11,8 +11,8 @@ type SubscriptionRepositoryInterface interface {
 	GetSubscriptionByUsernames(follower, following string) (*models.Subscription, error)
 	GetSubscriptionById(subscriptionId string) (*models.Subscription, error)
 	GetSubscriptionCountByUsername(username string) (int64, int64, error)
-	GetFollowers(limit int, offset int, currentUsername string) ([]models.Subscription, int64, error)
-	GetFollowings(limit int, offset int, currentUsername string) ([]models.Subscription, int64, error)
+	GetFollowers(limit int, offset int, username string, currentUsername string) ([]models.UserSubscriptionRecordDTO, int64, error)
+	GetFollowings(limit int, offset int, username string, currentUsername string) ([]models.UserSubscriptionRecordDTO, int64, error)
 }
 
 type SubscriptionRepository struct {
@@ -63,12 +63,16 @@ func (repo *SubscriptionRepository) GetSubscriptionCountByUsername(username stri
 	return followerCount, followingCount, nil
 }
 
-func (repo *SubscriptionRepository) GetFollowers(limit int, offset int, username string) ([]models.Subscription, int64, error) {
-	var followers []models.Subscription
+func (repo *SubscriptionRepository) GetFollowers(limit int, offset int, username string, currentUsername string) ([]models.UserSubscriptionRecordDTO, int64, error) {
+	var followers []models.UserSubscriptionRecordDTO
 	var count int64
 
-	baseQuery := repo.DB.Model(&models.Subscription{}).
-		Where("following = ?", username)
+	baseQuery := repo.DB.Table("users").
+		Select("users.username as username, users.nickname as nickname, users.profile_picture_url as profilePictureUrl, currentUserToUserSubscription.id as followingId, userToCurrentUserSubscription.id as followerId").
+		Joins("INNER JOIN subscriptions on users.username = subscriptions.follower").
+		Joins("LEFT OUTER JOIN (SELECT * FROM subscriptions WHERE subscriptions.following = ?) AS currentUserToUserSubscription ON users.username = currentUserToUserSubscription.follower", currentUsername).
+		Joins("LEFT OUTER JOIN (SELECT * FROM subscriptions WHERE subscriptions.follower = ?) AS userToCurrentUserSubscription ON users.username = userToCurrentUserSubscription.following", currentUsername).
+		Where("subscriptions.following = ?", username)
 
 	// Count results
 	err := baseQuery.Count(&count).Error
@@ -77,19 +81,23 @@ func (repo *SubscriptionRepository) GetFollowers(limit int, offset int, username
 	}
 
 	// Get users
-	err = baseQuery.Limit(limit).Offset(offset).Preload("Follower").Find(&followers).Error
+	err = baseQuery.Limit(limit).Offset(offset).Scan(&followers).Error
 	if err != nil {
 		return nil, 0, err
 	}
 
 	return followers, count, nil
 }
-func (repo *SubscriptionRepository) GetFollowings(limit int, offset int, username string) ([]models.Subscription, int64, error) {
-	var followings []models.Subscription
+func (repo *SubscriptionRepository) GetFollowings(limit int, offset int, username string, currentUsername string) ([]models.UserSubscriptionRecordDTO, int64, error) {
+	var followers []models.UserSubscriptionRecordDTO
 	var count int64
 
-	baseQuery := repo.DB.Model(&models.Subscription{}).
-		Where("follower = ?", username)
+	baseQuery := repo.DB.Table("users").
+		Select("users.username as username, users.nickname as nickname, users.profile_picture_url as profilePictureUrl, currentUserToUserSubscription.id as followingId, userToCurrentUserSubscription.id as followerId").
+		Joins("INNER JOIN subscriptions on users.username = subscriptions.follower").
+		Joins("LEFT OUTER JOIN (SELECT * FROM subscriptions WHERE subscriptions.following = ?) AS currentUserToUserSubscription ON users.username = currentUserToUserSubscription.follower", currentUsername).
+		Joins("LEFT OUTER JOIN (SELECT * FROM subscriptions WHERE subscriptions.follower = ?) AS userToCurrentUserSubscription ON users.username = userToCurrentUserSubscription.following", currentUsername).
+		Where("subscriptions.following = ?", username)
 
 	// Count results
 	err := baseQuery.Count(&count).Error
@@ -98,10 +106,10 @@ func (repo *SubscriptionRepository) GetFollowings(limit int, offset int, usernam
 	}
 
 	// Get users
-	err = baseQuery.Limit(limit).Offset(offset).Preload("Following").Find(&followings).Error
+	err = baseQuery.Limit(limit).Offset(offset).Scan(&followers).Error
 	if err != nil {
 		return nil, 0, err
 	}
 
-	return followings, count, nil
+	return followers, count, nil
 }

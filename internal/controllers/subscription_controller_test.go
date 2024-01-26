@@ -68,7 +68,7 @@ func TestPostSubscriptionSuccess(t *testing.T) {
 
 	// Assert Response
 	assert.Equal(t, http.StatusCreated, w.Code) // Expect HTTP 201 Created status
-	var responseSubscription models.SubscriptionPostResponseDTO
+	var responseSubscription models.SubscriptionResponseDTO
 	err = json.Unmarshal(w.Body.Bytes(), &responseSubscription)
 	assert.NoError(t, err)
 
