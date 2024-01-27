@@ -4,10 +4,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/wwi21seb-projekt/server-beta/internal/models"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
-	"log"
-	"os"
-	"time"
 )
 
 type PostRepositoryInterface interface {
@@ -137,16 +133,6 @@ func (repo *PostRepository) GetPostsByHashtag(hashtag string, lastPost *models.P
 	var count int64
 	var err error
 
-	newLogger := logger.New(
-		log.New(os.Stdout, "\r\n", log.LstdFlags), // io writer
-		logger.Config{
-			SlowThreshold: time.Second, // Slow SQL threshold
-			LogLevel:      logger.Info, // Log level
-			Colorful:      true,        // Disable color
-		},
-	)
-	repo.DB.Logger = newLogger
-
 	baseQuery := repo.DB.Model(&models.Post{}).
 		Joins("JOIN post_hashtags ON post_hashtags.post_id = posts.id").
 		Joins("JOIN hashtags ON hashtags.id = post_hashtags.hashtag_id").
@@ -159,12 +145,12 @@ func (repo *PostRepository) GetPostsByHashtag(hashtag string, lastPost *models.P
 	}
 
 	if lastPost.Id != uuid.Nil {
-		baseQuery = baseQuery.Where("(created_at < ?) OR (created_at = ? AND id < ?)", lastPost.CreatedAt, lastPost.CreatedAt, lastPost.Id)
+		baseQuery = baseQuery.Where("(created_at < ?) OR (created_at = ? AND posts.id < ?)", lastPost.CreatedAt, lastPost.CreatedAt, lastPost.Id)
 	}
 
 	// Posts subset based on pagination
 	err = baseQuery.
-		Order("created_at desc, id desc").
+		Order("created_at desc, posts.id desc").
 		Limit(limit).
 		Preload("User").
 		Find(&posts).Error
