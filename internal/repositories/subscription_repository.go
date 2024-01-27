@@ -69,11 +69,11 @@ func (repo *SubscriptionRepository) GetFollowers(limit int, offset int, username
 	var count int64
 
 	baseQuery := repo.DB.Table("users").
-		Select("sub2.id as follower_id, sub3.id as following_id, users.username as username, users.nickname as nickname, users.profile_picture_url as profile_picture_url").
-		Joins("INNER JOIN subscriptions on users.username = subscriptions.follower").                                                                        // join users table with subscriptions
-		Joins("LEFT OUTER JOIN (SELECT * FROM subscriptions WHERE subscriptions.following = ?) AS sub2 ON users.username = sub2.follower", currentUsername). // see if the user in the list is following the current user
-		Joins("LEFT OUTER JOIN (SELECT * FROM subscriptions WHERE subscriptions.follower = ?) AS sub3 ON users.username = sub3.following", currentUsername). // see if current user is following the user in the list
-		Where("subscriptions.following = ?", username)                                                                                                       // get only subscriptions where the user is being followed
+		Select("userToCurrentUserSub.id as follower_id, currentUserToUserSub.id as following_id, users.username as username, users.nickname as nickname, users.profile_picture_url as profile_picture_url").
+		Joins("INNER JOIN subscriptions on users.username = subscriptions.follower"). // join users table with subscriptions
+		Joins("LEFT OUTER JOIN (SELECT * FROM subscriptions WHERE subscriptions.following = ?) AS userToCurrentUserSub ON users.username = userToCurrentUserSub.follower", currentUsername). // see if the user in the list is following the current user
+		Joins("LEFT OUTER JOIN (SELECT * FROM subscriptions WHERE subscriptions.follower = ?) AS currentUserToUserSub ON users.username = currentUserToUserSub.following", currentUsername). // see if current user is following the user in the list
+		Where("subscriptions.following = ?", username) // get only subscriptions where the user is being followed
 
 	// Count results
 	err := baseQuery.Count(&count).Error
@@ -96,11 +96,11 @@ func (repo *SubscriptionRepository) GetFollowings(limit int, offset int, usernam
 	var count int64
 
 	baseQuery := repo.DB.Table("users").
-		Select("sub2.id as follower_id, sub3.id as following_id, users.username as username, users.nickname as nickname, users.profile_picture_url as profile_picture_url").
-		Joins("INNER JOIN subscriptions on users.username = subscriptions.following").                                                                       // join users table with subscriptions
-		Joins("LEFT OUTER JOIN (SELECT * FROM subscriptions WHERE subscriptions.following = ?) AS sub2 ON users.username = sub2.follower", currentUsername). // see if the user in the list is following the current user
-		Joins("LEFT OUTER JOIN (SELECT * FROM subscriptions WHERE subscriptions.follower = ?) AS sub3 ON users.username = sub3.following", currentUsername). // see if current user is following the user in the list
-		Where("subscriptions.follower = ?", username)                                                                                                        // get only subscription where the user follows someone
+		Select("userToCurrentUserSub.id as follower_id, currentUserToUserSub.id as following_id, users.username as username, users.nickname as nickname, users.profile_picture_url as profile_picture_url").
+		Joins("INNER JOIN subscriptions on users.username = subscriptions.following"). // join users table with subscriptions
+		Joins("LEFT OUTER JOIN (SELECT * FROM subscriptions WHERE subscriptions.following = ?) AS userToCurrentUserSub ON users.username = userToCurrentUserSub.follower", currentUsername). // see if the user in the list is following the current user
+		Joins("LEFT OUTER JOIN (SELECT * FROM subscriptions WHERE subscriptions.follower = ?) AS currentUserToUserSub ON users.username = currentUserToUserSub.following", currentUsername). // see if current user is following the user in the list
+		Where("subscriptions.follower = ?", username) // get only subscription where the user follows someone
 
 	// Count results
 	err := baseQuery.Count(&count).Error
