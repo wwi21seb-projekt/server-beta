@@ -14,7 +14,7 @@ import (
 type SubscriptionServiceInterface interface {
 	PostSubscription(req *models.SubscriptionPostRequestDTO, currentUsername string) (*models.SubscriptionPostResponseDTO, *customerrors.CustomError, int)
 	DeleteSubscription(subscriptionId string, currentUsername string) (*customerrors.CustomError, int)
-	GetSubscriptions(ftype string, limit int, offset int, username string) (*models.SubscriptionSearchResponseDTO, *customerrors.CustomError, int)
+	GetSubscriptions(ftype string, limit int, offset int, username string, currentUsername string) (*models.SubscriptionResponseDTO, *customerrors.CustomError, int)
 }
 
 type SubscriptionService struct {
@@ -101,10 +101,9 @@ func (service *SubscriptionService) DeleteSubscription(subscriptionId string, cu
 	return nil, http.StatusNoContent
 }
 
-func (service *SubscriptionService) GetSubscriptions(ftype string, limit int, offset int, username string) (*models.SubscriptionSearchResponseDTO, *customerrors.CustomError, int) {
+func (service *SubscriptionService) GetSubscriptions(ftype string, limit int, offset int, username string, currentUsername string) (*models.SubscriptionResponseDTO, *customerrors.CustomError, int) {
 
-	var followers []models.Subscription
-	var followings []models.Subscription
+	var records []models.UserSubscriptionRecordDTO
 	var totalRecordsCount int64
 	var err error
 	var _ *models.User
@@ -116,73 +115,37 @@ func (service *SubscriptionService) GetSubscriptions(ftype string, limit int, of
 		}
 		return nil, customerrors.DatabaseError, http.StatusInternalServerError
 	}
-	// prüfe ob Follower oder Followings abgefragt werden
+
+	// Check if following or followers was requested
 	if ftype == "following" {
-		//Ziehe Liste mit Benutzern, denen der User folgt
-		followings, totalRecordsCount, err = service.subscriptionRepo.GetFollowings(limit, offset, username)
+		// Get list of users that the user follows
+		records, totalRecordsCount, err = service.subscriptionRepo.GetFollowings(limit, offset, username, currentUsername)
 		if err != nil {
 			return nil, customerrors.DatabaseError, http.StatusInternalServerError
 		}
-		// Create response
-		response := &models.SubscriptionSearchResponseDTO{
-			Records: []models.SubscriptionSearchRecordDTO{},
-			Pagination: &models.SubscriptionSearchPaginationDTO{
-				Offset:  offset,
-				Limit:   limit,
-				Records: totalRecordsCount,
-			},
-		}
-
-		for _, following := range followings {
-			userDto := models.UserSubscriptionSearchRecordDTO{
-				Username:          following.Following.Username,
-				Nickname:          following.Following.Nickname,
-				ProfilePictureUrl: following.Following.ProfilePictureUrl,
-			}
-
-			record := models.SubscriptionSearchRecordDTO{
-				SubscriptionId:   following.Id,
-				SubscriptionDate: following.SubscriptionDate,
-				User:             userDto,
-			}
-			response.Records = append(response.Records, record)
-
-		}
-		return response, nil, http.StatusOK
 
 	} else if ftype == "followers" {
-		//Ziehe Liste mit Benutzern, die dem User folgen
-		followers, totalRecordsCount, err = service.subscriptionRepo.GetFollowers(limit, offset, username)
+		// Get list of users that follow the user
+		records, totalRecordsCount, err = service.subscriptionRepo.GetFollowers(limit, offset, username, currentUsername)
 		if err != nil {
 			return nil, customerrors.DatabaseError, http.StatusInternalServerError
 		}
-		// Create response
-		response := &models.SubscriptionSearchResponseDTO{
-			Records: []models.SubscriptionSearchRecordDTO{},
-			Pagination: &models.SubscriptionSearchPaginationDTO{
-				Offset:  offset,
-				Limit:   limit,
-				Records: totalRecordsCount,
-			},
-		}
-
-		for _, follower := range followers {
-			userDto := models.UserSubscriptionSearchRecordDTO{
-				Username:          follower.Follower.Username,
-				Nickname:          follower.Follower.Nickname,
-				ProfilePictureUrl: follower.Follower.ProfilePictureUrl,
-			}
-
-			record := models.SubscriptionSearchRecordDTO{
-				SubscriptionId:   follower.Id,
-				SubscriptionDate: follower.SubscriptionDate,
-				User:             userDto,
-			}
-			response.Records = append(response.Records, record)
-
-		}
-		return response, nil, http.StatusOK
+	} else {
+		return nil, customerrors.BadRequest, http.StatusBadRequest
 	}
-	return nil, customerrors.BadRequest, http.StatusBadRequest
 
+	// Create response
+	response := &models.SubscriptionResponseDTO{
+		Records: []models.UserSubscriptionRecordDTO{},
+		Pagination: &models.SubscriptionPaginationDTO{
+			Offset:  offset,
+			Limit:   limit,
+			Records: totalRecordsCount,
+		},
+	}
+	if records != nil { // If records are nil, return empty array
+		response.Records = records
+	}
+
+	return response, nil, http.StatusOK
 }

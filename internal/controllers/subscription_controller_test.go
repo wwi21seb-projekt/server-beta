@@ -473,7 +473,6 @@ func TestDeleteSubscriptionForbidden(t *testing.T) {
 
 // TestGetSubscriptionsFollowersSuccess tests if GetSubscriptions returns 200-OK and correct response body when followers are found
 func TestGetSubscriptionsFollowerSuccess(t *testing.T) {
-	// Setup Mocks
 	// Arrange
 	mockSubscriptionRepo := new(repositories.MockSubscriptionRepository)
 	mockUserRepo := new(repositories.MockUserRepository)
@@ -489,36 +488,34 @@ func TestGetSubscriptionsFollowerSuccess(t *testing.T) {
 
 	id1 := uuid.New()
 	id2 := uuid.New()
-
-	foundSubscriptions := []models.Subscription{
+	foundSubscriptions := []models.UserSubscriptionRecordDTO{
 		{
-			Id:                id1,
-			SubscriptionDate:  time.Date(2024, time.January, 24, 15, 42, 58, 0, time.UTC),
-			FollowerUsername:  "theotester",
-			Follower:          models.User{},
-			FollowingUsername: "testUser",
-			Following:         models.User{},
+			FollowerId:        &id1,
+			FollowingId:       nil,
+			Username:          "test2",
+			Nickname:          "Some nickname",
+			ProfilePictureUrl: "",
 		},
 		{
-			Id:                id2,
-			SubscriptionDate:  time.Date(2024, time.January, 24, 15, 42, 58, 0, time.UTC),
-			FollowerUsername:  "tinatester",
-			Follower:          models.User{},
-			FollowingUsername: "testUser",
-			Following:         models.User{},
+			FollowerId:        nil,
+			FollowingId:       &id2,
+			Username:          "test3",
+			Nickname:          "Some second nickname",
+			ProfilePictureUrl: "",
 		},
 	}
 
 	ftype := "followers"
 	limit := 10
 	offset := 0
+	searchName := "searchName"
 
 	// Mock Erwartungen
-	mockUserRepo.On("FindUserByUsername", "testUser").Return(&models.User{}, nil)
-	mockSubscriptionRepo.On("GetFollowers", limit, offset, currentUsername).Return(foundSubscriptions, int64(len(foundSubscriptions)), nil)
+	mockUserRepo.On("FindUserByUsername", searchName).Return(&models.User{}, nil)
+	mockSubscriptionRepo.On("GetFollowers", limit, offset, searchName, currentUsername).Return(foundSubscriptions, int64(len(foundSubscriptions)), nil)
 
 	// Setup HTTP request und recorder
-	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/subscriptions/%s?type=%s&limit=%d&offset=%d", currentUsername, ftype, limit, offset), nil)
+	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/subscriptions/%s?type=%s&limit=%d&offset=%d", searchName, ftype, limit, offset), nil)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", authenticationToken))
 	w := httptest.NewRecorder()
@@ -531,22 +528,17 @@ func TestGetSubscriptionsFollowerSuccess(t *testing.T) {
 
 	// Assert Response
 	assert.Equal(t, http.StatusOK, w.Code) // Erwarte HTTP 200 OK Status
-	var responseDto models.SubscriptionSearchResponseDTO
+	var responseDto models.SubscriptionResponseDTO
 	err = json.Unmarshal(w.Body.Bytes(), &responseDto)
 	assert.NoError(t, err)
 
-	// Stelle sicher, dass die Länge der Records im ResponseDTO mit der Länge der gemockten Subscriptions übereinstimmt
 	assert.Equal(t, len(foundSubscriptions), len(responseDto.Records))
-
-	// Überprüfe für jeden Follower in den gemockten Subscriptions, ob die Daten im ResponseDTO übereinstimmen
 	for i, follower := range foundSubscriptions {
-		assert.Equal(t, follower.Follower.Username, responseDto.Records[i].User.Username)
-		assert.Equal(t, follower.Follower.Nickname, responseDto.Records[i].User.Nickname)
-		assert.Equal(t, follower.Follower.ProfilePictureUrl, responseDto.Records[i].User.ProfilePictureUrl)
-
-		// Vergleiche auch SubscriptionId und SubscriptionDate
-		assert.Equal(t, follower.Id, responseDto.Records[i].SubscriptionId)
-		assert.Equal(t, follower.SubscriptionDate.Format(time.RFC3339), responseDto.Records[i].SubscriptionDate.Format(time.RFC3339))
+		assert.Equal(t, follower.FollowingId, responseDto.Records[i].FollowingId)
+		assert.Equal(t, follower.FollowerId, responseDto.Records[i].FollowerId)
+		assert.Equal(t, follower.Username, responseDto.Records[i].Username)
+		assert.Equal(t, follower.Nickname, responseDto.Records[i].Nickname)
+		assert.Equal(t, follower.ProfilePictureUrl, responseDto.Records[i].ProfilePictureUrl)
 	}
 
 	assert.Equal(t, limit, responseDto.Pagination.Limit)
@@ -575,36 +567,34 @@ func TestGetSubscriptionsFollowingSuccess(t *testing.T) {
 
 	id1 := uuid.New()
 	id2 := uuid.New()
-
-	foundSubscriptions := []models.Subscription{
+	foundSubscriptions := []models.UserSubscriptionRecordDTO{
 		{
-			Id:                id1,
-			SubscriptionDate:  time.Date(2024, time.January, 24, 15, 42, 58, 0, time.UTC),
-			FollowerUsername:  "testUser",
-			Follower:          models.User{},
-			FollowingUsername: "theotester",
-			Following:         models.User{},
+			FollowerId:        &id1,
+			FollowingId:       nil,
+			Username:          "test2",
+			Nickname:          "Some nickname",
+			ProfilePictureUrl: "",
 		},
 		{
-			Id:                id2,
-			SubscriptionDate:  time.Date(2024, time.January, 24, 15, 42, 58, 0, time.UTC),
-			FollowerUsername:  "testUser",
-			Follower:          models.User{},
-			FollowingUsername: "tinatester",
-			Following:         models.User{},
+			FollowerId:        nil,
+			FollowingId:       &id2,
+			Username:          "test3",
+			Nickname:          "Some second nickname",
+			ProfilePictureUrl: "",
 		},
 	}
 
 	ftype := "following"
 	limit := 10
 	offset := 0
+	searchName := "searchName"
 
 	// Mock Erwartungen
-	mockUserRepo.On("FindUserByUsername", "testUser").Return(&models.User{}, nil)
-	mockSubscriptionRepo.On("GetFollowings", limit, offset, currentUsername).Return(foundSubscriptions, int64(len(foundSubscriptions)), nil)
+	mockUserRepo.On("FindUserByUsername", searchName).Return(&models.User{}, nil)
+	mockSubscriptionRepo.On("GetFollowings", limit, offset, searchName, currentUsername).Return(foundSubscriptions, int64(len(foundSubscriptions)), nil)
 
 	// Setup HTTP request und recorder
-	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/subscriptions/%s?type=%s&limit=%d&offset=%d", currentUsername, ftype, limit, offset), nil)
+	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/subscriptions/%s?type=%s&limit=%d&offset=%d", searchName, ftype, limit, offset), nil)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", authenticationToken))
 	w := httptest.NewRecorder()
@@ -617,22 +607,17 @@ func TestGetSubscriptionsFollowingSuccess(t *testing.T) {
 
 	// Assert Response
 	assert.Equal(t, http.StatusOK, w.Code) // Erwarte HTTP 200 OK Status
-	var responseDto models.SubscriptionSearchResponseDTO
+	var responseDto models.SubscriptionResponseDTO
 	err = json.Unmarshal(w.Body.Bytes(), &responseDto)
 	assert.NoError(t, err)
 
-	// Stelle sicher, dass die Länge der Records im ResponseDTO mit der Länge der gemockten Subscriptions übereinstimmt
 	assert.Equal(t, len(foundSubscriptions), len(responseDto.Records))
-
-	// Überprüfe für jeden Follower in den gemockten Subscriptions, ob die Daten im ResponseDTO übereinstimmen
 	for i, follower := range foundSubscriptions {
-		assert.Equal(t, follower.Follower.Username, responseDto.Records[i].User.Username)
-		assert.Equal(t, follower.Follower.Nickname, responseDto.Records[i].User.Nickname)
-		assert.Equal(t, follower.Follower.ProfilePictureUrl, responseDto.Records[i].User.ProfilePictureUrl)
-
-		// Vergleiche auch SubscriptionId und SubscriptionDate
-		assert.Equal(t, follower.Id, responseDto.Records[i].SubscriptionId)
-		assert.Equal(t, follower.SubscriptionDate.Format(time.RFC3339), responseDto.Records[i].SubscriptionDate.Format(time.RFC3339))
+		assert.Equal(t, follower.FollowingId, responseDto.Records[i].FollowingId)
+		assert.Equal(t, follower.FollowerId, responseDto.Records[i].FollowerId)
+		assert.Equal(t, follower.Username, responseDto.Records[i].Username)
+		assert.Equal(t, follower.Nickname, responseDto.Records[i].Nickname)
+		assert.Equal(t, follower.ProfilePictureUrl, responseDto.Records[i].ProfilePictureUrl)
 	}
 
 	assert.Equal(t, limit, responseDto.Pagination.Limit)
