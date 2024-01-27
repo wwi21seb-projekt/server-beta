@@ -145,12 +145,12 @@ func (repo *PostRepository) GetPostsByHashtag(hashtag string, lastPost *models.P
 	}
 
 	if lastPost.Id != uuid.Nil {
-		baseQuery = baseQuery.Where("(created_at < ?) OR (created_at = ? AND posts.id < ?)", lastPost.CreatedAt, lastPost.CreatedAt, lastPost.Id)
+		baseQuery = baseQuery.Where("(posts.created_at < ?) OR (posts.created_at = ? AND posts.id < ?)", lastPost.CreatedAt, lastPost.CreatedAt, lastPost.Id)
 	}
 
 	// Posts subset based on pagination
 	err = baseQuery.
-		Order("created_at desc, posts.id desc").
+		Order("posts.created_at desc, posts.id desc").
 		Limit(limit).
 		Preload("User").
 		Find(&posts).Error
