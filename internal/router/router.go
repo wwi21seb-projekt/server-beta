@@ -71,10 +71,10 @@ func SetupRouter() *gin.Engine {
 	api.PATCH("/users", middleware.AuthorizeUser, userController.ChangeUserPassword)
 	api.GET("/users/:username", middleware.AuthorizeUser, userController.GetUserProfile)
 	api.GET("/users/:username/feed", middleware.AuthorizeUser, postController.GetPostsByUserUsername)
-	api.DELETE("/posts/:postId", middleware.AuthorizeUser, postController.DeletePost)
 
 	// Post
 	api.POST("/posts", middleware.AuthorizeUser, postController.CreatePost)
+	api.DELETE("/posts/:postId", middleware.AuthorizeUser, postController.DeletePost)
 	api.GET("/feed", postController.GetPostFeed)
 	api.GET("/posts", middleware.AuthorizeUser, postController.GetPostsByHashtag)
 
@@ -89,6 +89,7 @@ func SetupRouter() *gin.Engine {
 	return r
 }
 
+// ReturnNotImplemented is a helper function to return a 501 Not Implemented error to the client
 func ReturnNotImplemented(c *gin.Context) {
 	c.JSON(http.StatusNotImplemented, gin.H{
 		"error": "Not implemented",
