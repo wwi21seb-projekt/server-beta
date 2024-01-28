@@ -157,7 +157,9 @@ func (repo *PostRepository) DeletePostById(postId string) error {
 
 		// Löschen der Hashtags-Beziehungen in der Join-Tabelle
 		if err := tx.Model(&models.Post{Id: post.Id}).Association("Hashtags").Clear(); err != nil {
-			return err // Rückkehr bei einem Fehler
+			if !errors.Is(err, gorm.ErrRecordNotFound) {
+				return err // Rückkehr bei einem Datenbankfehler, der kein RecordNotFound-Fehler ist
+			}
 		}
 		// Löschen der Location
 		if err := tx.Where("location_id = ?", post.LocationId).Delete(&models.Location{}).Error; err != nil {
