@@ -610,6 +610,7 @@ func TestCreatePostWithEmptyImageSuccess(t *testing.T) {
 	mockUserRepository.AssertExpectations(t)
 }
 
+// Regression Test
 // TestCreatePostWithWrongContentTypeBadRequest tests if the CreatePost function returns a 400 bad request if the content type is not multipart/form-data or application/json
 func TestCreatePostWithWrongContentTypeBadRequest(t *testing.T) {
 	for _, contentType := range []string{
