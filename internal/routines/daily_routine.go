@@ -2,14 +2,17 @@ package routines
 
 import (
 	"fmt"
-	"github.com/wwi21seb-projekt/server-beta/internal/initializers"
-	"github.com/wwi21seb-projekt/server-beta/internal/models"
+	"github.com/wwi21seb-projekt/server-beta/internal/services"
+	"os"
 	"time"
 )
 
 // StartDailyRoutines can be called when starting the server to ensure all the routines run daily at 3 AM
 // called with: `go StartDailyRoutines()`
-func StartDailyRoutines() {
+func StartDailyRoutines(
+	mailService services.MailServiceInterface,
+	userService services.UserServiceInterface) {
+
 	// Execution Time 3:00 AM
 	executionTime := time.Date(0, 0, 0, 3, 0, 0, 0, time.Local)
 
@@ -23,26 +26,13 @@ func StartDailyRoutines() {
 		timer := time.NewTimer(time.Until(nextRun))
 		<-timer.C
 
-		// Deleting routine
-		DailyUserDeletionRoutine()
+		// Will be called daily at 3 AM to delete users that did not verify their email address
+		err := userService.DeleteUnactivatedUsers()
+		if err != nil { // Send mail to admin if error occurred
+			receiver := os.Getenv("EMAIL_ADDRESS")
+			subject := "Error in daily routine: DeleteUnactivatedUsers"
+			text := fmt.Sprintf("Error in daily routine: DeleteUnactivatedUsers %s", err.Error())
+			_ = mailService.SendMail(receiver, subject, text)
+		}
 	}
-
-}
-
-// DailyUserDeletionRoutine will be called daily to delete users that did not verify their email address
-func DailyUserDeletionRoutine() {
-	fmt.Println("Start daily user deletion routing...")
-
-	db := initializers.DB
-
-	var activationTokens []models.ActivationToken
-	db.Preload("User").
-		Where("created_at < ? and activated = ?", time.Now().Add(-7*24*time.Hour), false).
-		Find(&activationTokens)
-
-	for _, token := range activationTokens {
-		db.Delete(&token)
-		db.Delete(&token.User)
-	}
-
 }

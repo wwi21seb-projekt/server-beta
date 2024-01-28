@@ -24,6 +24,7 @@ type UserServiceInterface interface {
 	UpdateUserInformation(req *models.UserInformationUpdateDTO, currentUsername string) (*models.UserInformationUpdateDTO, *customerrors.CustomError, int)
 	ChangeUserPassword(req *models.ChangePasswordDTO, currentUsername string) (*customerrors.CustomError, int)
 	GetUserProfile(username string, currentUser string) (*models.UserProfileResponseDTO, *customerrors.CustomError, int)
+	DeleteUnactivatedUsers() error
 }
 
 type UserService struct {
@@ -39,14 +40,14 @@ type UserService struct {
 func NewUserService(
 	userRepo repositories.UserRepositoryInterface,
 	activationTokenRepo repositories.ActivationTokenRepositoryInterface,
-	maliService MailServiceInterface,
+	mailService MailServiceInterface,
 	validator utils.ValidatorInterface,
 	postRepo repositories.PostRepositoryInterface,
 	subscriptionRepo repositories.SubscriptionRepositoryInterface) *UserService {
 	return &UserService{
 		userRepo:            userRepo,
 		activationTokenRepo: activationTokenRepo,
-		mailService:         maliService,
+		mailService:         mailService,
 		validator:           validator,
 		postRepo:            postRepo,
 		subscriptionRepo:    subscriptionRepo}
@@ -527,4 +528,24 @@ func (service *UserService) GetUserProfile(username string, currentUser string) 
 	}
 
 	return userProfile, nil, http.StatusOK
+}
+
+// DeleteUnactivatedUsers deletes all users that have not activated their account within 7 days
+func (service *UserService) DeleteUnactivatedUsers() error {
+	// Get all unactivated users
+	users, err := service.userRepo.GetUnactivatedUsers()
+	if err != nil {
+		return err
+	}
+
+	// Delete all users that have no posts
+	for _, user := range users {
+		if user.CreatedAt.Add(7*24*time.Hour).Before(time.Now()) && user.Activated == false {
+			err := service.userRepo.DeleteUserByUsername(user.Username)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
