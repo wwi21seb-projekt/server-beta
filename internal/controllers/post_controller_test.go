@@ -57,6 +57,11 @@ func TestCreatePostSuccess(t *testing.T) {
 	content := "This is a test #post. #postings_are_fun"
 	postCreateRequestDTO := models.PostCreateRequestDTO{
 		Content: content,
+		Location: &models.Location{
+			Longitude: "11.1",
+			Latitude:  "22.2",
+			Accuracy:  50,
+		},
 	}
 
 	expectedHashtagOne := models.Hashtag{
@@ -101,6 +106,9 @@ func TestCreatePostSuccess(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Equal(t, user.Username, responsePost.Author.Username)
+	assert.Equal(t, capturedPost.Location.Latitude, responsePost.Location.Latitude)
+	assert.Equal(t, capturedPost.Location.Longitude, responsePost.Location.Longitude)
+	assert.Equal(t, capturedPost.Location.Accuracy, responsePost.Location.Accuracy)
 	assert.Equal(t, user.Nickname, responsePost.Author.Nickname)
 	assert.Equal(t, user.ProfilePictureUrl, responsePost.Author.ProfilePictureUrl)
 	assert.Equal(t, content, responsePost.Content)

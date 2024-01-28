@@ -87,14 +87,26 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *m
 		imageUrl = url
 	}
 
+	var location models.Location
+	if req.Location != nil {
+		location = models.Location{
+			LocationId: uuid.New(),
+			Username:   username,
+			Longitude:  req.Location.Longitude,
+			Latitude:   req.Location.Latitude,
+			Accuracy:   req.Location.Accuracy,
+		}
+	}
 	// Create post
 	post := models.Post{
-		Id:        uuid.New(),
-		Username:  username,
-		Content:   req.Content,
-		ImageUrl:  imageUrl,
-		Hashtags:  hashtags,
-		CreatedAt: time.Now(),
+		Id:         uuid.New(),
+		Username:   username,
+		Content:    req.Content,
+		ImageUrl:   imageUrl,
+		Hashtags:   hashtags,
+		CreatedAt:  time.Now(),
+		LocationId: location.LocationId,
+		Location:   location,
 	}
 	err = service.postRepo.CreatePost(&post)
 	if err != nil {
@@ -111,6 +123,11 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *m
 		},
 		CreationDate: post.CreatedAt,
 		Content:      post.Content,
+		Location: &models.LocationResponseDTO{
+			Longitude: post.Location.Longitude,
+			Latitude:  post.Location.Latitude,
+			Accuracy:  post.Location.Accuracy,
+		},
 	}
 
 	return &postDto, nil, http.StatusCreated
@@ -136,10 +153,16 @@ func (service *PostService) GetPostsByUsername(username string, offset, limit in
 	// Create response dto and return
 	var postDtos []models.UserFeedRecordDTO
 	for _, post := range posts {
+
 		postDto := models.UserFeedRecordDTO{
 			PostId:       post.Id.String(),
 			CreationDate: post.CreatedAt,
 			Content:      post.Content,
+			Location: &models.LocationResponseDTO{
+				Longitude: post.Location.Longitude,
+				Latitude:  post.Location.Latitude,
+				Accuracy:  post.Location.Accuracy,
+			},
 		}
 		postDtos = append(postDtos, postDto)
 	}
@@ -215,6 +238,11 @@ func (service *PostService) GetPostsGlobalFeed(lastPostId string, limit int) (*m
 			Author:       &authorDto,
 			CreationDate: post.CreatedAt,
 			Content:      post.Content,
+			Location: &models.LocationResponseDTO{
+				Longitude: post.Location.Longitude,
+				Latitude:  post.Location.Latitude,
+				Accuracy:  post.Location.Accuracy,
+			},
 		}
 		feed.Records = append(feed.Records, postDto)
 	}
@@ -268,7 +296,9 @@ func (service *PostService) GetPostsPersonalFeed(username string, lastPostId str
 			Records:    totalPostsCount,
 		},
 	}
+
 	for _, post := range posts {
+
 		authorDto := models.AuthorDTO{
 			Username:          post.User.Username,
 			Nickname:          post.User.Nickname,
@@ -279,6 +309,11 @@ func (service *PostService) GetPostsPersonalFeed(username string, lastPostId str
 			Author:       &authorDto,
 			CreationDate: post.CreatedAt,
 			Content:      post.Content,
+			Location: &models.LocationResponseDTO{
+				Longitude: post.Location.Longitude,
+				Latitude:  post.Location.Latitude,
+				Accuracy:  post.Location.Accuracy,
+			},
 		}
 		feed.Records = append(feed.Records, postDto)
 	}

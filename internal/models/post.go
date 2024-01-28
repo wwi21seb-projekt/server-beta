@@ -6,24 +6,28 @@ import (
 )
 
 type Post struct {
-	Id        uuid.UUID `gorm:"column:id;primary_key"`
-	Username  string    `gorm:"column:username"`
-	User      User      `gorm:"foreignKey:username;references:username"`
-	Content   string    `gorm:"column:content;type:varchar(256);null"`
-	ImageUrl  string    `gorm:"column:image_url;type:varchar(256);null"`
-	Hashtags  []Hashtag `gorm:"many2many:post_hashtags;"` // gorm handles the join table
-	CreatedAt time.Time `gorm:"column:created_at;not_null"`
+	Id         uuid.UUID `gorm:"column:id;primary_key"`
+	Username   string    `gorm:"column:username"`
+	User       User      `gorm:"foreignKey:username;references:username"`
+	Content    string    `gorm:"column:content;type:varchar(256);null"`
+	ImageUrl   string    `gorm:"column:image_url;type:varchar(256);null"`
+	Hashtags   []Hashtag `gorm:"many2many:post_hashtags;"` // gorm handles the join table
+	CreatedAt  time.Time `gorm:"column:created_at;not_null"`
+	LocationId uuid.UUID `gorm:"column:locationId"`
+	Location   Location  `gorm:"foreignKey:locationId;references:locationId"`
 }
 
 type PostCreateRequestDTO struct {
-	Content string `json:"content" binding:"required"`
+	Content  string    `json:"content" binding:"required"`
+	Location *Location `json:"location" `
 }
 
 type PostResponseDTO struct {
-	PostId       uuid.UUID  `json:"postId"`
-	Author       *AuthorDTO `json:"author"`
-	CreationDate time.Time  `json:"creationDate"`
-	Content      string     `json:"content"`
+	PostId       uuid.UUID            `json:"postId"`
+	Author       *AuthorDTO           `json:"author"`
+	CreationDate time.Time            `json:"creationDate"`
+	Content      string               `json:"content"`
+	Location     *LocationResponseDTO `json:"location"`
 }
 
 type AuthorDTO struct { // to be used in post response dto
@@ -38,9 +42,10 @@ type UserFeedDTO struct {
 }
 
 type UserFeedRecordDTO struct {
-	PostId       string    `json:"postId"`
-	CreationDate time.Time `json:"creationDate"`
-	Content      string    `json:"content"`
+	PostId       string               `json:"postId"`
+	CreationDate time.Time            `json:"creationDate"`
+	Content      string               `json:"content"`
+	Location     *LocationResponseDTO `json:"location"`
 }
 
 type UserFeedPaginationDTO struct {

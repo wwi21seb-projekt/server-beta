@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"errors"
 	"github.com/google/uuid"
 	"github.com/wwi21seb-projekt/server-beta/internal/models"
 	"gorm.io/gorm"
@@ -26,7 +27,27 @@ func NewPostRepository(db *gorm.DB) *PostRepository {
 }
 
 func (repo *PostRepository) CreatePost(post *models.Post) error {
-	return repo.DB.Create(&post).Error
+
+	err := repo.DB.Transaction(func(tx *gorm.DB) error {
+		// Erstellen des Posts
+		if err := tx.Create(post).Error; err != nil {
+			return err // Rückkehr bei einem Fehler
+		}
+
+		// Überprüfen, ob eine Location vorhanden ist und sie erstellen, wenn ja
+		if post.Location != (models.Location{}) {
+			// Die Location-ID mit der Post-ID verknüpfen
+			post.Location.LocationId = post.Id
+			if err := tx.Create(&post.Location).Error; err != nil {
+				return err // Rückkehr bei einem Fehler
+			}
+
+		}
+
+		return nil // Kein Fehler, erfolgreicher Abschluss der Transaktion
+	})
+
+	return err
 }
 
 func (repo *PostRepository) GetPostCountByUsername(username string) (int64, error) {
@@ -58,7 +79,7 @@ func (repo *PostRepository) GetPostsByUsername(username string, offset, limit in
 
 func (repo *PostRepository) GetPostById(postId string) (models.Post, error) {
 	var post models.Post
-	err := repo.DB.Where("id = ?", postId).First(&post).Error
+	err := repo.DB.Preload("Location").Where("id = ?", postId).First(&post).Error
 	return post, err
 }
 
@@ -84,6 +105,7 @@ func (repo *PostRepository) GetPostsGlobalFeed(lastPost *models.Post, limit int)
 		Order("created_at desc, id desc").
 		Limit(limit).
 		Preload("User").
+		Preload("Location").
 		Find(&posts).Error
 	if err != nil {
 		return nil, 0, err
@@ -115,6 +137,7 @@ func (repo *PostRepository) GetPostsPersonalFeed(username string, lastPost *mode
 	err = baseQuery.Order("created_at desc, posts.id desc").
 		Limit(limit).
 		Preload("User").
+		Preload("Location").
 		Find(&posts).Error
 	if err != nil {
 		return nil, 0, err
@@ -124,5 +147,18 @@ func (repo *PostRepository) GetPostsPersonalFeed(username string, lastPost *mode
 }
 
 func (repo *PostRepository) DeletePostById(postId string) error {
-	return repo.DB.Where("id = ?", postId).Delete(&models.Post{}).Error
+	return repo.DB.Transaction(func(tx *gorm.DB) error {
+		// Löschen der Location
+		if err := tx.Where("location_id = ?", postId).Delete(&models.Location{}).Error; err != nil {
+			if !errors.Is(err, gorm.ErrRecordNotFound) {
+				return err // Rückkehr bei einem Datenbankfehler, der kein RecordNotFound-Fehler ist
+			}
+		}
+		// Löschen des Posts
+		if err := tx.Where("id = ?", postId).Delete(&models.Post{}).Error; err != nil {
+			return err // Rückkehr bei einem Fehler
+		}
+
+		return nil // Kein Fehler, erfolgreicher Abschluss der Transaktion
+	})
 }
