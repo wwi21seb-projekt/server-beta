@@ -27,7 +27,7 @@ import (
 )
 
 // TestCreatePostSuccess tests if the CreatePost function returns a postDto and 201 created if post is created successfully
-func TestCreatePostSuccess(t *testing.T) {
+func TestCreatePostWithLocationSuccess(t *testing.T) {
 	// Arrange
 	mockUserRepository := new(repositories.MockUserRepository)
 	mockPostRepository := new(repositories.MockPostRepository)
@@ -57,7 +57,7 @@ func TestCreatePostSuccess(t *testing.T) {
 	content := "This is a test #post. #postings_are_fun"
 	postCreateRequestDTO := models.PostCreateRequestDTO{
 		Content: content,
-		Location: &models.Location{
+		Location: &models.LocationDTO{
 			Longitude: "11.1",
 			Latitude:  "22.2",
 			Accuracy:  50,
@@ -128,12 +128,109 @@ func TestCreatePostSuccess(t *testing.T) {
 	mockHashtagRepository.AssertExpectations(t)
 }
 
+func TestCreatePostWithoutLocationSuccess(t *testing.T) {
+	// Arrange
+	mockUserRepository := new(repositories.MockUserRepository)
+	mockPostRepository := new(repositories.MockPostRepository)
+	mockHashtagRepository := new(repositories.MockHashtagRepository)
+
+	postService := services.NewPostService(
+		mockPostRepository,
+		mockUserRepository,
+		mockHashtagRepository,
+		new(services.ImageService),
+	)
+	postController := controllers.NewPostController(postService)
+
+	user := models.User{
+		Username:     "testUser",
+		Nickname:     "testNickname",
+		Email:        "test@domain.com",
+		PasswordHash: "passwordHash",
+		CreatedAt:    time.Now().Add(time.Hour * -24),
+		Activated:    true,
+	}
+	authenticationToken, err := utils.GenerateAccessToken(user.Username)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	content := "This is a test #post. #postings_are_fun"
+	postCreateRequestDTO := models.PostCreateRequestDTO{
+		Content: content,
+	}
+
+	expectedHashtagOne := models.Hashtag{
+		Id:   uuid.New(),
+		Name: "post",
+	}
+	expectedHashtagTwo := models.Hashtag{
+		Id:   uuid.New(),
+		Name: "postings_are_fun",
+	}
+
+	// Mock expectations
+	var capturedPost *models.Post
+	mockUserRepository.On("FindUserByUsername", user.Username).Return(&user, nil) // User found successfully
+	mockPostRepository.On("CreatePost", mock.AnythingOfType("*models.Post")).
+		Run(func(args mock.Arguments) {
+			capturedPost = args.Get(0).(*models.Post) // Save argument to captor
+		}).Return(nil) // Post created successfully
+	mockHashtagRepository.On("FindOrCreateHashtag", expectedHashtagOne.Name).Return(expectedHashtagOne, nil)
+	mockHashtagRepository.On("FindOrCreateHashtag", expectedHashtagTwo.Name).Return(expectedHashtagTwo, nil)
+
+	// Setup HTTP request
+	requestBody, err := json.Marshal(postCreateRequestDTO)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req, _ := http.NewRequest("POST", "/posts", bytes.NewBuffer(requestBody))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+authenticationToken)
+	w := httptest.NewRecorder()
+
+	// Act
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+	router.POST("/posts", middleware.AuthorizeUser, postController.CreatePost)
+	router.ServeHTTP(w, req)
+
+	// Assert
+	assert.Equal(t, http.StatusCreated, w.Code) // Expect 201 created
+	var responsePost models.PostResponseDTO
+	err = json.Unmarshal(w.Body.Bytes(), &responsePost)
+	assert.NoError(t, err)
+
+	assert.Equal(t, user.Username, responsePost.Author.Username)
+	assert.Empty(t, capturedPost.Location.Latitude, responsePost.Location.Latitude)
+	assert.Empty(t, capturedPost.Location.Longitude, responsePost.Location.Longitude)
+	assert.Equal(t, capturedPost.Location.Accuracy, responsePost.Location.Accuracy)
+	assert.Equal(t, user.Nickname, responsePost.Author.Nickname)
+	assert.Equal(t, user.ProfilePictureUrl, responsePost.Author.ProfilePictureUrl)
+	assert.Equal(t, content, responsePost.Content)
+	assert.Equal(t, capturedPost.Id, responsePost.PostId)
+	assert.True(t, capturedPost.CreatedAt.Equal(responsePost.CreationDate))
+	assert.Equal(t, content, capturedPost.Content)
+	assert.Equal(t, user.Username, capturedPost.Username)
+	assert.NotNil(t, capturedPost.CreatedAt)
+	assert.NotNil(t, capturedPost.Id)
+	assert.Equal(t, capturedPost.Hashtags[0].Id, expectedHashtagOne.Id)
+	assert.Equal(t, capturedPost.Hashtags[0].Name, expectedHashtagOne.Name)
+	assert.Equal(t, capturedPost.Hashtags[1].Id, expectedHashtagTwo.Id)
+	assert.Equal(t, capturedPost.Hashtags[1].Name, expectedHashtagTwo.Name)
+
+	mockUserRepository.AssertExpectations(t)
+	mockPostRepository.AssertExpectations(t)
+	mockHashtagRepository.AssertExpectations(t)
+}
+
 // TestCreatePostBadRequest tests if the CreatePost function returns a 400 bad request if the content is empty
 func TestCreatePostBadRequest(t *testing.T) {
 	invalidBodies := []string{
 		`{"invalidField": "value"}`,                       // invalid body
 		`{"content": ""}`,                                 // empty content
 		`{"content": "` + strings.Repeat("A", 300) + `"}`, // content too long
+		`{"location":{"abc","abcd", 11}`,                  //invalid coordinates
 	}
 
 	for _, body := range invalidBodies {
@@ -270,6 +367,11 @@ func TestCreatePostUserNotActivated(t *testing.T) {
 	content := "This is a test post."
 	postCreateRequestDTO := models.PostCreateRequestDTO{
 		Content: content,
+		Location: &models.LocationDTO{
+			Longitude: "11.1",
+			Latitude:  "22.2",
+			Accuracy:  50,
+		},
 	}
 
 	// Mock expectations
@@ -640,10 +742,16 @@ func TestGetPostsByUsernameSuccess(t *testing.T) {
 
 	posts := []models.Post{
 		{
-			Id:        uuid.New(),
-			Username:  user.Username,
-			Content:   "Test Post 1",
-			CreatedAt: time.Now(),
+			Id:         uuid.New(),
+			Username:   user.Username,
+			Content:    "Test Post 1",
+			CreatedAt:  time.Now(),
+			LocationId: uuid.New(),
+			Location: models.Location{
+				Longitude: "11.1",
+				Latitude:  "22.2",
+				Accuracy:  50,
+			},
 		},
 		{
 			Id:        uuid.New(),
@@ -689,9 +797,13 @@ func TestGetPostsByUsernameSuccess(t *testing.T) {
 	assert.Equal(t, posts[0].Id.String(), response.Records[0].PostId)
 	assert.Equal(t, posts[0].Content, response.Records[0].Content)
 	assert.Equal(t, posts[0].Content, response.Records[0].Content)
+	assert.Equal(t, posts[0].Location.Latitude, response.Records[0].Location.Latitude)
+	assert.Equal(t, posts[0].Location.Longitude, response.Records[0].Location.Longitude)
 	assert.Equal(t, posts[1].Id.String(), response.Records[1].PostId)
 	assert.Equal(t, posts[1].Content, response.Records[1].Content)
 	assert.True(t, posts[1].CreatedAt.Equal(response.Records[1].CreationDate))
+	assert.Empty(t, posts[1].Location.Latitude, response.Records[0].Location.Latitude)
+	assert.Empty(t, posts[1].Location.Longitude, response.Records[0].Location.Longitude)
 
 	assert.Equal(t, offset, response.Pagination.Offset)
 	assert.Equal(t, limit, response.Pagination.Limit)
@@ -845,6 +957,11 @@ func TestGetGlobalPostFeedSuccess(t *testing.T) {
 				Content:   "This is the next post",
 				ImageUrl:  "",
 				CreatedAt: time.Now().Add(time.Hour * -2),
+				Location: models.Location{
+					Longitude: "11.1",
+					Latitude:  "22.2",
+					Accuracy:  50,
+				},
 			},
 			{
 				Id:       uuid.New(),
@@ -905,11 +1022,15 @@ func TestGetGlobalPostFeedSuccess(t *testing.T) {
 		assert.Equal(t, nextPosts[0].Username, responsePostFeed.Records[0].Author.Username)
 		assert.Equal(t, nextPosts[0].Content, responsePostFeed.Records[0].Content)
 		assert.True(t, nextPosts[0].CreatedAt.Equal(responsePostFeed.Records[0].CreationDate))
+		assert.Equal(t, nextPosts[0].Location.Latitude, responsePostFeed.Records[0].Location.Latitude)
+		assert.Equal(t, nextPosts[0].Location.Longitude, responsePostFeed.Records[0].Location.Longitude)
 
 		assert.Equal(t, nextPosts[1].Id, responsePostFeed.Records[1].PostId)
 		assert.Equal(t, nextPosts[1].Username, responsePostFeed.Records[1].Author.Username)
 		assert.Equal(t, nextPosts[1].Content, responsePostFeed.Records[1].Content)
 		assert.True(t, nextPosts[1].CreatedAt.Equal(responsePostFeed.Records[1].CreationDate))
+		assert.Empty(t, nextPosts[1].Location.Latitude, responsePostFeed.Records[1].Location.Latitude)
+		assert.Empty(t, nextPosts[1].Location.Longitude, responsePostFeed.Records[1].Location.Longitude)
 
 		assert.Equal(t, limit, responsePostFeed.Pagination.Limit)
 		assert.Equal(t, totalCount, responsePostFeed.Pagination.Records)
@@ -1005,6 +1126,11 @@ func TestGetPersonalPostFeedSuccess(t *testing.T) {
 			Content:   "This is the next post",
 			ImageUrl:  "",
 			CreatedAt: time.Now().Add(time.Hour * -2),
+			Location: models.Location{
+				Longitude: "11.1",
+				Latitude:  "22.2",
+				Accuracy:  50,
+			},
 		},
 		{
 			Id:       uuid.New(),
@@ -1060,11 +1186,15 @@ func TestGetPersonalPostFeedSuccess(t *testing.T) {
 	assert.Equal(t, nextPosts[0].Username, responsePostFeed.Records[0].Author.Username)
 	assert.Equal(t, nextPosts[0].Content, responsePostFeed.Records[0].Content)
 	assert.True(t, nextPosts[0].CreatedAt.Equal(responsePostFeed.Records[0].CreationDate))
+	assert.Equal(t, nextPosts[0].Location.Latitude, responsePostFeed.Records[0].Location.Latitude)
+	assert.Equal(t, nextPosts[0].Location.Longitude, responsePostFeed.Records[0].Location.Longitude)
 
 	assert.Equal(t, nextPosts[1].Id, responsePostFeed.Records[1].PostId)
 	assert.Equal(t, nextPosts[1].Username, responsePostFeed.Records[1].Author.Username)
 	assert.Equal(t, nextPosts[1].Content, responsePostFeed.Records[1].Content)
 	assert.True(t, nextPosts[1].CreatedAt.Equal(responsePostFeed.Records[1].CreationDate))
+	assert.Empty(t, nextPosts[1].Location.Latitude, responsePostFeed.Records[1].Location.Latitude)
+	assert.Empty(t, nextPosts[1].Location.Longitude, responsePostFeed.Records[1].Location.Longitude)
 
 	assert.Equal(t, limit, responsePostFeed.Pagination.Limit)
 	assert.Equal(t, totalCount, responsePostFeed.Pagination.Records)

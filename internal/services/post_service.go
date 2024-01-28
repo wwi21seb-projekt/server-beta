@@ -50,6 +50,16 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *m
 		return nil, customerrors.BadRequest, http.StatusBadRequest
 	}
 
+	validator := utils.NewValidator()
+	if req.Location != nil {
+		if !validator.ValidateCoordinate(req.Location.Longitude) {
+			return nil, customerrors.BadRequest, http.StatusBadRequest
+		}
+		if !validator.ValidateCoordinate(req.Location.Latitude) {
+			return nil, customerrors.BadRequest, http.StatusBadRequest
+		}
+	}
+
 	// Get user
 	user, err := service.userRepo.FindUserByUsername(username)
 	if err != nil {
@@ -90,11 +100,10 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *m
 	var location models.Location
 	if req.Location != nil {
 		location = models.Location{
-			LocationId: uuid.New(),
-			Username:   username,
-			Longitude:  req.Location.Longitude,
-			Latitude:   req.Location.Latitude,
-			Accuracy:   req.Location.Accuracy,
+			Id:        uuid.New(),
+			Longitude: req.Location.Longitude,
+			Latitude:  req.Location.Latitude,
+			Accuracy:  req.Location.Accuracy,
 		}
 	}
 	// Create post
@@ -105,7 +114,7 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *m
 		ImageUrl:   imageUrl,
 		Hashtags:   hashtags,
 		CreatedAt:  time.Now(),
-		LocationId: location.LocationId,
+		LocationId: location.Id,
 		Location:   location,
 	}
 	err = service.postRepo.CreatePost(&post)
@@ -123,7 +132,7 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *m
 		},
 		CreationDate: post.CreatedAt,
 		Content:      post.Content,
-		Location: &models.LocationResponseDTO{
+		Location: &models.LocationDTO{
 			Longitude: post.Location.Longitude,
 			Latitude:  post.Location.Latitude,
 			Accuracy:  post.Location.Accuracy,
@@ -158,7 +167,7 @@ func (service *PostService) GetPostsByUsername(username string, offset, limit in
 			PostId:       post.Id.String(),
 			CreationDate: post.CreatedAt,
 			Content:      post.Content,
-			Location: &models.LocationResponseDTO{
+			Location: &models.LocationDTO{
 				Longitude: post.Location.Longitude,
 				Latitude:  post.Location.Latitude,
 				Accuracy:  post.Location.Accuracy,
@@ -238,7 +247,7 @@ func (service *PostService) GetPostsGlobalFeed(lastPostId string, limit int) (*m
 			Author:       &authorDto,
 			CreationDate: post.CreatedAt,
 			Content:      post.Content,
-			Location: &models.LocationResponseDTO{
+			Location: &models.LocationDTO{
 				Longitude: post.Location.Longitude,
 				Latitude:  post.Location.Latitude,
 				Accuracy:  post.Location.Accuracy,
@@ -309,7 +318,7 @@ func (service *PostService) GetPostsPersonalFeed(username string, lastPostId str
 			Author:       &authorDto,
 			CreationDate: post.CreatedAt,
 			Content:      post.Content,
-			Location: &models.LocationResponseDTO{
+			Location: &models.LocationDTO{
 				Longitude: post.Location.Longitude,
 				Latitude:  post.Location.Latitude,
 				Accuracy:  post.Location.Accuracy,

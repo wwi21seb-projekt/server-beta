@@ -89,3 +89,8 @@ func (v *Validator) ValidatePassword(password string) bool {
 func (v *Validator) ValidateStatus(status string) bool {
 	return len(status) <= 128
 }
+
+func (v *Validator) ValidateCoordinate(coordinate string) bool {
+	re := regexp.MustCompile(`^-?\d{1,3}.\d{0,10}$`)
+	return re.MatchString(coordinate)
+}

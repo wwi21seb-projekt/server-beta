@@ -37,7 +37,7 @@ func (repo *PostRepository) CreatePost(post *models.Post) error {
 		// Überprüfen, ob eine Location vorhanden ist und sie erstellen, wenn ja
 		if post.Location != (models.Location{}) {
 			// Die Location-ID mit der Post-ID verknüpfen
-			post.Location.LocationId = post.Id
+			post.Location.Id = post.Id
 			if err := tx.Create(&post.Location).Error; err != nil {
 				return err // Rückkehr bei einem Fehler
 			}
@@ -148,8 +148,19 @@ func (repo *PostRepository) GetPostsPersonalFeed(username string, lastPost *mode
 
 func (repo *PostRepository) DeletePostById(postId string) error {
 	return repo.DB.Transaction(func(tx *gorm.DB) error {
+
+		var post models.Post
+		result := repo.DB.First(&post, postId)
+		if result.Error != nil {
+			return result.Error
+		}
+
+		// Löschen der Hashtags-Beziehungen in der Join-Tabelle
+		if err := tx.Model(&models.Post{Id: post.Id}).Association("Hashtags").Clear(); err != nil {
+			return err // Rückkehr bei einem Fehler
+		}
 		// Löschen der Location
-		if err := tx.Where("location_id = ?", postId).Delete(&models.Location{}).Error; err != nil {
+		if err := tx.Where("location_id = ?", post.LocationId).Delete(&models.Location{}).Error; err != nil {
 			if !errors.Is(err, gorm.ErrRecordNotFound) {
 				return err // Rückkehr bei einem Datenbankfehler, der kein RecordNotFound-Fehler ist
 			}
