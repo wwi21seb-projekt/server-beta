@@ -97,7 +97,7 @@ func (service *ImageService) SaveImage(fileHeader multipart.FileHeader) (string,
 	}
 
 	imageUrl := os.Getenv("SERVER_URL") + "/api/images/" + filename
-	return imageUrl, nil, http.StatusOK
+	return imageUrl, nil, http.StatusCreated
 }
 
 // GetImage can be used in image controller to return an image from the file system
