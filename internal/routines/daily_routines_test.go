@@ -1,7 +1,6 @@
-package services
+package routines
 
 import (
-	"github.com/stretchr/testify/assert"
 	"github.com/wwi21seb-projekt/server-beta/internal/models"
 	"github.com/wwi21seb-projekt/server-beta/internal/repositories"
 	"testing"
@@ -13,7 +12,6 @@ func TestDeleteUnactivatedUsersSuccess(t *testing.T) {
 
 	// Arrange
 	mockUserRepo := new(repositories.MockUserRepository)
-	userService := NewUserService(mockUserRepo, nil, nil, nil, nil, nil)
 
 	unactivatedUsers := []models.User{
 		{
@@ -33,8 +31,8 @@ func TestDeleteUnactivatedUsersSuccess(t *testing.T) {
 	mockUserRepo.On("DeleteUserByUsername", "test2").Return(nil)
 
 	// Act
-	err := userService.DeleteUnactivatedUsers()
-	assert.NoError(t, err)
+	DeleteUnactivatedUsers(mockUserRepo)
 
+	// Assert
 	mockUserRepo.AssertExpectations(t)
 }
