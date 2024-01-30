@@ -54,8 +54,6 @@ func (service *ImageService) SaveImage(fileHeader multipart.FileHeader) (string,
 		return "", customerrors.BadRequest, http.StatusBadRequest
 	}
 
-	fmt.Println("Gere")
-
 	// Check file size
 	const maxFileSize = 5 << 20 // 5 MB
 	if fileHeader.Size > maxFileSize {
