@@ -27,14 +27,18 @@ type PostService struct {
 	userRepo     repositories.UserRepositoryInterface
 	hashtagRepo  repositories.HashtagRepositoryInterface
 	imageService ImageServiceInterface
+	validator    utils.ValidatorInterface
+	locationRepo repositories.LocationRepositoryInterface
 }
 
 // NewPostService can be used as a constructor to create a PostService "object"
 func NewPostService(postRepo repositories.PostRepositoryInterface,
 	userRepo repositories.UserRepositoryInterface,
 	hashtagRepo repositories.HashtagRepositoryInterface,
-	imageService ImageServiceInterface) *PostService {
-	return &PostService{postRepo: postRepo, userRepo: userRepo, hashtagRepo: hashtagRepo, imageService: imageService}
+	imageService ImageServiceInterface,
+	validator utils.ValidatorInterface,
+	locationRepo repositories.LocationRepositoryInterface) *PostService {
+	return &PostService{postRepo: postRepo, userRepo: userRepo, hashtagRepo: hashtagRepo, imageService: imageService, validator: validator, locationRepo: locationRepo}
 }
 
 func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *multipart.FileHeader, username string) (*models.PostResponseDTO, *customerrors.CustomError, int) {
@@ -49,13 +53,13 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *m
 	if !utf8.ValidString(req.Content) {
 		return nil, customerrors.BadRequest, http.StatusBadRequest
 	}
-
-	validator := utils.NewValidator()
 	if req.Location != nil {
-		if !validator.ValidateCoordinate(req.Location.Longitude) {
+		// First check if coordinate format is valid
+		if !service.validator.ValidateCoordinate(req.Location.Longitude) || !service.validator.ValidateCoordinate(req.Location.Latitude) {
 			return nil, customerrors.BadRequest, http.StatusBadRequest
 		}
-		if !validator.ValidateCoordinate(req.Location.Latitude) {
+		// Then check if coordinate is in valid range
+		if !service.validator.ValidateLongitude(req.Location.Longitude) || !service.validator.ValidateLatitude(req.Location.Latitude) {
 			return nil, customerrors.BadRequest, http.StatusBadRequest
 		}
 	}
@@ -97,16 +101,22 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *m
 		imageUrl = url
 	}
 
-	var location models.Location
-	if req.Location != nil {
-		location = models.Location{
+	// Create post
+	var locationId *uuid.UUID
+	if req.Location != nil { // if location is present, create location object and save it
+		location := models.Location{
 			Id:        uuid.New(),
 			Longitude: req.Location.Longitude,
 			Latitude:  req.Location.Latitude,
 			Accuracy:  req.Location.Accuracy,
 		}
+		locationId = &location.Id
+		err = service.locationRepo.CreateLocation(&location)
+		if err != nil {
+			return nil, customerrors.DatabaseError, http.StatusInternalServerError
+		}
 	}
-	// Create post
+
 	post := models.Post{
 		Id:         uuid.New(),
 		Username:   username,
@@ -114,8 +124,7 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *m
 		ImageUrl:   imageUrl,
 		Hashtags:   hashtags,
 		CreatedAt:  time.Now(),
-		LocationId: location.Id,
-		Location:   location,
+		LocationId: locationId,
 	}
 	err = service.postRepo.CreatePost(&post)
 	if err != nil {
@@ -123,6 +132,14 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *m
 	}
 
 	// Create response dto and return
+	var locationDTO *models.LocationDTO
+	if req.Location != nil {
+		locationDTO = &models.LocationDTO{
+			Longitude: req.Location.Longitude,
+			Latitude:  req.Location.Latitude,
+			Accuracy:  req.Location.Accuracy,
+		}
+	}
 	postDto := models.PostResponseDTO{
 		PostId: post.Id,
 		Author: &models.AuthorDTO{
@@ -132,11 +149,7 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *m
 		},
 		CreationDate: post.CreatedAt,
 		Content:      post.Content,
-		Location: &models.LocationDTO{
-			Longitude: post.Location.Longitude,
-			Latitude:  post.Location.Latitude,
-			Accuracy:  post.Location.Accuracy,
-		},
+		Location:     locationDTO,
 	}
 
 	return &postDto, nil, http.StatusCreated
@@ -162,16 +175,19 @@ func (service *PostService) GetPostsByUsername(username string, offset, limit in
 	// Create response dto and return
 	var postDtos []models.UserFeedRecordDTO
 	for _, post := range posts {
-
+		var locationDTO *models.LocationDTO
+		if post.LocationId != nil {
+			locationDTO = &models.LocationDTO{
+				Longitude: post.Location.Longitude,
+				Latitude:  post.Location.Latitude,
+				Accuracy:  post.Location.Accuracy,
+			}
+		}
 		postDto := models.UserFeedRecordDTO{
 			PostId:       post.Id.String(),
 			CreationDate: post.CreatedAt,
 			Content:      post.Content,
-			Location: &models.LocationDTO{
-				Longitude: post.Location.Longitude,
-				Latitude:  post.Location.Latitude,
-				Accuracy:  post.Location.Accuracy,
-			},
+			Location:     locationDTO,
 		}
 		postDtos = append(postDtos, postDto)
 	}
@@ -242,16 +258,20 @@ func (service *PostService) GetPostsGlobalFeed(lastPostId string, limit int) (*m
 			Nickname:          post.User.Nickname,
 			ProfilePictureUrl: post.User.ProfilePictureUrl,
 		}
+		var locationDTO *models.LocationDTO
+		if post.LocationId != nil {
+			locationDTO = &models.LocationDTO{
+				Longitude: post.Location.Longitude,
+				Latitude:  post.Location.Latitude,
+				Accuracy:  post.Location.Accuracy,
+			}
+		}
 		postDto := models.PostResponseDTO{
 			PostId:       post.Id,
 			Author:       &authorDto,
 			CreationDate: post.CreatedAt,
 			Content:      post.Content,
-			Location: &models.LocationDTO{
-				Longitude: post.Location.Longitude,
-				Latitude:  post.Location.Latitude,
-				Accuracy:  post.Location.Accuracy,
-			},
+			Location:     locationDTO,
 		}
 		feed.Records = append(feed.Records, postDto)
 	}
@@ -307,22 +327,25 @@ func (service *PostService) GetPostsPersonalFeed(username string, lastPostId str
 	}
 
 	for _, post := range posts {
-
 		authorDto := models.AuthorDTO{
 			Username:          post.User.Username,
 			Nickname:          post.User.Nickname,
 			ProfilePictureUrl: post.User.ProfilePictureUrl,
+		}
+		var locationDTO *models.LocationDTO
+		if post.LocationId != nil {
+			locationDTO = &models.LocationDTO{
+				Longitude: post.Location.Longitude,
+				Latitude:  post.Location.Latitude,
+				Accuracy:  post.Location.Accuracy,
+			}
 		}
 		postDto := models.PostResponseDTO{
 			PostId:       post.Id,
 			Author:       &authorDto,
 			CreationDate: post.CreatedAt,
 			Content:      post.Content,
-			Location: &models.LocationDTO{
-				Longitude: post.Location.Longitude,
-				Latitude:  post.Location.Latitude,
-				Accuracy:  post.Location.Accuracy,
-			},
+			Location:     locationDTO,
 		}
 		feed.Records = append(feed.Records, postDto)
 	}

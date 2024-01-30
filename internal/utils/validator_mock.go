@@ -12,7 +12,3 @@ func (m *MockValidator) ValidateEmailExistance(email string) bool {
 	args := m.Called(email)
 	return args.Bool(0)
 }
-func (m *MockValidator) ValidateCoordinate(coordinate string) bool {
-	args := m.Called(coordinate)
-	return args.Bool(0)
-}

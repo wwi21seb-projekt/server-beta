@@ -26,18 +26,22 @@ import (
 	"time"
 )
 
-// TestCreatePostSuccess tests if the CreatePost function returns a postDto and 201 created if post is created successfully
+// TestCreatePostWithLocationSuccess tests if the CreatePost function returns a postDto and 201 created if post is created successfully with location
 func TestCreatePostWithLocationSuccess(t *testing.T) {
 	// Arrange
 	mockUserRepository := new(repositories.MockUserRepository)
 	mockPostRepository := new(repositories.MockPostRepository)
 	mockHashtagRepository := new(repositories.MockHashtagRepository)
+	validator := new(utils.Validator)
+	mockLocationRepository := new(repositories.MockLocationRepository)
 
 	postService := services.NewPostService(
 		mockPostRepository,
 		mockUserRepository,
 		mockHashtagRepository,
 		new(services.ImageService),
+		validator,
+		mockLocationRepository,
 	)
 	postController := controllers.NewPostController(postService)
 
@@ -75,11 +79,16 @@ func TestCreatePostWithLocationSuccess(t *testing.T) {
 
 	// Mock expectations
 	var capturedPost *models.Post
+	var capturedLocation *models.Location
 	mockUserRepository.On("FindUserByUsername", user.Username).Return(&user, nil) // User found successfully
 	mockPostRepository.On("CreatePost", mock.AnythingOfType("*models.Post")).
 		Run(func(args mock.Arguments) {
 			capturedPost = args.Get(0).(*models.Post) // Save argument to captor
 		}).Return(nil) // Post created successfully
+	mockLocationRepository.On("CreateLocation", mock.AnythingOfType("*models.Location")).
+		Run(func(args mock.Arguments) {
+			capturedLocation = args.Get(0).(*models.Location) // Save argument to captor
+		}).Return(nil) // Location created successfully
 	mockHashtagRepository.On("FindOrCreateHashtag", expectedHashtagOne.Name).Return(expectedHashtagOne, nil)
 	mockHashtagRepository.On("FindOrCreateHashtag", expectedHashtagTwo.Name).Return(expectedHashtagTwo, nil)
 
@@ -105,40 +114,53 @@ func TestCreatePostWithLocationSuccess(t *testing.T) {
 	err = json.Unmarshal(w.Body.Bytes(), &responsePost)
 	assert.NoError(t, err)
 
-	assert.Equal(t, user.Username, responsePost.Author.Username)
-	assert.Equal(t, capturedPost.Location.Latitude, responsePost.Location.Latitude)
-	assert.Equal(t, capturedPost.Location.Longitude, responsePost.Location.Longitude)
-	assert.Equal(t, capturedPost.Location.Accuracy, responsePost.Location.Accuracy)
-	assert.Equal(t, user.Nickname, responsePost.Author.Nickname)
-	assert.Equal(t, user.ProfilePictureUrl, responsePost.Author.ProfilePictureUrl)
-	assert.Equal(t, content, responsePost.Content)
-	assert.Equal(t, capturedPost.Id, responsePost.PostId)
-	assert.True(t, capturedPost.CreatedAt.Equal(responsePost.CreationDate))
-	assert.Equal(t, content, capturedPost.Content)
 	assert.Equal(t, user.Username, capturedPost.Username)
-	assert.NotNil(t, capturedPost.CreatedAt)
-	assert.NotNil(t, capturedPost.Id)
+	assert.Equal(t, postCreateRequestDTO.Content, capturedPost.Content)
+	assert.Equal(t, postCreateRequestDTO.Location.Longitude, capturedLocation.Longitude)
+	assert.Equal(t, postCreateRequestDTO.Location.Latitude, capturedLocation.Latitude)
+	assert.Equal(t, postCreateRequestDTO.Location.Accuracy, capturedLocation.Accuracy)
+	assert.Equal(t, capturedLocation.Id, *capturedPost.LocationId)
+	assert.NotEmpty(t, capturedPost.CreatedAt)
+	assert.Empty(t, capturedPost.ImageUrl)
 	assert.Equal(t, capturedPost.Hashtags[0].Id, expectedHashtagOne.Id)
 	assert.Equal(t, capturedPost.Hashtags[0].Name, expectedHashtagOne.Name)
 	assert.Equal(t, capturedPost.Hashtags[1].Id, expectedHashtagTwo.Id)
 	assert.Equal(t, capturedPost.Hashtags[1].Name, expectedHashtagTwo.Name)
 
+	assert.Equal(t, user.Username, responsePost.Author.Username)
+	assert.Equal(t, user.Nickname, responsePost.Author.Nickname)
+	assert.Equal(t, user.ProfilePictureUrl, responsePost.Author.ProfilePictureUrl)
+	assert.Equal(t, content, responsePost.Content)
+	assert.Equal(t, capturedPost.Id, responsePost.PostId)
+	assert.True(t, capturedPost.CreatedAt.Equal(responsePost.CreationDate))
+	assert.NotNil(t, responsePost.Location)
+	assert.Equal(t, postCreateRequestDTO.Location.Longitude, responsePost.Location.Longitude)
+	assert.Equal(t, postCreateRequestDTO.Location.Latitude, responsePost.Location.Latitude)
+	assert.Equal(t, postCreateRequestDTO.Location.Accuracy, responsePost.Location.Accuracy)
+	assert.True(t, capturedPost.CreatedAt.Equal(responsePost.CreationDate))
+
 	mockUserRepository.AssertExpectations(t)
 	mockPostRepository.AssertExpectations(t)
 	mockHashtagRepository.AssertExpectations(t)
+	mockLocationRepository.AssertExpectations(t)
 }
 
+// TestCreatePostWithoutLocationSuccess tests if the CreatePost function returns a postDto and 201 created if post is created successfully without location
 func TestCreatePostWithoutLocationSuccess(t *testing.T) {
 	// Arrange
 	mockUserRepository := new(repositories.MockUserRepository)
 	mockPostRepository := new(repositories.MockPostRepository)
 	mockHashtagRepository := new(repositories.MockHashtagRepository)
+	validator := new(utils.Validator)
+	mockLocationRepository := new(repositories.MockLocationRepository)
 
 	postService := services.NewPostService(
 		mockPostRepository,
 		mockUserRepository,
 		mockHashtagRepository,
 		new(services.ImageService),
+		validator,
+		mockLocationRepository,
 	)
 	postController := controllers.NewPostController(postService)
 
@@ -201,27 +223,29 @@ func TestCreatePostWithoutLocationSuccess(t *testing.T) {
 	err = json.Unmarshal(w.Body.Bytes(), &responsePost)
 	assert.NoError(t, err)
 
-	assert.Equal(t, user.Username, responsePost.Author.Username)
-	assert.Empty(t, capturedPost.Location.Latitude, responsePost.Location.Latitude)
-	assert.Empty(t, capturedPost.Location.Longitude, responsePost.Location.Longitude)
-	assert.Equal(t, capturedPost.Location.Accuracy, responsePost.Location.Accuracy)
-	assert.Equal(t, user.Nickname, responsePost.Author.Nickname)
-	assert.Equal(t, user.ProfilePictureUrl, responsePost.Author.ProfilePictureUrl)
-	assert.Equal(t, content, responsePost.Content)
-	assert.Equal(t, capturedPost.Id, responsePost.PostId)
-	assert.True(t, capturedPost.CreatedAt.Equal(responsePost.CreationDate))
-	assert.Equal(t, content, capturedPost.Content)
 	assert.Equal(t, user.Username, capturedPost.Username)
-	assert.NotNil(t, capturedPost.CreatedAt)
-	assert.NotNil(t, capturedPost.Id)
+	assert.Equal(t, postCreateRequestDTO.Content, capturedPost.Content)
+	assert.Nil(t, capturedPost.LocationId)
+	assert.NotEmpty(t, capturedPost.CreatedAt)
+	assert.Empty(t, capturedPost.ImageUrl)
 	assert.Equal(t, capturedPost.Hashtags[0].Id, expectedHashtagOne.Id)
 	assert.Equal(t, capturedPost.Hashtags[0].Name, expectedHashtagOne.Name)
 	assert.Equal(t, capturedPost.Hashtags[1].Id, expectedHashtagTwo.Id)
 	assert.Equal(t, capturedPost.Hashtags[1].Name, expectedHashtagTwo.Name)
 
+	assert.Equal(t, user.Username, responsePost.Author.Username)
+	assert.Equal(t, user.Nickname, responsePost.Author.Nickname)
+	assert.Equal(t, user.ProfilePictureUrl, responsePost.Author.ProfilePictureUrl)
+	assert.Equal(t, content, responsePost.Content)
+	assert.Equal(t, capturedPost.Id, responsePost.PostId)
+	assert.True(t, capturedPost.CreatedAt.Equal(responsePost.CreationDate))
+	assert.Nil(t, responsePost.Location)
+	assert.True(t, capturedPost.CreatedAt.Equal(responsePost.CreationDate))
+
 	mockUserRepository.AssertExpectations(t)
 	mockPostRepository.AssertExpectations(t)
 	mockHashtagRepository.AssertExpectations(t)
+	mockLocationRepository.AssertExpectations(t)
 }
 
 // TestCreatePostBadRequest tests if the CreatePost function returns a 400 bad request if the content is empty
@@ -230,7 +254,7 @@ func TestCreatePostBadRequest(t *testing.T) {
 		`{"invalidField": "value"}`,                       // invalid body
 		`{"content": ""}`,                                 // empty content
 		`{"content": "` + strings.Repeat("A", 300) + `"}`, // content too long
-		`{"location":{"abc","abcd", 11}`,                  //invalid coordinates
+		`{"content: "test", "location":{"latitude": "abc", "longitude": "abc2", "accuracy": 11}`, //invalid coordinates
 	}
 
 	for _, body := range invalidBodies {
@@ -244,6 +268,8 @@ func TestCreatePostBadRequest(t *testing.T) {
 			mockUserRepository,
 			mockHashtagRepository,
 			new(services.ImageService),
+			nil,
+			nil,
 		)
 		postController := controllers.NewPostController(postService)
 
@@ -304,6 +330,8 @@ func TestCreatePostUnauthorized(t *testing.T) {
 			mockUserRepository,
 			mockHashtagRepository,
 			new(services.ImageService),
+			nil,
+			nil,
 		)
 		postController := controllers.NewPostController(postService)
 
@@ -348,6 +376,8 @@ func TestCreatePostUserNotActivated(t *testing.T) {
 		mockUserRepository,
 		mockHashtagRepository,
 		new(services.ImageService),
+		new(utils.Validator),
+		nil,
 	)
 	postController := controllers.NewPostController(postService)
 
@@ -444,6 +474,8 @@ func TestCreatePostWithImageSuccess(t *testing.T) {
 			mockUserRepository,
 			mockHashtagRepository,
 			services.NewImageService(mockFileSystem),
+			nil,
+			nil,
 		)
 		postController := controllers.NewPostController(postService)
 
@@ -554,6 +586,8 @@ func TestCreatePostWithImageBadRequest(t *testing.T) {
 		mockUserRepository,
 		mockHashtagRepository,
 		services.NewImageService(mockFileSystem),
+		nil,
+		nil,
 	)
 	postController := controllers.NewPostController(postService)
 
@@ -641,6 +675,8 @@ func TestCreatePostWithEmptyImageSuccess(t *testing.T) {
 		mockUserRepository,
 		mockHashtagRepository,
 		services.NewImageService(mockFileSystem),
+		nil,
+		nil,
 	)
 	postController := controllers.NewPostController(postService)
 
@@ -731,6 +767,8 @@ func TestGetPostsByUsernameSuccess(t *testing.T) {
 		mockUserRepository,
 		mockHashtagRepository,
 		nil,
+		nil,
+		nil,
 	)
 	postController := controllers.NewPostController(postService)
 
@@ -740,13 +778,14 @@ func TestGetPostsByUsernameSuccess(t *testing.T) {
 		Email:    "test@example.com",
 	}
 
+	locationId := uuid.New()
 	posts := []models.Post{
 		{
 			Id:         uuid.New(),
 			Username:   user.Username,
 			Content:    "Test Post 1",
 			CreatedAt:  time.Now(),
-			LocationId: uuid.New(),
+			LocationId: &locationId,
 			Location: models.Location{
 				Longitude: "11.1",
 				Latitude:  "22.2",
@@ -754,10 +793,12 @@ func TestGetPostsByUsernameSuccess(t *testing.T) {
 			},
 		},
 		{
-			Id:        uuid.New(),
-			Username:  user.Username,
-			Content:   "Test Post 2",
-			CreatedAt: time.Now().Add(-1 * time.Hour),
+			Id:         uuid.New(),
+			Username:   user.Username,
+			Content:    "Test Post 2",
+			CreatedAt:  time.Now().Add(-1 * time.Hour),
+			LocationId: nil,
+			Location:   models.Location{},
 		},
 	}
 
@@ -796,14 +837,16 @@ func TestGetPostsByUsernameSuccess(t *testing.T) {
 
 	assert.Equal(t, posts[0].Id.String(), response.Records[0].PostId)
 	assert.Equal(t, posts[0].Content, response.Records[0].Content)
-	assert.Equal(t, posts[0].Content, response.Records[0].Content)
+	assert.True(t, posts[0].CreatedAt.Equal(response.Records[0].CreationDate))
+	assert.NotNil(t, response.Records[0].Location)
 	assert.Equal(t, posts[0].Location.Latitude, response.Records[0].Location.Latitude)
 	assert.Equal(t, posts[0].Location.Longitude, response.Records[0].Location.Longitude)
+	assert.Equal(t, posts[0].Location.Accuracy, response.Records[0].Location.Accuracy)
+
 	assert.Equal(t, posts[1].Id.String(), response.Records[1].PostId)
 	assert.Equal(t, posts[1].Content, response.Records[1].Content)
 	assert.True(t, posts[1].CreatedAt.Equal(response.Records[1].CreationDate))
-	assert.Empty(t, posts[1].Location.Latitude, response.Records[0].Location.Latitude)
-	assert.Empty(t, posts[1].Location.Longitude, response.Records[0].Location.Longitude)
+	assert.Nil(t, response.Records[1].Location)
 
 	assert.Equal(t, offset, response.Pagination.Offset)
 	assert.Equal(t, limit, response.Pagination.Limit)
@@ -831,6 +874,8 @@ func TestGetPostsByUsernameUnauthorized(t *testing.T) {
 			mockPostRepository,
 			mockUserRepository,
 			mockHashtagRepository,
+			nil,
+			nil,
 			nil,
 		)
 		postController := controllers.NewPostController(postService)
@@ -872,6 +917,8 @@ func TestGetPostsByUsernameUserNotFound(t *testing.T) {
 		mockPostRepository,
 		mockUserRepository,
 		mockHashtagRepository,
+		nil,
+		nil,
 		nil,
 	)
 	postController := controllers.NewPostController(postService)
@@ -933,6 +980,8 @@ func TestGetGlobalPostFeedSuccess(t *testing.T) {
 			mockUserRepository,
 			nil,
 			nil,
+			nil,
+			nil,
 		)
 		postController := controllers.NewPostController(postService)
 
@@ -945,6 +994,7 @@ func TestGetGlobalPostFeedSuccess(t *testing.T) {
 			CreatedAt: time.Now().Add(time.Hour * -1),
 		}
 
+		locationId := uuid.New()
 		nextPosts := []models.Post{
 			{
 				Id:       uuid.New(),
@@ -954,9 +1004,10 @@ func TestGetGlobalPostFeedSuccess(t *testing.T) {
 					Nickname:          "someOtherNickname",
 					ProfilePictureUrl: "",
 				},
-				Content:   "This is the next post",
-				ImageUrl:  "",
-				CreatedAt: time.Now().Add(time.Hour * -2),
+				Content:    "This is the next post",
+				ImageUrl:   "",
+				CreatedAt:  time.Now().Add(time.Hour * -2),
+				LocationId: &locationId,
 				Location: models.Location{
 					Longitude: "11.1",
 					Latitude:  "22.2",
@@ -1022,15 +1073,16 @@ func TestGetGlobalPostFeedSuccess(t *testing.T) {
 		assert.Equal(t, nextPosts[0].Username, responsePostFeed.Records[0].Author.Username)
 		assert.Equal(t, nextPosts[0].Content, responsePostFeed.Records[0].Content)
 		assert.True(t, nextPosts[0].CreatedAt.Equal(responsePostFeed.Records[0].CreationDate))
+		assert.NotNil(t, responsePostFeed.Records[0].Location)
 		assert.Equal(t, nextPosts[0].Location.Latitude, responsePostFeed.Records[0].Location.Latitude)
 		assert.Equal(t, nextPosts[0].Location.Longitude, responsePostFeed.Records[0].Location.Longitude)
+		assert.Equal(t, nextPosts[0].Location.Accuracy, responsePostFeed.Records[0].Location.Accuracy)
 
 		assert.Equal(t, nextPosts[1].Id, responsePostFeed.Records[1].PostId)
 		assert.Equal(t, nextPosts[1].Username, responsePostFeed.Records[1].Author.Username)
 		assert.Equal(t, nextPosts[1].Content, responsePostFeed.Records[1].Content)
 		assert.True(t, nextPosts[1].CreatedAt.Equal(responsePostFeed.Records[1].CreationDate))
-		assert.Empty(t, nextPosts[1].Location.Latitude, responsePostFeed.Records[1].Location.Latitude)
-		assert.Empty(t, nextPosts[1].Location.Longitude, responsePostFeed.Records[1].Location.Longitude)
+		assert.Nil(t, responsePostFeed.Records[1].Location)
 
 		assert.Equal(t, limit, responsePostFeed.Pagination.Limit)
 		assert.Equal(t, totalCount, responsePostFeed.Pagination.Records)
@@ -1049,6 +1101,8 @@ func TestGetGlobalPostFeedDefaultParameters(t *testing.T) {
 	postService := services.NewPostService(
 		mockPostRepository,
 		mockUserRepository,
+		nil,
+		nil,
 		nil,
 		nil,
 	)
@@ -1096,6 +1150,8 @@ func TestGetPersonalPostFeedSuccess(t *testing.T) {
 		mockUserRepository,
 		nil,
 		nil,
+		nil,
+		nil,
 	)
 	postController := controllers.NewPostController(postService)
 
@@ -1114,6 +1170,7 @@ func TestGetPersonalPostFeedSuccess(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	locationId := uuid.New()
 	nextPosts := []models.Post{
 		{
 			Id:       uuid.New(),
@@ -1123,9 +1180,10 @@ func TestGetPersonalPostFeedSuccess(t *testing.T) {
 				Nickname:          "someOtherNickname",
 				ProfilePictureUrl: "",
 			},
-			Content:   "This is the next post",
-			ImageUrl:  "",
-			CreatedAt: time.Now().Add(time.Hour * -2),
+			Content:    "This is the next post",
+			ImageUrl:   "",
+			CreatedAt:  time.Now().Add(time.Hour * -2),
+			LocationId: &locationId,
 			Location: models.Location{
 				Longitude: "11.1",
 				Latitude:  "22.2",
@@ -1186,15 +1244,16 @@ func TestGetPersonalPostFeedSuccess(t *testing.T) {
 	assert.Equal(t, nextPosts[0].Username, responsePostFeed.Records[0].Author.Username)
 	assert.Equal(t, nextPosts[0].Content, responsePostFeed.Records[0].Content)
 	assert.True(t, nextPosts[0].CreatedAt.Equal(responsePostFeed.Records[0].CreationDate))
+	assert.NotNil(t, responsePostFeed.Records[0].Location)
 	assert.Equal(t, nextPosts[0].Location.Latitude, responsePostFeed.Records[0].Location.Latitude)
 	assert.Equal(t, nextPosts[0].Location.Longitude, responsePostFeed.Records[0].Location.Longitude)
+	assert.Equal(t, nextPosts[0].Location.Accuracy, responsePostFeed.Records[0].Location.Accuracy)
 
 	assert.Equal(t, nextPosts[1].Id, responsePostFeed.Records[1].PostId)
 	assert.Equal(t, nextPosts[1].Username, responsePostFeed.Records[1].Author.Username)
 	assert.Equal(t, nextPosts[1].Content, responsePostFeed.Records[1].Content)
 	assert.True(t, nextPosts[1].CreatedAt.Equal(responsePostFeed.Records[1].CreationDate))
-	assert.Empty(t, nextPosts[1].Location.Latitude, responsePostFeed.Records[1].Location.Latitude)
-	assert.Empty(t, nextPosts[1].Location.Longitude, responsePostFeed.Records[1].Location.Longitude)
+	assert.Nil(t, responsePostFeed.Records[1].Location)
 
 	assert.Equal(t, limit, responsePostFeed.Pagination.Limit)
 	assert.Equal(t, totalCount, responsePostFeed.Pagination.Records)
@@ -1212,6 +1271,8 @@ func TestGetPersonalPostFeeDefaultParameters(t *testing.T) {
 	postService := services.NewPostService(
 		mockPostRepository,
 		mockUserRepository,
+		nil,
+		nil,
 		nil,
 		nil,
 	)
@@ -1272,6 +1333,8 @@ func TestGetPersonalPostFeedUnauthorized(t *testing.T) {
 			mockUserRepository,
 			nil,
 			nil,
+			nil,
+			nil,
 		)
 		postController := controllers.NewPostController(postService)
 
@@ -1308,7 +1371,7 @@ func TestDeletePostSuccess(t *testing.T) {
 	// Arrange
 	mockPostRepository := new(repositories.MockPostRepository)
 
-	postService := services.NewPostService(mockPostRepository, nil, nil, nil)
+	postService := services.NewPostService(mockPostRepository, nil, nil, nil, nil, nil)
 	postController := controllers.NewPostController(postService)
 
 	postId := uuid.New().String()
@@ -1345,6 +1408,8 @@ func TestDeletePostUnauthorized(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		nil,
+		nil,
 	)
 	postController := controllers.NewPostController(postService)
 
@@ -1371,7 +1436,7 @@ func TestDeletePostForbidden(t *testing.T) {
 	// Arrange
 	mockPostRepository := new(repositories.MockPostRepository)
 
-	postService := services.NewPostService(mockPostRepository, nil, nil, nil)
+	postService := services.NewPostService(mockPostRepository, nil, nil, nil, nil, nil)
 	postController := controllers.NewPostController(postService)
 
 	postId := uuid.New().String()
@@ -1402,7 +1467,7 @@ func TestDeletePostNotFound(t *testing.T) {
 	// Arrange
 	mockPostRepository := new(repositories.MockPostRepository)
 
-	postService := services.NewPostService(mockPostRepository, nil, nil, nil)
+	postService := services.NewPostService(mockPostRepository, nil, nil, nil, nil, nil)
 	postController := controllers.NewPostController(postService)
 
 	postId := uuid.New().String()

@@ -5,14 +5,14 @@ import (
 )
 
 type Location struct {
-	Id        uuid.UUID `gorm:"column:id,primary_key"`
+	Id        uuid.UUID `gorm:"column:id;primary_key"`
 	Longitude string    `gorm:"type:varchar(25)"`
 	Latitude  string    `gorm:"type:varchar(25)"`
-	Accuracy  int       `gorm:"type:integer"`
+	Accuracy  uint      `gorm:"type:integer"`
 }
 
 type LocationDTO struct {
-	Longitude string `json:"longitude"`
-	Latitude  string `json:"latitude"`
-	Accuracy  int    `json:"accuracy"`
+	Longitude string `json:"longitude" binding:"required"`
+	Latitude  string `json:"latitude" binding:"required"`
+	Accuracy  uint   `json:"accuracy" binding:"required"`
 }

@@ -4,6 +4,7 @@ import (
 	"github.com/truemail-rb/truemail-go"
 	"os"
 	"regexp"
+	"strconv"
 	"unicode"
 )
 
@@ -14,6 +15,9 @@ type ValidatorInterface interface {
 	ValidateEmailExistance(email string) bool
 	ValidatePassword(password string) bool
 	ValidateStatus(status string) bool
+	ValidateCoordinate(coordinate string) bool
+	ValidateLatitude(latitude string) bool
+	ValidateLongitude(longitude string) bool
 }
 
 type Validator struct {
@@ -90,7 +94,26 @@ func (v *Validator) ValidateStatus(status string) bool {
 	return len(status) <= 128
 }
 
+// ValidateCoordinate validates if a string matches the coordinate format
 func (v *Validator) ValidateCoordinate(coordinate string) bool {
 	re := regexp.MustCompile(`^-?\d{1,3}.\d{0,10}$`)
 	return re.MatchString(coordinate)
+}
+
+// ValidateLatitude validates if a string is a valid latitude
+func (v *Validator) ValidateLatitude(latitude string) bool {
+	lat, err := strconv.ParseFloat(latitude, 64)
+	if err != nil {
+		return false
+	}
+	return lat >= -90 && lat <= 90 // latitude must be between -90 and 90
+}
+
+// ValidateLongitude validates if a string is a valid longitude
+func (v *Validator) ValidateLongitude(longitude string) bool {
+	lon, err := strconv.ParseFloat(longitude, 64)
+	if err != nil {
+		return false
+	}
+	return lon >= -180 && lon <= 180 // longitude must be between -180 and 180
 }

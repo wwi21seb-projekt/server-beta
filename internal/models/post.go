@@ -6,15 +6,15 @@ import (
 )
 
 type Post struct {
-	Id         uuid.UUID `gorm:"column:id;primary_key"`
-	Username   string    `gorm:"column:username"`
-	User       User      `gorm:"foreignKey:username;references:username"`
-	Content    string    `gorm:"column:content;type:varchar(256);null"`
-	ImageUrl   string    `gorm:"column:image_url;type:varchar(256);null"`
-	Hashtags   []Hashtag `gorm:"many2many:post_hashtags;"` // gorm handles the join table
-	CreatedAt  time.Time `gorm:"column:created_at;not_null"`
-	LocationId uuid.UUID `gorm:"column:locationId"`
-	Location   Location  `gorm:"foreignKey:locationId;references:Id"`
+	Id         uuid.UUID  `gorm:"column:id;primary_key"`
+	Username   string     `gorm:"column:username"`
+	User       User       `gorm:"foreignKey:username;references:username"`
+	Content    string     `gorm:"column:content;type:varchar(256);null"`
+	ImageUrl   string     `gorm:"column:image_url;type:varchar(256);null"`
+	Hashtags   []Hashtag  `gorm:"many2many:post_hashtags;"` // gorm handles the join table
+	CreatedAt  time.Time  `gorm:"column:created_at;not_null"`
+	LocationId *uuid.UUID `gorm:"column:location_id;null"`
+	Location   Location   `gorm:"foreignKey:location_id;references:id"`
 }
 
 type PostCreateRequestDTO struct {
@@ -36,7 +36,7 @@ type AuthorDTO struct { // to be used in post response dto
 	ProfilePictureUrl string `json:"profilePictureUrl"`
 }
 
-type UserFeedDTO struct {
+type UserFeedDTO struct { // to be used for response to user feed request
 	Records    []UserFeedRecordDTO    `json:"records"`
 	Pagination *UserFeedPaginationDTO `json:"pagination"`
 }
@@ -54,7 +54,7 @@ type UserFeedPaginationDTO struct {
 	Records int64 `json:"records"`
 }
 
-type GeneralFeedDTO struct { // to be used for response to feed request
+type GeneralFeedDTO struct { // to be used for response to general feed request
 	Records    []PostResponseDTO         `json:"records"`
 	Pagination *GeneralFeedPaginationDTO `json:"pagination"`
 }

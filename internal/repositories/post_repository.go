@@ -27,26 +27,7 @@ func NewPostRepository(db *gorm.DB) *PostRepository {
 }
 
 func (repo *PostRepository) CreatePost(post *models.Post) error {
-
-	err := repo.DB.Transaction(func(tx *gorm.DB) error {
-		// Erstellen des Posts
-		if err := tx.Create(post).Error; err != nil {
-			return err // Rückkehr bei einem Fehler
-		}
-
-		// Überprüfen, ob eine Location vorhanden ist und sie erstellen, wenn ja
-		if post.Location != (models.Location{}) {
-			// Die Location-ID mit der Post-ID verknüpfen
-			post.Location.Id = post.Id
-			if err := tx.Create(&post.Location).Error; err != nil {
-				return err // Rückkehr bei einem Fehler
-			}
-
-		}
-
-		return nil // Kein Fehler, erfolgreicher Abschluss der Transaktion
-	})
-
+	err := repo.DB.Create(post).Error
 	return err
 }
 
@@ -69,7 +50,7 @@ func (repo *PostRepository) GetPostsByUsername(username string, offset, limit in
 	}
 
 	// Get posts using pagination information
-	err = baseQuery.Offset(offset).Limit(limit).Order("created_at desc, id desc").Find(&posts).Error
+	err = baseQuery.Offset(offset).Limit(limit).Order("created_at desc, id desc").Preload("Location").Find(&posts).Error
 	if err != nil {
 		return nil, 0, err
 	}
@@ -79,7 +60,7 @@ func (repo *PostRepository) GetPostsByUsername(username string, offset, limit in
 
 func (repo *PostRepository) GetPostById(postId string) (models.Post, error) {
 	var post models.Post
-	err := repo.DB.Preload("Location").Where("id = ?", postId).First(&post).Error
+	err := repo.DB.Preload("Location").Preload("User").Where("id = ?", postId).First(&post).Error
 	return post, err
 }
 
@@ -150,28 +131,30 @@ func (repo *PostRepository) DeletePostById(postId string) error {
 	return repo.DB.Transaction(func(tx *gorm.DB) error {
 
 		var post models.Post
-		result := repo.DB.First(&post, postId)
+		result := tx.First(&post, "id = ?", postId)
 		if result.Error != nil {
 			return result.Error
+		}
+
+		// Delete post
+		if err := tx.Where("id = ?", postId).Delete(&models.Post{}).Error; err != nil {
+			return err
 		}
 
 		// Löschen der Hashtags-Beziehungen in der Join-Tabelle
 		if err := tx.Model(&models.Post{Id: post.Id}).Association("Hashtags").Clear(); err != nil {
 			if !errors.Is(err, gorm.ErrRecordNotFound) {
-				return err // Rückkehr bei einem Datenbankfehler, der kein RecordNotFound-Fehler ist
+				return err
 			}
-		}
-		// Löschen der Location
-		if err := tx.Where("location_id = ?", post.LocationId).Delete(&models.Location{}).Error; err != nil {
-			if !errors.Is(err, gorm.ErrRecordNotFound) {
-				return err // Rückkehr bei einem Datenbankfehler, der kein RecordNotFound-Fehler ist
-			}
-		}
-		// Löschen des Posts
-		if err := tx.Where("id = ?", postId).Delete(&models.Post{}).Error; err != nil {
-			return err // Rückkehr bei einem Fehler
 		}
 
-		return nil // Kein Fehler, erfolgreicher Abschluss der Transaktion
+		// Löschen der Location
+		if err := tx.Where("id = ?", post.LocationId).Delete(&models.Location{}).Error; err != nil {
+			if !errors.Is(err, gorm.ErrRecordNotFound) {
+				return err
+			}
+		}
+
+		return nil
 	})
 }
