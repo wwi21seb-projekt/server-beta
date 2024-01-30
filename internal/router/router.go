@@ -98,12 +98,14 @@ func SetupRouter() *gin.Engine {
 	return r
 }
 
+// ReturnNotImplemented returns a 501 Not Implemented error and can be added to unfinished routes
 func ReturnNotImplemented(c *gin.Context) {
 	c.JSON(http.StatusNotImplemented, gin.H{
 		"error": "Not implemented",
 	})
 }
 
+// RecoveryMiddleware recovers from panics and returns a 500 Internal Server Error
 func RecoveryMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		defer func() {
