@@ -5,10 +5,8 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/wwi21seb-projekt/server-beta/internal/initializers"
-	"github.com/wwi21seb-projekt/server-beta/internal/repositories"
 	"github.com/wwi21seb-projekt/server-beta/internal/router"
 	"github.com/wwi21seb-projekt/server-beta/internal/routines"
-	"github.com/wwi21seb-projekt/server-beta/internal/services"
 	"os"
 )
 
@@ -36,10 +34,7 @@ func main() {
 	}
 
 	// Start daily routines
-	mailService := services.NewMailService()
-	userRepo := repositories.NewUserRepository(initializers.DB)
-	userService := services.NewUserService(userRepo, nil, mailService, nil, nil, nil)
-	go routines.StartDailyRoutines(mailService, userService)
+	go routines.StartDailyRoutines()
 
 	defer initializers.CloseDbConnection()
 }
