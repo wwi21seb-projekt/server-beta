@@ -642,6 +642,7 @@ func TestCreatePostWithWrongContentTypeBadRequest(t *testing.T) {
 		mockPostRepository := new(repositories.MockPostRepository)
 		mockHashtagRepository := new(repositories.MockHashtagRepository)
 		mockFileSystem := new(repositories.MockFileSystem)
+		validator := new(utils.Validator)
 
 		mockFileSystem.On("CreateDirectory", mock.AnythingOfType("string"), mock.AnythingOfType("fs.FileMode")).Return(nil)
 
@@ -649,7 +650,7 @@ func TestCreatePostWithWrongContentTypeBadRequest(t *testing.T) {
 			mockPostRepository,
 			mockUserRepository,
 			mockHashtagRepository,
-			services.NewImageService(mockFileSystem),
+			services.NewImageService(mockFileSystem, validator),
 		)
 		postController := controllers.NewPostController(postService)
 
