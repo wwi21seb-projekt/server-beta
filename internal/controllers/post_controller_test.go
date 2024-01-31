@@ -64,8 +64,8 @@ func TestCreatePostWithLocationSuccess(t *testing.T) {
 	postCreateRequestDTO := models.PostCreateRequestDTO{
 		Content: content,
 		Location: &models.LocationDTO{
-			Longitude: "11.1",
-			Latitude:  "22.2",
+			Longitude: 11.1,
+			Latitude:  22.2,
 			Accuracy:  50,
 		},
 	}
@@ -257,7 +257,8 @@ func TestCreatePostBadRequest(t *testing.T) {
 		`{"content": ""}`,                                 // empty content
 		`{"content": "` + strings.Repeat("A", 300) + `"}`, // content too long
 		"", // empty body
-		`{"content: "test", "location":{"latitude": "abc", "longitude": "abc2", "accuracy": 11}`, //invalid coordinates
+		`{"content: "test", "location":{"latitude": "abc", "longitude": "abc2", "accuracy": 11}`,  // invalid coordinates
+		`{"content: "test", "location":{"latitude": "11.2", "longitude": "13.2", "accuracy": 11}`, // string coordinates
 	}
 
 	for _, body := range invalidBodies {
@@ -401,8 +402,8 @@ func TestCreatePostUserNotActivated(t *testing.T) {
 	postCreateRequestDTO := models.PostCreateRequestDTO{
 		Content: content,
 		Location: &models.LocationDTO{
-			Longitude: "11.1",
-			Latitude:  "22.2",
+			Longitude: 11.1,
+			Latitude:  22.2,
 			Accuracy:  50,
 		},
 	}
@@ -864,8 +865,8 @@ func TestGetPostsByUsernameSuccess(t *testing.T) {
 			CreatedAt:  time.Now(),
 			LocationId: &locationId,
 			Location: models.Location{
-				Longitude: "11.1",
-				Latitude:  "22.2",
+				Longitude: 11.1,
+				Latitude:  22.2,
 				Accuracy:  50,
 			},
 		},
@@ -1086,8 +1087,8 @@ func TestGetGlobalPostFeedSuccess(t *testing.T) {
 				CreatedAt:  time.Now().Add(time.Hour * -2),
 				LocationId: &locationId,
 				Location: models.Location{
-					Longitude: "11.1",
-					Latitude:  "22.2",
+					Longitude: 11.1,
+					Latitude:  22.2,
 					Accuracy:  50,
 				},
 			},
@@ -1262,8 +1263,8 @@ func TestGetPersonalPostFeedSuccess(t *testing.T) {
 			CreatedAt:  time.Now().Add(time.Hour * -2),
 			LocationId: &locationId,
 			Location: models.Location{
-				Longitude: "11.1",
-				Latitude:  "22.2",
+				Longitude: 11.1,
+				Latitude:  22.2,
 				Accuracy:  50,
 			},
 		},
@@ -1600,8 +1601,8 @@ func TestGetPostsByHashtagSuccess(t *testing.T) {
 			CreatedAt:  time.Now(),
 			LocationId: &locationId,
 			Location: models.Location{
-				Longitude: "11.1",
-				Latitude:  "22.2",
+				Longitude: 11.1,
+				Latitude:  22.2,
 				Accuracy:  50,
 			},
 		},

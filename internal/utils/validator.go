@@ -8,7 +8,6 @@ import (
 	"os"
 	"regexp"
 	"strings"
-	"strconv"
 	"unicode"
 )
 
@@ -20,9 +19,8 @@ type ValidatorInterface interface {
 	ValidatePassword(password string) bool
 	ValidateStatus(status string) bool
 	ValidateImage(imageData []byte, contentType string) bool
-	ValidateCoordinate(coordinate string) bool
-	ValidateLatitude(latitude string) bool
-	ValidateLongitude(longitude string) bool
+	ValidateLatitude(latitude float64) bool
+	ValidateLongitude(longitude float64) bool
 }
 
 type Validator struct {
@@ -128,26 +126,12 @@ func (v *Validator) ValidateImage(imageData []byte, contentType string) bool {
 	return true
 }
 
-// ValidateCoordinate validates if a string matches the coordinate format
-func (v *Validator) ValidateCoordinate(coordinate string) bool {
-	re := regexp.MustCompile(`^-?\d{1,3}.\d{0,10}$`)
-	return re.MatchString(coordinate)
+// ValidateLatitude validates if latitude is in valid range
+func (v *Validator) ValidateLatitude(latitude float64) bool {
+	return latitude >= -90 && latitude <= 90
 }
 
-// ValidateLatitude validates if a string is a valid latitude
-func (v *Validator) ValidateLatitude(latitude string) bool {
-	lat, err := strconv.ParseFloat(latitude, 64)
-	if err != nil {
-		return false
-	}
-	return lat >= -90 && lat <= 90 // latitude must be between -90 and 90
-}
-
-// ValidateLongitude validates if a string is a valid longitude
-func (v *Validator) ValidateLongitude(longitude string) bool {
-	lon, err := strconv.ParseFloat(longitude, 64)
-	if err != nil {
-		return false
-	}
-	return lon >= -180 && lon <= 180 // longitude must be between -180 and 180
+// ValidateLongitude validates if longitude is in valid range
+func (v *Validator) ValidateLongitude(longitude float64) bool {
+	return longitude >= -180 && longitude <= 180
 }

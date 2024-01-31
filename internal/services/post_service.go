@@ -58,11 +58,7 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *m
 		return nil, customerrors.BadRequest, http.StatusBadRequest
 	}
 	if req.Location != nil {
-		// First check if coordinate format is valid
-		if !service.validator.ValidateCoordinate(req.Location.Longitude) || !service.validator.ValidateCoordinate(req.Location.Latitude) {
-			return nil, customerrors.BadRequest, http.StatusBadRequest
-		}
-		// Then check if coordinate is in valid range
+		// Then check if coordinates are in valid range
 		if !service.validator.ValidateLongitude(req.Location.Longitude) || !service.validator.ValidateLatitude(req.Location.Latitude) {
 			return nil, customerrors.BadRequest, http.StatusBadRequest
 		}
