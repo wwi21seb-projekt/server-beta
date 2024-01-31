@@ -10,8 +10,8 @@ type Post struct {
 	Username   string     `gorm:"column:username"`
 	User       User       `gorm:"foreignKey:username;references:username"`
 	Content    string     `gorm:"column:content;type:varchar(256);null"`
-	ImageUrl   string     `gorm:"column:image_url;type:varchar(256);null"`
-	Hashtags  []Hashtag   `gorm:"many2many:post_hashtags;onDelete:CASCADE"` // gorm handles the join table, onDelete:CASCADE deletes the hashtags if the post is deleted
+	ImageUrl   string     `gorm:"column:image_url;type:varchar(128);null"`
+	Hashtags   []Hashtag  `gorm:"many2many:post_hashtags;onDelete:CASCADE"` // gorm handles the join table, onDelete:CASCADE deletes the hashtags if the post is deleted
 	CreatedAt  time.Time  `gorm:"column:created_at;not_null"`
 	LocationId *uuid.UUID `gorm:"column:location_id;null"`
 	Location   Location   `gorm:"foreignKey:location_id;references:id"`

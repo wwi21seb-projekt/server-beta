@@ -628,53 +628,6 @@ func TestGetSubscriptionsFollowingSuccess(t *testing.T) {
 	mockUserRepo.AssertExpectations(t)
 }
 
-// TestGetSubscriptionsBadRequest tests if GetSubscriptions returns 400-Bad Request when request body is invalid
-func TestGetSubscriptionsBadRequest(t *testing.T) {
-
-	// Arrange
-	mockSubscriptionRepo := new(repositories.MockSubscriptionRepository)
-	mockUserRepo := new(repositories.MockUserRepository)
-
-	subscriptionService := services.NewSubscriptionService(mockSubscriptionRepo, mockUserRepo)
-	subscriptionController := controllers.NewSubscriptionController(subscriptionService)
-
-	currentUsername := "testUser"
-	authenticationToken, err := utils.GenerateAccessToken(currentUsername)
-	if err != nil {
-		t.Error(err)
-	}
-
-	// ungültige variable
-	ftype := "followingss"
-	limit := 10
-	offset := 0
-
-	// Mock Erwartungen
-	mockUserRepo.On("FindUserByUsername", "testUser").Return(&models.User{}, nil)
-
-	// Setup HTTP request und recorder
-	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/subscriptions/%s?type=%s&limit=%d&offset=%d", currentUsername, ftype, limit, offset), nil)
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", authenticationToken))
-	w := httptest.NewRecorder()
-
-	// Act
-	gin.SetMode(gin.TestMode)
-	router := gin.Default()
-	router.GET("/subscriptions/:username", middleware.AuthorizeUser, subscriptionController.GetSubscriptions)
-	router.ServeHTTP(w, req)
-
-	// Assert Response
-	assert.Equal(t, http.StatusBadRequest, w.Code) // Erwarte HTTP 400 OK Status
-	var errorResponse customerrors.ErrorResponse
-	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
-	expectedCustomError := customerrors.BadRequest
-	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
-	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
-
-	mockSubscriptionRepo.AssertExpectations(t)
-}
-
 // TestGetSubscriptionsUserNotFound tests if GetSubscriptions returns 404-Not Found when user is not found
 func TestGetSubscriptionsUserNotFound(t *testing.T) {
 

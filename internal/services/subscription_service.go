@@ -130,8 +130,6 @@ func (service *SubscriptionService) GetSubscriptions(ftype string, limit int, of
 		if err != nil {
 			return nil, customerrors.DatabaseError, http.StatusInternalServerError
 		}
-	} else {
-		return nil, customerrors.BadRequest, http.StatusBadRequest
 	}
 
 	// Create response

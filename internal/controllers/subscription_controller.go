@@ -97,6 +97,10 @@ func (controller *SubscriptionController) GetSubscriptions(c *gin.Context) {
 		offset = 0
 	}
 
+	if ftype != "followers" && ftype != "following" {
+		ftype = "followers" // set default value
+	}
+
 	// Get current user from middleware
 	currentUsername, exists := c.Get("username")
 	if !exists {

@@ -11,7 +11,7 @@ type User struct {
 	PasswordHash      string    `gorm:"type:varchar(80);not_null"`
 	CreatedAt         time.Time `gorm:"column:created_at;not_null"`
 	Activated         bool      `gorm:"not_null"`
-	ProfilePictureUrl string    `gorm:"type:varchar(256);null"`
+	ProfilePictureUrl string    `gorm:"type:varchar(128);null"`
 	Status            string    `gorm:"type:varchar(128)"`
 }
 
