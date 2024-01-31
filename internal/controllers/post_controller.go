@@ -59,6 +59,7 @@ func (controller *PostController) CreatePost(c *gin.Context) {
 		}
 
 		c.JSON(httpStatus, postDto)
+		return
 	}
 
 	// If ContentType is multipart/form-data, continue with image and (optional) text
@@ -93,9 +94,13 @@ func (controller *PostController) CreatePost(c *gin.Context) {
 		}
 
 		c.JSON(httpStatus, postDto)
-
+		return
 	}
 
+	// If ContentType is neither application/json nor multipart/form-data, return bad request
+	c.JSON(http.StatusBadRequest, gin.H{
+		"error": customerrors.BadRequest,
+	})
 }
 
 func (controller *PostController) GetPostsByUserUsername(c *gin.Context) {

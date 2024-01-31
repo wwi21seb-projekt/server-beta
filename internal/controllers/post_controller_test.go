@@ -126,6 +126,7 @@ func TestCreatePostBadRequest(t *testing.T) {
 		`{"invalidField": "value"}`,                       // invalid body
 		`{"content": ""}`,                                 // empty content
 		`{"content": "` + strings.Repeat("A", 300) + `"}`, // content too long
+		"", // empty body
 	}
 
 	for _, body := range invalidBodies {
@@ -607,6 +608,60 @@ func TestCreatePostWithEmptyImageSuccess(t *testing.T) {
 	mockHashtagRepository.AssertExpectations(t)
 	mockFileSystem.AssertExpectations(t)
 	mockUserRepository.AssertExpectations(t)
+}
+
+// Regression Test
+// TestCreatePostWithWrongContentTypeBadRequest tests if the CreatePost function returns a 400 bad request if the content type is not multipart/form-data or application/json
+func TestCreatePostWithWrongContentTypeBadRequest(t *testing.T) {
+	for _, contentType := range []string{
+		"application/xml",
+		"text/plain",
+		"application/pdf",
+	} {
+		// Arrange
+		mockUserRepository := new(repositories.MockUserRepository)
+		mockPostRepository := new(repositories.MockPostRepository)
+		mockHashtagRepository := new(repositories.MockHashtagRepository)
+		mockFileSystem := new(repositories.MockFileSystem)
+
+		mockFileSystem.On("CreateDirectory", mock.AnythingOfType("string"), mock.AnythingOfType("fs.FileMode")).Return(nil)
+
+		postService := services.NewPostService(
+			mockPostRepository,
+			mockUserRepository,
+			mockHashtagRepository,
+			services.NewImageService(mockFileSystem),
+		)
+		postController := controllers.NewPostController(postService)
+
+		username := "testUser"
+		authenticationToken, err := utils.GenerateAccessToken(username)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Set up HTTP request
+		req, _ := http.NewRequest("POST", "/posts", bytes.NewBufferString(`{"content": "This is the body"}`))
+		req.Header.Set("Content-Type", contentType)
+		req.Header.Set("Authorization", "Bearer "+authenticationToken)
+		w := httptest.NewRecorder()
+
+		// Act
+		gin.SetMode(gin.TestMode)
+		router := gin.Default()
+		router.POST("/posts", middleware.AuthorizeUser, postController.CreatePost)
+		router.ServeHTTP(w, req)
+
+		// Assert
+		assert.Equal(t, http.StatusBadRequest, w.Code) // Expect 400 Bad Request
+		var errorResponse customerrors.ErrorResponse
+		err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
+		assert.NoError(t, err)
+
+		expectedCustomError := customerrors.BadRequest
+		assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
+		assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
+	}
 }
 
 // TestGetPostsByUsernameSuccess tests if the GetPostsByUsername function returns a list of posts and 200 ok if the user exists
