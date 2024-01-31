@@ -15,6 +15,7 @@ type PostRepositoryInterface interface {
 	GetPostsGlobalFeed(lastPost *models.Post, limit int) ([]models.Post, int64, error)
 	GetPostsPersonalFeed(username string, lastPost *models.Post, limit int) ([]models.Post, int64, error)
 	DeletePostById(postId string) error
+	GetPostsByHashtag(hashtag string, lastPost *models.Post, limit int) ([]models.Post, int64, error)
 }
 
 type PostRepository struct {
@@ -157,4 +158,38 @@ func (repo *PostRepository) DeletePostById(postId string) error {
 
 		return nil
 	})
+}
+
+func (repo *PostRepository) GetPostsByHashtag(hashtag string, lastPost *models.Post, limit int) ([]models.Post, int64, error) {
+	var posts []models.Post
+	var count int64
+	var err error
+
+	baseQuery := repo.DB.Model(&models.Post{}).
+		Joins("JOIN post_hashtags ON post_hashtags.post_id = posts.id").
+		Joins("JOIN hashtags ON hashtags.id = post_hashtags.hashtag_id").
+		Where("hashtags.name = ?", hashtag)
+
+	// Number of posts in global feed
+	err = baseQuery.Count(&count).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	if lastPost.Id != uuid.Nil {
+		baseQuery = baseQuery.Where("(posts.created_at < ?) OR (posts.created_at = ? AND posts.id < ?)", lastPost.CreatedAt, lastPost.CreatedAt, lastPost.Id)
+	}
+
+	// Posts subset based on pagination
+	err = baseQuery.
+		Order("posts.created_at desc, posts.id desc").
+		Limit(limit).
+		Preload("Location").
+		Preload("User").
+		Find(&posts).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return posts, count, err
 }

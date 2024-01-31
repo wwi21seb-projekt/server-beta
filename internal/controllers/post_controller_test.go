@@ -21,6 +21,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/textproto"
+	"os"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -254,6 +256,7 @@ func TestCreatePostBadRequest(t *testing.T) {
 		`{"invalidField": "value"}`,                       // invalid body
 		`{"content": ""}`,                                 // empty content
 		`{"content": "` + strings.Repeat("A", 300) + `"}`, // content too long
+		"", // empty body
 		`{"content: "test", "location":{"latitude": "abc", "longitude": "abc2", "accuracy": 11}`, //invalid coordinates
 	}
 
@@ -449,23 +452,28 @@ func createFormFile(writer *multipart.Writer, fieldName, fileName string, conten
 // TestCreatePostWithImageSuccess tests if the CreatePost function returns a postDto and 201 created if post is created successfully with image
 func TestCreatePostWithImageSuccess(t *testing.T) {
 	testCases := [][]string{
-		{"This is a test post.", "test.jpeg", "This is an image", "image/jpeg"},           // test jpeg
-		{"This is a test post text.", "test.webp", "This is also an image", "image/webp"}, // test webp
-		{"", "test.jpeg", "This is another image", "image/jpeg"},                          // test only image
+		{"This is a test post.", "../../tests/resources/valid.jpeg", "image/jpeg"},      // test jpeg
+		{"This is a test post text.", "../../tests/resources/valid.webp", "image/webp"}, // test webp
+		{"", "../../tests/resources/valid.jpeg", "image/jpeg"},                          // test only image
 	}
 
 	for _, testCase := range testCases {
-		// Create multipart request body
 		content := testCase[0]
-		testImageName := testCase[1]
-		testImageContent := testCase[2]
-		testImageContentType := testCase[3]
+		testImageFilePath := testCase[1]
+		testImageContentType := testCase[2]
+
+		// Read the image file
+		imageData, err := os.ReadFile(testImageFilePath)
+		if err != nil {
+			t.Fatalf("Failed to read image file: %s", err)
+		}
 
 		// Arrange
 		mockUserRepository := new(repositories.MockUserRepository)
 		mockPostRepository := new(repositories.MockPostRepository)
 		mockHashtagRepository := new(repositories.MockHashtagRepository)
 		mockFileSystem := new(repositories.MockFileSystem)
+		validator := new(utils.Validator)
 
 		mockFileSystem.On("CreateDirectory", mock.AnythingOfType("string"), mock.AnythingOfType("fs.FileMode")).Return(nil)
 
@@ -473,8 +481,8 @@ func TestCreatePostWithImageSuccess(t *testing.T) {
 			mockPostRepository,
 			mockUserRepository,
 			mockHashtagRepository,
-			services.NewImageService(mockFileSystem),
-			nil,
+			services.NewImageService(mockFileSystem, validator),
+			validator,
 			nil,
 		)
 		postController := controllers.NewPostController(postService)
@@ -511,16 +519,26 @@ func TestCreatePostWithImageSuccess(t *testing.T) {
 		// Create multipart request body
 		body := &bytes.Buffer{}
 		writer := multipart.NewWriter(body)
-		err = writer.WriteField("content", content)
-		part, err := createFormFile(writer, "image", testImageName, testImageContentType)
 
+		// Add text field
+		if content != "" {
+			err = writer.WriteField("content", content)
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		// Add image file
+		part, err := createFormFile(writer, "image", testImageFilePath, testImageContentType)
 		if err != nil {
 			t.Fatal(err)
 		}
-		_, err = part.Write([]byte(testImageContent))
+
+		_, err = part.Write(imageData)
 		if err != nil {
 			t.Fatal(err)
 		}
+
 		err = writer.Close()
 		if err != nil {
 			t.Fatal(err)
@@ -555,7 +573,7 @@ func TestCreatePostWithImageSuccess(t *testing.T) {
 		assert.NotNil(t, capturedPost.CreatedAt)
 		assert.True(t, capturedPost.CreatedAt.Equal(responsePost.CreationDate))
 		assert.Equal(t, "/api/images"+capturedFilename, capturedPost.ImageUrl)
-		assert.Equal(t, capturedFile, []uint8(testImageContent))
+		assert.True(t, reflect.DeepEqual(imageData, capturedFile))
 
 		mockPostRepository.AssertExpectations(t)
 		mockHashtagRepository.AssertExpectations(t)
@@ -578,6 +596,7 @@ func TestCreatePostWithImageBadRequest(t *testing.T) {
 	mockPostRepository := new(repositories.MockPostRepository)
 	mockHashtagRepository := new(repositories.MockHashtagRepository)
 	mockFileSystem := new(repositories.MockFileSystem)
+	validator := new(utils.Validator)
 
 	mockFileSystem.On("CreateDirectory", mock.AnythingOfType("string"), mock.AnythingOfType("fs.FileMode")).Return(nil)
 
@@ -585,8 +604,8 @@ func TestCreatePostWithImageBadRequest(t *testing.T) {
 		mockPostRepository,
 		mockUserRepository,
 		mockHashtagRepository,
-		services.NewImageService(mockFileSystem),
-		nil,
+		services.NewImageService(mockFileSystem, validator),
+		validator,
 		nil,
 	)
 	postController := controllers.NewPostController(postService)
@@ -667,6 +686,7 @@ func TestCreatePostWithEmptyImageSuccess(t *testing.T) {
 	mockPostRepository := new(repositories.MockPostRepository)
 	mockHashtagRepository := new(repositories.MockHashtagRepository)
 	mockFileSystem := new(repositories.MockFileSystem)
+	validator := new(utils.MockValidator)
 
 	mockFileSystem.On("CreateDirectory", mock.AnythingOfType("string"), mock.AnythingOfType("fs.FileMode")).Return(nil)
 
@@ -674,8 +694,8 @@ func TestCreatePostWithEmptyImageSuccess(t *testing.T) {
 		mockPostRepository,
 		mockUserRepository,
 		mockHashtagRepository,
-		services.NewImageService(mockFileSystem),
-		nil,
+		services.NewImageService(mockFileSystem, validator),
+		validator,
 		nil,
 	)
 	postController := controllers.NewPostController(postService)
@@ -753,6 +773,63 @@ func TestCreatePostWithEmptyImageSuccess(t *testing.T) {
 	mockHashtagRepository.AssertExpectations(t)
 	mockFileSystem.AssertExpectations(t)
 	mockUserRepository.AssertExpectations(t)
+}
+
+// Regression Test
+// TestCreatePostWithWrongContentTypeBadRequest tests if the CreatePost function returns a 400 bad request if the content type is not multipart/form-data or application/json
+func TestCreatePostWithWrongContentTypeBadRequest(t *testing.T) {
+	for _, contentType := range []string{
+		"application/xml",
+		"text/plain",
+		"application/pdf",
+	} {
+		// Arrange
+		mockUserRepository := new(repositories.MockUserRepository)
+		mockPostRepository := new(repositories.MockPostRepository)
+		mockHashtagRepository := new(repositories.MockHashtagRepository)
+		mockFileSystem := new(repositories.MockFileSystem)
+		validator := new(utils.Validator)
+
+		mockFileSystem.On("CreateDirectory", mock.AnythingOfType("string"), mock.AnythingOfType("fs.FileMode")).Return(nil)
+
+		postService := services.NewPostService(
+			mockPostRepository,
+			mockUserRepository,
+			mockHashtagRepository,
+			services.NewImageService(mockFileSystem, validator),
+			nil,
+			nil,
+		)
+		postController := controllers.NewPostController(postService)
+
+		username := "testUser"
+		authenticationToken, err := utils.GenerateAccessToken(username)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Set up HTTP request
+		req, _ := http.NewRequest("POST", "/posts", bytes.NewBufferString(`{"content": "This is the body"}`))
+		req.Header.Set("Content-Type", contentType)
+		req.Header.Set("Authorization", "Bearer "+authenticationToken)
+		w := httptest.NewRecorder()
+
+		// Act
+		gin.SetMode(gin.TestMode)
+		router := gin.Default()
+		router.POST("/posts", middleware.AuthorizeUser, postController.CreatePost)
+		router.ServeHTTP(w, req)
+
+		// Assert
+		assert.Equal(t, http.StatusBadRequest, w.Code) // Expect 400 Bad Request
+		var errorResponse customerrors.ErrorResponse
+		err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
+		assert.NoError(t, err)
+
+		expectedCustomError := customerrors.BadRequest
+		assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
+		assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
+	}
 }
 
 // TestGetPostsByUsernameSuccess tests if the GetPostsByUsername function returns a list of posts and 200 ok if the user exists
@@ -1086,7 +1163,7 @@ func TestGetGlobalPostFeedSuccess(t *testing.T) {
 
 		assert.Equal(t, limit, responsePostFeed.Pagination.Limit)
 		assert.Equal(t, totalCount, responsePostFeed.Pagination.Records)
-		assert.Equal(t, lastPost.Id.String(), responsePostFeed.Pagination.LastPostId)
+		assert.Equal(t, responsePostFeed.Records[1].PostId.String(), responsePostFeed.Pagination.LastPostId)
 
 		mockPostRepository.AssertExpectations(t)
 	}
@@ -1134,7 +1211,7 @@ func TestGetGlobalPostFeedDefaultParameters(t *testing.T) {
 	assert.True(t, len(response.Records) == 0)
 	assert.Equal(t, totalRecords, response.Pagination.Records)
 	assert.Equal(t, 10, response.Pagination.Limit)
-	assert.Equal(t, "invalid", response.Pagination.LastPostId)
+	assert.Equal(t, "", response.Pagination.LastPostId)
 
 	mockPostRepository.AssertExpectations(t)
 }
@@ -1257,7 +1334,7 @@ func TestGetPersonalPostFeedSuccess(t *testing.T) {
 
 	assert.Equal(t, limit, responsePostFeed.Pagination.Limit)
 	assert.Equal(t, totalCount, responsePostFeed.Pagination.Records)
-	assert.Equal(t, lastPost.Id.String(), responsePostFeed.Pagination.LastPostId)
+	assert.Equal(t, responsePostFeed.Records[1].PostId.String(), responsePostFeed.Pagination.LastPostId)
 
 	mockPostRepository.AssertExpectations(t)
 }
@@ -1312,7 +1389,7 @@ func TestGetPersonalPostFeeDefaultParameters(t *testing.T) {
 	assert.True(t, len(response.Records) == 0)
 	assert.Equal(t, postCount, response.Pagination.Records)
 	assert.Equal(t, defaultLimit, response.Pagination.Limit)
-	assert.Equal(t, "invalid", response.Pagination.LastPostId)
+	assert.Equal(t, "", response.Pagination.LastPostId)
 
 	mockPostRepository.AssertExpectations(t)
 }
@@ -1491,4 +1568,182 @@ func TestDeletePostNotFound(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, w.Code)
 
 	mockPostRepository.AssertExpectations(t)
+}
+
+// TestGetPostsByHashtagSuccess tests if the GetPostsByHashtag function returns a list of posts and 200 ok if the hashtag exists
+func TestGetPostsByHashtagSuccess(t *testing.T) {
+	// Arrange
+	mockPostRepository := new(repositories.MockPostRepository)
+
+	postService := services.NewPostService(
+		mockPostRepository,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+	)
+	postController := controllers.NewPostController(postService)
+
+	hashtag := "Post"
+	locationId := uuid.New()
+	posts := []models.Post{
+		{
+			Id:       uuid.New(),
+			Username: "testUser",
+			User: models.User{
+				Username:          "testUser",
+				Nickname:          "testNickname",
+				ProfilePictureUrl: "",
+			},
+			Content:    "Test #Post 2",
+			CreatedAt:  time.Now(),
+			LocationId: &locationId,
+			Location: models.Location{
+				Longitude: "11.1",
+				Latitude:  "22.2",
+				Accuracy:  50,
+			},
+		},
+		{
+			Id:       uuid.New(),
+			Username: "testUser",
+			User: models.User{
+				Username:          "testUser",
+				Nickname:          "testNickname",
+				ProfilePictureUrl: "",
+			},
+			Content:   "Test #Post 3",
+			CreatedAt: time.Now().Add(-1 * time.Hour),
+		},
+	}
+
+	currentUsername := "someOtherUser"
+	authenticationToken, err := utils.GenerateAccessToken(currentUsername)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	totalCount := int64(4)
+	limit := 2
+	lastPost := models.Post{
+		Id:        uuid.New(),
+		Username:  "testUser",
+		Content:   "Test #Post 1",
+		ImageUrl:  "",
+		CreatedAt: time.Now().Add(-2 * time.Hour),
+	}
+
+	// Mock expectations
+	var capturedLastPost *models.Post
+	mockPostRepository.On("GetPostById", lastPost.Id.String()).Return(lastPost, nil)
+	mockPostRepository.On("GetPostsByHashtag", hashtag, &lastPost, limit).
+		Run(func(args mock.Arguments) {
+			capturedLastPost = args.Get(1).(*models.Post) // Save argument to captor
+		}).Return(posts, totalCount, nil)
+
+	// Setup HTTP request
+	url := "/posts?q=" + hashtag + "&postId=" + lastPost.Id.String() + "&limit=" + fmt.Sprint(limit)
+	req, _ := http.NewRequest("GET", url, nil)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+authenticationToken)
+	w := httptest.NewRecorder()
+
+	// Act
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+	router.GET("/posts", middleware.AuthorizeUser, postController.GetPostsByHashtag)
+	router.ServeHTTP(w, req)
+
+	// Assert
+	assert.Equal(t, http.StatusOK, w.Code) // Expect 200 ok
+
+	var responsePostFeed models.GeneralFeedDTO
+	err = json.Unmarshal(w.Body.Bytes(), &responsePostFeed)
+	assert.NoError(t, err)
+
+	assert.Equal(t, lastPost.Id, capturedLastPost.Id)
+	assert.Equal(t, lastPost.Username, capturedLastPost.Username)
+	assert.Equal(t, lastPost.Content, capturedLastPost.Content)
+	assert.Equal(t, lastPost.ImageUrl, capturedLastPost.ImageUrl)
+	assert.True(t, lastPost.CreatedAt.Equal(capturedLastPost.CreatedAt))
+	assert.Equal(t, lastPost.Hashtags, capturedLastPost.Hashtags)
+
+	assert.Equal(t, posts[0].Id, responsePostFeed.Records[0].PostId)
+	assert.Equal(t, posts[0].Username, responsePostFeed.Records[0].Author.Username)
+	assert.Equal(t, posts[0].User.Nickname, responsePostFeed.Records[0].Author.Nickname)
+	assert.Equal(t, posts[0].User.ProfilePictureUrl, responsePostFeed.Records[0].Author.ProfilePictureUrl)
+	assert.Equal(t, posts[0].Content, responsePostFeed.Records[0].Content)
+	assert.True(t, posts[0].CreatedAt.Equal(responsePostFeed.Records[0].CreationDate))
+	assert.NotNil(t, responsePostFeed.Records[0].Location)
+	assert.Equal(t, posts[0].Location.Latitude, responsePostFeed.Records[0].Location.Latitude)
+	assert.Equal(t, posts[0].Location.Longitude, responsePostFeed.Records[0].Location.Longitude)
+	assert.Equal(t, posts[0].Location.Accuracy, responsePostFeed.Records[0].Location.Accuracy)
+
+	assert.Equal(t, posts[1].Id, responsePostFeed.Records[1].PostId)
+	assert.Equal(t, posts[1].Username, responsePostFeed.Records[1].Author.Username)
+	assert.Equal(t, posts[1].User.Nickname, responsePostFeed.Records[1].Author.Nickname)
+	assert.Equal(t, posts[1].User.ProfilePictureUrl, responsePostFeed.Records[1].Author.ProfilePictureUrl)
+	assert.Equal(t, posts[1].Content, responsePostFeed.Records[1].Content)
+	assert.True(t, posts[1].CreatedAt.Equal(responsePostFeed.Records[1].CreationDate))
+	assert.Nil(t, responsePostFeed.Records[1].Location)
+
+	assert.Equal(t, limit, responsePostFeed.Pagination.Limit)
+	assert.Equal(t, totalCount, responsePostFeed.Pagination.Records)
+	assert.Equal(t, responsePostFeed.Records[1].PostId.String(), responsePostFeed.Pagination.LastPostId)
+
+	mockPostRepository.AssertExpectations(t)
+}
+
+// TestGetPostsByHashtagUnauthorized tests if the GetPostsByHashtag function returns a 401 unauthorized if the user is not authenticated
+func TestGetPostsByHashtagUnauthorized(t *testing.T) {
+	invalidTokens := []string{
+		"",               // empty token
+		"invalidToken",   // invalid token
+		"Bearer invalid", // invalid token
+	}
+	for _, token := range invalidTokens {
+		// Arrange
+		mockPostRepository := new(repositories.MockPostRepository)
+
+		postService := services.NewPostService(
+			mockPostRepository,
+			nil,
+			nil,
+			nil,
+			nil,
+			nil,
+		)
+		postController := controllers.NewPostController(postService)
+
+		hashtag := "Post"
+		limit := 2
+		lastPost := models.Post{
+			Id: uuid.New(),
+		}
+
+		// Setup HTTP request
+		url := "/posts?q=" + hashtag + "&postId=" + lastPost.Id.String() + "&limit=" + fmt.Sprint(limit)
+		req, _ := http.NewRequest("GET", url, nil)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+token)
+		w := httptest.NewRecorder()
+
+		// Act
+		gin.SetMode(gin.TestMode)
+		router := gin.Default()
+		router.GET("/posts", middleware.AuthorizeUser, postController.GetPostsByHashtag)
+		router.ServeHTTP(w, req)
+
+		// Assert
+		assert.Equal(t, http.StatusUnauthorized, w.Code) // Expect 401 Unauthorized
+
+		var errorResponse customerrors.ErrorResponse
+		err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
+		assert.NoError(t, err)
+
+		expectedCustomError := customerrors.UserUnauthorized
+		assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
+		assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
+	}
 }

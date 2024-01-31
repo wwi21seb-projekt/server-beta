@@ -25,18 +25,20 @@ type SubscriptionPostResponseDTO struct {
 	Following        string    `json:"following"`
 }
 
-type SubscriptionSearchResponseDTO struct {
-	Records    []SubscriptionSearchRecordDTO    `json:"records"`
-	Pagination *SubscriptionSearchPaginationDTO `json:"pagination"`
+type SubscriptionResponseDTO struct {
+	Records    []UserSubscriptionRecordDTO `json:"records"`
+	Pagination *SubscriptionPaginationDTO  `json:"pagination"`
 }
 
-type SubscriptionSearchRecordDTO struct {
-	SubscriptionId   uuid.UUID                       `json:"subscriptionId"`
-	SubscriptionDate time.Time                       `json:"subscriptionDate"`
-	User             UserSubscriptionSearchRecordDTO `json:"user"`
+type UserSubscriptionRecordDTO struct {
+	FollowerId        *uuid.UUID `gorm:"column:follower_id" json:"followerId"`                // SubscriptionID, wenn Nutzer mir folgt - ggf. null
+	FollowingId       *uuid.UUID `gorm:"column:following_id" json:"followingId"`              // SubscriptionID, wenn ich Nutzer folge - ggf. null
+	Username          string     `gorm:"column:username" json:"username"`                     // Der Benutzername des Followers/Following
+	Nickname          string     `gorm:"column:nickname" json:"nickname"`                     // Der Spitzname des Followers/Following
+	ProfilePictureUrl string     `gorm:"column:profile_picture_url" json:"profilePictureUrl"` // Die URL des Profilbildes des Followers/Following
 }
 
-type SubscriptionSearchPaginationDTO struct {
+type SubscriptionPaginationDTO struct {
 	Offset  int   `json:"offset"`
 	Limit   int   `json:"limit"`
 	Records int64 `json:"records"`

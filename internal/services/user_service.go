@@ -39,14 +39,14 @@ type UserService struct {
 func NewUserService(
 	userRepo repositories.UserRepositoryInterface,
 	activationTokenRepo repositories.ActivationTokenRepositoryInterface,
-	maliService MailServiceInterface,
+	mailService MailServiceInterface,
 	validator utils.ValidatorInterface,
 	postRepo repositories.PostRepositoryInterface,
 	subscriptionRepo repositories.SubscriptionRepositoryInterface) *UserService {
 	return &UserService{
 		userRepo:            userRepo,
 		activationTokenRepo: activationTokenRepo,
-		mailService:         maliService,
+		mailService:         mailService,
 		validator:           validator,
 		postRepo:            postRepo,
 		subscriptionRepo:    subscriptionRepo}

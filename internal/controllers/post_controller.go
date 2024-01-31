@@ -15,6 +15,7 @@ type PostControllerInterface interface {
 	GetPostsByUserUsername(c *gin.Context)
 	GetPostFeed(c *gin.Context)
 	DeletePost(c *gin.Context)
+	GetPostsByHashtag(c *gin.Context)
 }
 
 type PostController struct {
@@ -58,6 +59,7 @@ func (controller *PostController) CreatePost(c *gin.Context) {
 		}
 
 		c.JSON(httpStatus, postDto)
+		return
 	}
 
 	// If ContentType is multipart/form-data, continue with image and (optional) text
@@ -92,9 +94,13 @@ func (controller *PostController) CreatePost(c *gin.Context) {
 		}
 
 		c.JSON(httpStatus, postDto)
-
+		return
 	}
 
+	// If ContentType is neither application/json nor multipart/form-data, return bad request
+	c.JSON(http.StatusBadRequest, gin.H{
+		"error": customerrors.BadRequest,
+	})
 }
 
 func (controller *PostController) GetPostsByUserUsername(c *gin.Context) {
@@ -198,4 +204,36 @@ func (controller *PostController) DeletePost(c *gin.Context) {
 	}
 
 	c.Status(httpStatus)
+}
+
+// GetPostsByHashtag is a controller function that gets posts by hashtag and can be called from router
+func (controller *PostController) GetPostsByHashtag(c *gin.Context) {
+	// Check if user is logged in
+	_, exists := c.Get("username")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": customerrors.UserUnauthorized,
+		})
+		return
+	}
+
+	// Read parameters from url
+	hashtag := c.DefaultQuery("q", "")
+	lastPostId := c.DefaultQuery("postId", "")
+	limitQuery := c.DefaultQuery("limit", "10")
+
+	limit, err := strconv.Atoi(limitQuery)
+	if err != nil {
+		limit = 10
+	}
+
+	feedDto, serviceErr, httpStatus := controller.postService.GetPostsByHashtag(hashtag, lastPostId, limit)
+	if serviceErr != nil {
+		c.JSON(httpStatus, gin.H{
+			"error": serviceErr,
+		})
+		return
+	}
+
+	c.JSON(httpStatus, feedDto)
 }

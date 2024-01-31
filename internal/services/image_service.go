@@ -5,6 +5,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
 	"github.com/wwi21seb-projekt/server-beta/internal/repositories"
+	"github.com/wwi21seb-projekt/server-beta/internal/utils"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -21,10 +22,11 @@ type ImageServiceInterface interface {
 type ImageService struct {
 	uploadPath string
 	fileSystem repositories.FileSystemInterface
+	validator  utils.ValidatorInterface
 }
 
 // NewImageService can be used as a constructor to create a ImageService "object"
-func NewImageService(fileSystem repositories.FileSystemInterface) *ImageService {
+func NewImageService(fileSystem repositories.FileSystemInterface, validator utils.ValidatorInterface) *ImageService {
 	uploadPath := os.Getenv("IMAGES_PATH")
 	if err := fileSystem.CreateDirectory(uploadPath, os.ModePerm); err != nil {
 		panic(err)
@@ -33,11 +35,14 @@ func NewImageService(fileSystem repositories.FileSystemInterface) *ImageService 
 	return &ImageService{
 		uploadPath: uploadPath,
 		fileSystem: fileSystem,
+		validator:  validator,
 	}
 }
 
 // SaveImage can be used in other services to save an image to the file system and return the image url
 func (service *ImageService) SaveImage(fileHeader multipart.FileHeader) (string, *customerrors.CustomError, int) {
+	fmt.Println("Test")
+
 	// Get file type
 	var extension string
 	switch fileHeader.Header.Get("Content-Type") {
@@ -70,6 +75,11 @@ func (service *ImageService) SaveImage(fileHeader multipart.FileHeader) (string,
 		return "", customerrors.InternalServerError, http.StatusInternalServerError
 	}
 
+	// Check if image is valid
+	if !service.validator.ValidateImage(imageData, fileHeader.Header.Get("Content-Type")) {
+		return "", customerrors.BadRequest, http.StatusBadRequest
+	}
+
 	// Generate new filename that does not exist yet
 	var filename string
 	var fullPath string
@@ -87,7 +97,7 @@ func (service *ImageService) SaveImage(fileHeader multipart.FileHeader) (string,
 	}
 
 	imageUrl := os.Getenv("SERVER_URL") + "/api/images/" + filename
-	return imageUrl, nil, http.StatusOK
+	return imageUrl, nil, http.StatusCreated
 }
 
 // GetImage can be used in image controller to return an image from the file system

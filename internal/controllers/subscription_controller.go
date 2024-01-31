@@ -98,7 +98,8 @@ func (controller *SubscriptionController) GetSubscriptions(c *gin.Context) {
 	}
 
 	// Get current user from middleware
-	if _, exists := c.Get("username"); !exists {
+	currentUsername, exists := c.Get("username")
+	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"error": customerrors.UserUnauthorized,
 		})
@@ -106,7 +107,7 @@ func (controller *SubscriptionController) GetSubscriptions(c *gin.Context) {
 	}
 
 	// Search user
-	subscriptionsDto, serviceErr, httpStatus := controller.subscriptionService.GetSubscriptions(ftype, limit, offset, username)
+	subscriptionsDto, serviceErr, httpStatus := controller.subscriptionService.GetSubscriptions(ftype, limit, offset, username, currentUsername.(string))
 	if serviceErr != nil {
 		c.JSON(httpStatus, gin.H{
 			"error": serviceErr,
