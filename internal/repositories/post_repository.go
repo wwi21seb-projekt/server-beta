@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"errors"
 	"github.com/google/uuid"
 	"github.com/wwi21seb-projekt/server-beta/internal/models"
 	"gorm.io/gorm"
@@ -27,7 +28,8 @@ func NewPostRepository(db *gorm.DB) *PostRepository {
 }
 
 func (repo *PostRepository) CreatePost(post *models.Post) error {
-	return repo.DB.Create(&post).Error
+	err := repo.DB.Create(post).Error
+	return err
 }
 
 func (repo *PostRepository) GetPostCountByUsername(username string) (int64, error) {
@@ -49,7 +51,7 @@ func (repo *PostRepository) GetPostsByUsername(username string, offset, limit in
 	}
 
 	// Get posts using pagination information
-	err = baseQuery.Offset(offset).Limit(limit).Order("created_at desc, id desc").Find(&posts).Error
+	err = baseQuery.Offset(offset).Limit(limit).Order("created_at desc, id desc").Preload("Location").Find(&posts).Error
 	if err != nil {
 		return nil, 0, err
 	}
@@ -59,7 +61,7 @@ func (repo *PostRepository) GetPostsByUsername(username string, offset, limit in
 
 func (repo *PostRepository) GetPostById(postId string) (models.Post, error) {
 	var post models.Post
-	err := repo.DB.Where("id = ?", postId).First(&post).Error
+	err := repo.DB.Preload("Location").Preload("User").Where("id = ?", postId).First(&post).Error
 	return post, err
 }
 
@@ -85,6 +87,7 @@ func (repo *PostRepository) GetPostsGlobalFeed(lastPost *models.Post, limit int)
 		Order("created_at desc, id desc").
 		Limit(limit).
 		Preload("User").
+		Preload("Location").
 		Find(&posts).Error
 	if err != nil {
 		return nil, 0, err
@@ -116,6 +119,7 @@ func (repo *PostRepository) GetPostsPersonalFeed(username string, lastPost *mode
 	err = baseQuery.Order("created_at desc, posts.id desc").
 		Limit(limit).
 		Preload("User").
+		Preload("Location").
 		Find(&posts).Error
 	if err != nil {
 		return nil, 0, err
@@ -125,7 +129,35 @@ func (repo *PostRepository) GetPostsPersonalFeed(username string, lastPost *mode
 }
 
 func (repo *PostRepository) DeletePostById(postId string) error {
-	return repo.DB.Where("id = ?", postId).Delete(&models.Post{}).Error
+	return repo.DB.Transaction(func(tx *gorm.DB) error {
+
+		var post models.Post
+		result := tx.First(&post, "id = ?", postId)
+		if result.Error != nil {
+			return result.Error
+		}
+
+		// Delete post
+		if err := tx.Where("id = ?", postId).Delete(&models.Post{}).Error; err != nil {
+			return err
+		}
+
+		// Löschen der Hashtags-Beziehungen in der Join-Tabelle
+		if err := tx.Model(&models.Post{Id: post.Id}).Association("Hashtags").Clear(); err != nil {
+			if !errors.Is(err, gorm.ErrRecordNotFound) {
+				return err
+			}
+		}
+
+		// Löschen der Location
+		if err := tx.Where("id = ?", post.LocationId).Delete(&models.Location{}).Error; err != nil {
+			if !errors.Is(err, gorm.ErrRecordNotFound) {
+				return err
+			}
+		}
+
+		return nil
+	})
 }
 
 func (repo *PostRepository) GetPostsByHashtag(hashtag string, lastPost *models.Post, limit int) ([]models.Post, int64, error) {
@@ -152,6 +184,7 @@ func (repo *PostRepository) GetPostsByHashtag(hashtag string, lastPost *models.P
 	err = baseQuery.
 		Order("posts.created_at desc, posts.id desc").
 		Limit(limit).
+		Preload("Location").
 		Preload("User").
 		Find(&posts).Error
 	if err != nil {
