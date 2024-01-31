@@ -18,6 +18,7 @@ func SyncDatabase() {
 
 	// Migrate models
 	modelsToMigrate := []interface{}{
+		&models.Location{},
 		&models.User{},
 		&models.ActivationToken{},
 		&models.Post{},
