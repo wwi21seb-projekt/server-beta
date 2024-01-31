@@ -2,6 +2,8 @@ package utils_test
 
 import (
 	"github.com/wwi21seb-projekt/server-beta/internal/utils"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -118,6 +120,37 @@ func TestValidateStatus(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := validator.ValidateStatus(tt.status); got != tt.want {
 				t.Errorf("ValidateStatus() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+// TestValidateImage tests the ValidateImage function using multiple image examples from the tests/resources folder
+func TestValidateImage(t *testing.T) {
+	tests := []struct {
+		name        string
+		filePath    string
+		contentType string
+		want        bool
+	}{
+		{"Valid JPEG Image", "../../tests/resources/valid.jpeg", "image/jpeg", true},
+		{"Valid WEBP Image", "../../tests/resources/valid.webp", "image/webp", true},
+		{"Empty JPEG Image", "../../tests/resources/empty.jpeg", "image/jpeg", false},
+		{"Empty WEBP Image", "../../tests/resources/empty.webp", "image/webp", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			filePath := filepath.Join(tt.filePath)
+			imageData, err := os.ReadFile(filePath)
+			if err != nil {
+				t.Fatalf("Failed to read image file: %s", err)
+			}
+
+			validator := utils.NewValidator()
+
+			if got := validator.ValidateImage(imageData, tt.contentType); got != tt.want {
+				t.Errorf("ValidateImage() = %v, want %v", got, tt.want)
 			}
 		})
 	}

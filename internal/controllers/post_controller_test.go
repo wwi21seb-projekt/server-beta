@@ -21,6 +21,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/textproto"
+	"os"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -310,23 +312,28 @@ func createFormFile(writer *multipart.Writer, fieldName, fileName string, conten
 // TestCreatePostWithImageSuccess tests if the CreatePost function returns a postDto and 201 created if post is created successfully with image
 func TestCreatePostWithImageSuccess(t *testing.T) {
 	testCases := [][]string{
-		{"This is a test post.", "test.jpeg", "This is an image", "image/jpeg"},           // test jpeg
-		{"This is a test post text.", "test.webp", "This is also an image", "image/webp"}, // test webp
-		{"", "test.jpeg", "This is another image", "image/jpeg"},                          // test only image
+		{"This is a test post.", "../../tests/resources/valid.jpeg", "image/jpeg"},      // test jpeg
+		{"This is a test post text.", "../../tests/resources/valid.webp", "image/webp"}, // test webp
+		{"", "../../tests/resources/valid.jpeg", "image/jpeg"},                          // test only image
 	}
 
 	for _, testCase := range testCases {
-		// Create multipart request body
 		content := testCase[0]
-		testImageName := testCase[1]
-		testImageContent := testCase[2]
-		testImageContentType := testCase[3]
+		testImageFilePath := testCase[1]
+		testImageContentType := testCase[2]
+
+		// Read the image file
+		imageData, err := os.ReadFile(testImageFilePath)
+		if err != nil {
+			t.Fatalf("Failed to read image file: %s", err)
+		}
 
 		// Arrange
 		mockUserRepository := new(repositories.MockUserRepository)
 		mockPostRepository := new(repositories.MockPostRepository)
 		mockHashtagRepository := new(repositories.MockHashtagRepository)
 		mockFileSystem := new(repositories.MockFileSystem)
+		mockValidator := new(utils.MockValidator)
 
 		mockFileSystem.On("CreateDirectory", mock.AnythingOfType("string"), mock.AnythingOfType("fs.FileMode")).Return(nil)
 
@@ -334,7 +341,7 @@ func TestCreatePostWithImageSuccess(t *testing.T) {
 			mockPostRepository,
 			mockUserRepository,
 			mockHashtagRepository,
-			services.NewImageService(mockFileSystem),
+			services.NewImageService(mockFileSystem, mockValidator),
 		)
 		postController := controllers.NewPostController(postService)
 
@@ -370,16 +377,26 @@ func TestCreatePostWithImageSuccess(t *testing.T) {
 		// Create multipart request body
 		body := &bytes.Buffer{}
 		writer := multipart.NewWriter(body)
-		err = writer.WriteField("content", content)
-		part, err := createFormFile(writer, "image", testImageName, testImageContentType)
 
+		// Add text field
+		if content != "" {
+			err = writer.WriteField("content", content)
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		// Add image file
+		part, err := createFormFile(writer, "image", testImageFilePath, testImageContentType)
 		if err != nil {
 			t.Fatal(err)
 		}
-		_, err = part.Write([]byte(testImageContent))
+
+		_, err = part.Write(imageData)
 		if err != nil {
 			t.Fatal(err)
 		}
+
 		err = writer.Close()
 		if err != nil {
 			t.Fatal(err)
@@ -414,7 +431,7 @@ func TestCreatePostWithImageSuccess(t *testing.T) {
 		assert.NotNil(t, capturedPost.CreatedAt)
 		assert.True(t, capturedPost.CreatedAt.Equal(responsePost.CreationDate))
 		assert.Equal(t, "/api/images"+capturedFilename, capturedPost.ImageUrl)
-		assert.Equal(t, capturedFile, []uint8(testImageContent))
+		assert.True(t, reflect.DeepEqual(imageData, capturedFile))
 
 		mockPostRepository.AssertExpectations(t)
 		mockHashtagRepository.AssertExpectations(t)
@@ -437,6 +454,7 @@ func TestCreatePostWithImageBadRequest(t *testing.T) {
 	mockPostRepository := new(repositories.MockPostRepository)
 	mockHashtagRepository := new(repositories.MockHashtagRepository)
 	mockFileSystem := new(repositories.MockFileSystem)
+	mockValidator := new(utils.MockValidator)
 
 	mockFileSystem.On("CreateDirectory", mock.AnythingOfType("string"), mock.AnythingOfType("fs.FileMode")).Return(nil)
 
@@ -444,7 +462,7 @@ func TestCreatePostWithImageBadRequest(t *testing.T) {
 		mockPostRepository,
 		mockUserRepository,
 		mockHashtagRepository,
-		services.NewImageService(mockFileSystem),
+		services.NewImageService(mockFileSystem, mockValidator),
 	)
 	postController := controllers.NewPostController(postService)
 
@@ -524,6 +542,7 @@ func TestCreatePostWithEmptyImageSuccess(t *testing.T) {
 	mockPostRepository := new(repositories.MockPostRepository)
 	mockHashtagRepository := new(repositories.MockHashtagRepository)
 	mockFileSystem := new(repositories.MockFileSystem)
+	mockValidator := new(utils.MockValidator)
 
 	mockFileSystem.On("CreateDirectory", mock.AnythingOfType("string"), mock.AnythingOfType("fs.FileMode")).Return(nil)
 
@@ -531,7 +550,7 @@ func TestCreatePostWithEmptyImageSuccess(t *testing.T) {
 		mockPostRepository,
 		mockUserRepository,
 		mockHashtagRepository,
-		services.NewImageService(mockFileSystem),
+		services.NewImageService(mockFileSystem, mockValidator),
 	)
 	postController := controllers.NewPostController(postService)
 
