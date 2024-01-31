@@ -184,6 +184,7 @@ func (repo *PostRepository) GetPostsByHashtag(hashtag string, lastPost *models.P
 	err = baseQuery.
 		Order("posts.created_at desc, posts.id desc").
 		Limit(limit).
+		Preload("Location").
 		Preload("User").
 		Find(&posts).Error
 	if err != nil {

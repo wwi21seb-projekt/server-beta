@@ -473,7 +473,7 @@ func TestCreatePostWithImageSuccess(t *testing.T) {
 		mockPostRepository := new(repositories.MockPostRepository)
 		mockHashtagRepository := new(repositories.MockHashtagRepository)
 		mockFileSystem := new(repositories.MockFileSystem)
-		mockValidator := new(utils.MockValidator)
+		validator := new(utils.Validator)
 
 		mockFileSystem.On("CreateDirectory", mock.AnythingOfType("string"), mock.AnythingOfType("fs.FileMode")).Return(nil)
 
@@ -481,8 +481,8 @@ func TestCreatePostWithImageSuccess(t *testing.T) {
 			mockPostRepository,
 			mockUserRepository,
 			mockHashtagRepository,
-			services.NewImageService(mockFileSystem),
-			nil,
+			services.NewImageService(mockFileSystem, validator),
+			validator,
 			nil,
 		)
 		postController := controllers.NewPostController(postService)
@@ -596,7 +596,7 @@ func TestCreatePostWithImageBadRequest(t *testing.T) {
 	mockPostRepository := new(repositories.MockPostRepository)
 	mockHashtagRepository := new(repositories.MockHashtagRepository)
 	mockFileSystem := new(repositories.MockFileSystem)
-	mockValidator := new(utils.MockValidator)
+	validator := new(utils.Validator)
 
 	mockFileSystem.On("CreateDirectory", mock.AnythingOfType("string"), mock.AnythingOfType("fs.FileMode")).Return(nil)
 
@@ -604,8 +604,8 @@ func TestCreatePostWithImageBadRequest(t *testing.T) {
 		mockPostRepository,
 		mockUserRepository,
 		mockHashtagRepository,
-		services.NewImageService(mockFileSystem),
-		nil,
+		services.NewImageService(mockFileSystem, validator),
+		validator,
 		nil,
 	)
 	postController := controllers.NewPostController(postService)
@@ -686,7 +686,7 @@ func TestCreatePostWithEmptyImageSuccess(t *testing.T) {
 	mockPostRepository := new(repositories.MockPostRepository)
 	mockHashtagRepository := new(repositories.MockHashtagRepository)
 	mockFileSystem := new(repositories.MockFileSystem)
-	mockValidator := new(utils.MockValidator)
+	validator := new(utils.MockValidator)
 
 	mockFileSystem.On("CreateDirectory", mock.AnythingOfType("string"), mock.AnythingOfType("fs.FileMode")).Return(nil)
 
@@ -694,8 +694,8 @@ func TestCreatePostWithEmptyImageSuccess(t *testing.T) {
 		mockPostRepository,
 		mockUserRepository,
 		mockHashtagRepository,
-		services.NewImageService(mockFileSystem),
-		nil,
+		services.NewImageService(mockFileSystem, validator),
+		validator,
 		nil,
 	)
 	postController := controllers.NewPostController(postService)
@@ -797,6 +797,8 @@ func TestCreatePostWithWrongContentTypeBadRequest(t *testing.T) {
 			mockUserRepository,
 			mockHashtagRepository,
 			services.NewImageService(mockFileSystem, validator),
+			nil,
+			nil,
 		)
 		postController := controllers.NewPostController(postService)
 
@@ -1578,10 +1580,13 @@ func TestGetPostsByHashtagSuccess(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		nil,
+		nil,
 	)
 	postController := controllers.NewPostController(postService)
 
 	hashtag := "Post"
+	locationId := uuid.New()
 	posts := []models.Post{
 		{
 			Id:       uuid.New(),
@@ -1591,8 +1596,14 @@ func TestGetPostsByHashtagSuccess(t *testing.T) {
 				Nickname:          "testNickname",
 				ProfilePictureUrl: "",
 			},
-			Content:   "Test #Post 2",
-			CreatedAt: time.Now(),
+			Content:    "Test #Post 2",
+			CreatedAt:  time.Now(),
+			LocationId: &locationId,
+			Location: models.Location{
+				Longitude: "11.1",
+				Latitude:  "22.2",
+				Accuracy:  50,
+			},
 		},
 		{
 			Id:       uuid.New(),
@@ -1664,6 +1675,10 @@ func TestGetPostsByHashtagSuccess(t *testing.T) {
 	assert.Equal(t, posts[0].User.ProfilePictureUrl, responsePostFeed.Records[0].Author.ProfilePictureUrl)
 	assert.Equal(t, posts[0].Content, responsePostFeed.Records[0].Content)
 	assert.True(t, posts[0].CreatedAt.Equal(responsePostFeed.Records[0].CreationDate))
+	assert.NotNil(t, responsePostFeed.Records[0].Location)
+	assert.Equal(t, posts[0].Location.Latitude, responsePostFeed.Records[0].Location.Latitude)
+	assert.Equal(t, posts[0].Location.Longitude, responsePostFeed.Records[0].Location.Longitude)
+	assert.Equal(t, posts[0].Location.Accuracy, responsePostFeed.Records[0].Location.Accuracy)
 
 	assert.Equal(t, posts[1].Id, responsePostFeed.Records[1].PostId)
 	assert.Equal(t, posts[1].Username, responsePostFeed.Records[1].Author.Username)
@@ -1671,6 +1686,7 @@ func TestGetPostsByHashtagSuccess(t *testing.T) {
 	assert.Equal(t, posts[1].User.ProfilePictureUrl, responsePostFeed.Records[1].Author.ProfilePictureUrl)
 	assert.Equal(t, posts[1].Content, responsePostFeed.Records[1].Content)
 	assert.True(t, posts[1].CreatedAt.Equal(responsePostFeed.Records[1].CreationDate))
+	assert.Nil(t, responsePostFeed.Records[1].Location)
 
 	assert.Equal(t, limit, responsePostFeed.Pagination.Limit)
 	assert.Equal(t, totalCount, responsePostFeed.Pagination.Records)
@@ -1692,6 +1708,8 @@ func TestGetPostsByHashtagUnauthorized(t *testing.T) {
 
 		postService := services.NewPostService(
 			mockPostRepository,
+			nil,
+			nil,
 			nil,
 			nil,
 			nil,

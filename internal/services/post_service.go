@@ -442,15 +442,24 @@ func (service *PostService) GetPostsByHashtag(hashtag string, lastPostId string,
 	}
 	for _, post := range posts {
 		authorDto := models.AuthorDTO{
-			Username:          post.Username,
+			Username:          post.User.Username,
 			Nickname:          post.User.Nickname,
 			ProfilePictureUrl: post.User.ProfilePictureUrl,
+		}
+		var locationDTO *models.LocationDTO
+		if post.LocationId != nil {
+			locationDTO = &models.LocationDTO{
+				Longitude: post.Location.Longitude,
+				Latitude:  post.Location.Latitude,
+				Accuracy:  post.Location.Accuracy,
+			}
 		}
 		postDto := models.PostResponseDTO{
 			PostId:       post.Id,
 			Author:       &authorDto,
 			CreationDate: post.CreatedAt,
 			Content:      post.Content,
+			Location:     locationDTO,
 		}
 		feed.Records = append(feed.Records, postDto)
 	}
