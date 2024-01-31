@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"errors"
 	"github.com/wwi21seb-projekt/server-beta/internal/models"
 	"gorm.io/gorm"
 )
@@ -15,6 +16,8 @@ type UserRepositoryInterface interface {
 	CheckUsernameExistsForUpdate(username string, tx *gorm.DB) (bool, error)
 	UpdateUser(user *models.User) error
 	SearchUser(username string, limit int, offset int, currentUsername string) ([]models.User, int64, error)
+	GetUnactivatedUsers() ([]models.User, error)
+	DeleteUserByUsername(username string) error
 }
 
 type UserRepository struct {
@@ -95,4 +98,27 @@ func (repo *UserRepository) SearchUser(username string, limit int, offset int, c
 	}
 
 	return users, count, nil
+}
+
+func (repo *UserRepository) GetUnactivatedUsers() ([]models.User, error) {
+	var users []models.User
+	err := repo.DB.Where("activated = ?", false).Find(&users).Error
+	return users, err
+}
+
+func (repo *UserRepository) DeleteUserByUsername(username string) error {
+	return repo.DB.Transaction(func(tx *gorm.DB) error {
+		// Token löschen
+		if err := tx.Where("username = ?", username).Delete(&models.ActivationToken{}).Error; err != nil {
+			if !errors.Is(err, gorm.ErrRecordNotFound) {
+				return err // Rückkehr bei einem Datenbankfehler, der kein RecordNotFound-Fehler ist
+			}
+		}
+		// Nutzer löschen
+		if err := tx.Where("username = ?", username).Delete(&models.User{}).Error; err != nil {
+			return err // Rückkehr bei einem Fehler
+		}
+
+		return nil // Kein Fehler, erfolgreicher Abschluss der Transaktion
+	})
 }

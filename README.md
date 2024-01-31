@@ -20,7 +20,7 @@ make all
 
 If no port is specified, the server will run on the default port `:8080`.
 
-The user needs to have PostgreSQL installed and running. Additionally, the user needs to create an .env file with the following information:
+The user needs to have PostgreSQL installed and running. Additionally, the user needs to create an `.env` file with the following information:
 ```
 JWT_SECRET=
 
@@ -43,3 +43,4 @@ IMAGES_PATH=
 
 GIN_MODE=
 ```
+An example `.env` file (`.env.example`) can be found in the root directory of the project.

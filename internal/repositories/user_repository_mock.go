@@ -55,3 +55,13 @@ func (m *MockUserRepository) SearchUser(username string, limit int, offset int, 
 	args := m.Called(username, limit, offset, currentUsername)
 	return args.Get(0).([]models.User), args.Get(1).(int64), args.Error(2)
 }
+
+func (m *MockUserRepository) GetUnactivatedUsers() ([]models.User, error) {
+	args := m.Called()
+	return args.Get(0).([]models.User), args.Error(1)
+}
+
+func (m *MockUserRepository) DeleteUserByUsername(username string) error {
+	args := m.Called(username)
+	return args.Error(0)
+}

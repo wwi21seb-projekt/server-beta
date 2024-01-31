@@ -4,6 +4,7 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/wwi21seb-projekt/server-beta/internal/controllers"
+	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
 	"github.com/wwi21seb-projekt/server-beta/internal/initializers"
 	"github.com/wwi21seb-projekt/server-beta/internal/middleware"
 	"github.com/wwi21seb-projekt/server-beta/internal/repositories"
@@ -31,6 +32,14 @@ func SetupRouter() *gin.Engine {
 		panic(err)
 		return nil
 	}
+
+	// Recover from panics and return 500 Internal Server Error
+	r.Use(RecoveryMiddleware())
+
+	// No route found
+	r.NoRoute(func(c *gin.Context) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Page not found"})
+	})
 
 	// Setup repositories, services, controllers
 	activationTokenRepo := repositories.NewActivationTokenRepository(initializers.DB)
@@ -94,4 +103,19 @@ func ReturnNotImplemented(c *gin.Context) {
 	c.JSON(http.StatusNotImplemented, gin.H{
 		"error": "Not implemented",
 	})
+}
+
+// RecoveryMiddleware recovers from panics and returns a 500 Internal Server Error
+func RecoveryMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		defer func() {
+			if r := recover(); r != nil {
+				// Respond with a 500 Internal Server Error status code
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"error": customerrors.InternalServerError,
+				})
+			}
+		}()
+		c.Next()
+	}
 }
