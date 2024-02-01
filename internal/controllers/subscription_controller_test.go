@@ -233,6 +233,59 @@ func TestPostSubscriptionAlreadyExists(t *testing.T) {
 	mockSubscriptionRepo.AssertExpectations(t)
 }
 
+// TestPostSubscriptionUserNotFound tests if PostSubscription returns 404-Not Found when user is not found
+func TestPostSubscriptionUserNotFound(t *testing.T) {
+	// Arrange
+	mockSubscriptionRepo := new(repositories.MockSubscriptionRepository)
+	mockUserRepo := new(repositories.MockUserRepository)
+
+	subscriptionService := services.NewSubscriptionService(mockSubscriptionRepo, mockUserRepo)
+	subscriptionController := controllers.NewSubscriptionController(subscriptionService)
+
+	currentUsername := "testUser"
+	authenticationToken, err := utils.GenerateAccessToken(currentUsername)
+	if err != nil {
+		t.Error(err)
+	}
+
+	subscriptionCreateRequest := models.SubscriptionPostRequestDTO{
+		Following: "testUser2",
+	}
+
+	// Mock expectations
+	mockUserRepo.On("FindUserByUsername", subscriptionCreateRequest.Following).Return(&models.User{}, gorm.ErrRecordNotFound) // Expect user to not be found
+
+	// Setup HTTP request and recorder
+	requestBody, err := json.Marshal(subscriptionCreateRequest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req, _ := http.NewRequest(http.MethodPost, "/subscriptions", bytes.NewBuffer(requestBody))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+authenticationToken)
+	w := httptest.NewRecorder()
+
+	// Act
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+	router.POST("/subscriptions", middleware.AuthorizeUser, subscriptionController.PostSubscription)
+	router.ServeHTTP(w, req)
+
+	// Assert Response
+	assert.Equal(t, http.StatusNotFound, w.Code) // Expect HTTP 404 Not Found status
+
+	var errorResponse customerrors.ErrorResponse
+	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
+	assert.NoError(t, err)
+
+	expectedCustomError := customerrors.UserNotFound
+	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
+	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
+
+	mockSubscriptionRepo.AssertExpectations(t)
+	mockUserRepo.AssertExpectations(t)
+}
+
 // TestPostSubscriptionSelfFollow tests if PostSubscription returns 406-Not Acceptable when user tries to follow himself
 func TestPostSubscriptionSelfFollow(t *testing.T) {
 	// Arrange
