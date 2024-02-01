@@ -13,14 +13,11 @@ func StartDailyRoutines() {
 	// Arrange
 	userRepo := repositories.NewUserRepository(initializers.DB)
 
-	// Execution Time 3:00 AM
-	executionTime := time.Date(0, 0, 0, 3, 0, 0, 0, time.Local)
-
 	for {
 		now := time.Now()
-		nextRun := now.Add(time.Until(executionTime))
+		nextRun := time.Date(now.Year(), now.Month(), now.Day(), 3, 0, 0, 0, time.Local)
 		if nextRun.Before(now) {
-			nextRun = nextRun.Add(24 * time.Hour)
+			nextRun = nextRun.Add(24 * time.Hour) // If it is already past 3 AM, add 24 hours to nextRun
 		}
 
 		timer := time.NewTimer(time.Until(nextRun))
