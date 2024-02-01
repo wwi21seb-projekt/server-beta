@@ -19,6 +19,9 @@ func init() {
 func main() {
 	fmt.Println("Start server...")
 
+	// Start daily routines
+	go routines.StartDailyRoutines()
+
 	// Define a port using argument flag
 	// Set default port to :8080
 	port := flag.String("port", "8080", "Port on which the server will run")
@@ -32,9 +35,6 @@ func main() {
 	} else {
 		fmt.Println("Router started...")
 	}
-
-	// Start daily routines
-	go routines.StartDailyRoutines()
 
 	defer initializers.CloseDbConnection()
 }
