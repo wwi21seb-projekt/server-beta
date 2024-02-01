@@ -12,6 +12,7 @@ import (
 	"io/fs"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 )
 
@@ -27,9 +28,18 @@ func TestGetImageSuccess(t *testing.T) {
 		mockFileSystem := new(repositories.MockFileSystem)
 		mockValidator := new(utils.MockValidator)
 
+		err := os.Setenv("IMAGES_PATH", "/test_images")
+		if err != nil {
+			t.Fatal(err)
+		}
+
 		// Mock expectations
+		var pathCaptor string
 		mockFileSystem.On("CreateDirectory", mock.AnythingOfType("string"), mock.AnythingOfType("fs.FileMode")).Return(nil)
-		mockFileSystem.On("ReadFile", filename).Return([]byte("test"), nil)
+		mockFileSystem.On("ReadFile", mock.AnythingOfType("string")).
+			Run(func(args mock.Arguments) {
+				pathCaptor = args.Get(0).(string) // Save argument to captor
+			}).Return([]byte("test"), nil)
 
 		// Arrange
 		imageService := services.NewImageService(mockFileSystem, mockValidator)
@@ -48,7 +58,51 @@ func TestGetImageSuccess(t *testing.T) {
 		// Assert
 		assert.Equal(t, http.StatusOK, w.Code) // Expect HTTP 200 OK
 
+		assert.Contains(t, pathCaptor, filename)
+
 		mockFileSystem.AssertExpectations(t)
+	}
+}
+
+// TestGetImagePathTraversal tests if the GetImage function prevents path traversal and removes relative paths
+func TestGetImagePathTraversal(t *testing.T) {
+	filenames := []string{
+		"../test.jpeg",
+		"../test.webp",
+		"../../test.jpeg",
+		"../../../test.webp",
+	}
+
+	for _, filename := range filenames {
+		// Arrange
+		mockFileSystem := new(repositories.MockFileSystem)
+		mockValidator := new(utils.MockValidator)
+
+		err := os.Setenv("IMAGES_PATH", "/test_images")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Mock expectations
+		var pathCaptor string
+		mockFileSystem.On("CreateDirectory", mock.AnythingOfType("string"), mock.AnythingOfType("fs.FileMode")).Return(nil)
+		mockFileSystem.On("ReadFile", mock.AnythingOfType("string")).
+			Run(func(args mock.Arguments) {
+				pathCaptor = args.Get(0).(string) // Save argument to captor
+			}).Return([]byte("test"), nil)
+
+		// Arrange
+		imageService := services.NewImageService(mockFileSystem, mockValidator)
+
+		// Act
+		imageData, err, statusCode := imageService.GetImage(filename)
+
+		// Assert
+		assert.Equal(t, http.StatusNotFound, statusCode) // Expect HTTP 404 Not Found
+		assert.Equal(t, customerrors.FileNotFound, err)
+		assert.Nil(t, imageData)
+
+		assert.NotContains(t, pathCaptor, "..", "Path contains directory traversal characters")
 	}
 }
 
