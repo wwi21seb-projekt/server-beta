@@ -12,7 +12,6 @@ import (
 	"io/fs"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 )
 
@@ -27,11 +26,6 @@ func TestGetImageSuccess(t *testing.T) {
 		// Arrange
 		mockFileSystem := new(repositories.MockFileSystem)
 		mockValidator := new(utils.MockValidator)
-
-		err := os.Setenv("IMAGES_PATH", "/test_images")
-		if err != nil {
-			t.Fatal(err)
-		}
 
 		// Mock expectations
 		var pathCaptor string
@@ -77,11 +71,6 @@ func TestGetImagePathTraversal(t *testing.T) {
 		// Arrange
 		mockFileSystem := new(repositories.MockFileSystem)
 		mockValidator := new(utils.MockValidator)
-
-		err := os.Setenv("IMAGES_PATH", "/test_images")
-		if err != nil {
-			t.Fatal(err)
-		}
 
 		// Mock expectations
 		var pathCaptor string
