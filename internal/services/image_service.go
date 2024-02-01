@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 type ImageServiceInterface interface {
@@ -102,14 +103,28 @@ func (service *ImageService) SaveImage(fileHeader multipart.FileHeader) (string,
 
 // GetImage can be used in image controller to return an image from the file system
 func (service *ImageService) GetImage(filename string) ([]byte, *customerrors.CustomError, int) {
-	filePath := filepath.Join(service.uploadPath, filename)
+	// Get absolute path of upload directory
+	uploadDir, err := filepath.Abs(service.uploadPath)
+	if err != nil {
+		return nil, customerrors.InternalServerError, http.StatusInternalServerError
+	}
+
+	// Get absolute path of requested file
+	filePath, err := filepath.Abs(filepath.Join(service.uploadPath, filename)) // abs calls clean internally to remove relative path elements (e.g. ../)
+	if err != nil {
+		return nil, customerrors.InternalServerError, http.StatusInternalServerError
+	}
+
+	// Check if requested file is in upload directory
+	if !strings.HasPrefix(filePath, uploadDir+string(os.PathSeparator)) {
+		return nil, customerrors.FileNotFound, http.StatusNotFound
+	}
 
 	imageData, err := service.fileSystem.ReadFile(filePath)
 	if err != nil { // check for file not found error
 		if os.IsNotExist(err) {
 			return nil, customerrors.FileNotFound, http.StatusNotFound
 		}
-		fmt.Println("test")
 		return nil, customerrors.InternalServerError, http.StatusInternalServerError // else internal server error
 	}
 
