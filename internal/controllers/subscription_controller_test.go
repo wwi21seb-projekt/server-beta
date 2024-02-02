@@ -76,6 +76,7 @@ func TestPostSubscriptionSuccess(t *testing.T) {
 	assert.Equal(t, currentUsername, capturedSubscription.FollowerUsername)
 	assert.NotNil(t, capturedSubscription.Id)
 	assert.NotNil(t, capturedSubscription.SubscriptionDate)
+
 	assert.Equal(t, capturedSubscription.Id, responseSubscription.SubscriptionId)
 	assert.Equal(t, currentUsername, responseSubscription.Follower)
 	assert.Equal(t, subscriptionCreateRequest.Following, responseSubscription.Following)

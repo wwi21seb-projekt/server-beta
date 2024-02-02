@@ -8,6 +8,7 @@ import (
 	"github.com/wwi21seb-projekt/server-beta/internal/repositories"
 	"github.com/wwi21seb-projekt/server-beta/internal/utils"
 	"gorm.io/gorm"
+	"html"
 	"net/http"
 	"strconv"
 	"time"
@@ -414,6 +415,9 @@ func (service *UserService) SearchUser(username string, limit int, offset int, c
 
 // UpdateUserInformation can be called from the controller to update a user's nickname and status
 func (service *UserService) UpdateUserInformation(req *models.UserInformationUpdateDTO, currentUsername string) (*models.UserInformationUpdateDTO, *customerrors.CustomError, int) {
+	// Escape html in status
+	req.Status = html.EscapeString(req.Status)
+
 	// Check if the new nickname and status are valid
 	if !service.validator.ValidateNickname(req.Nickname) || !service.validator.ValidateStatus(req.Status) {
 		return nil, customerrors.BadRequest, http.StatusBadRequest
