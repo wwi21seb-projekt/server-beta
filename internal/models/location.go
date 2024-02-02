@@ -12,7 +12,7 @@ type Location struct {
 }
 
 type LocationDTO struct {
-	Longitude float64 `json:"longitude" binding:"required"`
-	Latitude  float64 `json:"latitude" binding:"required"`
-	Accuracy  uint    `json:"accuracy" binding:"required"`
+	Longitude *float64 `json:"longitude" binding:"required"` // using pointer to allow values to be zero
+	Latitude  *float64 `json:"latitude" binding:"required"`
+	Accuracy  *uint    `json:"accuracy" binding:"required"`
 }

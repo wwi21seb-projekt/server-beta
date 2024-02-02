@@ -2,6 +2,7 @@ package services
 
 import (
 	"errors"
+	"fmt"
 	"github.com/google/uuid"
 	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
 	"github.com/wwi21seb-projekt/server-beta/internal/models"
@@ -59,7 +60,7 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *m
 	}
 	if req.Location != nil {
 		// Then check if coordinates are in valid range
-		if !service.validator.ValidateLongitude(req.Location.Longitude) || !service.validator.ValidateLatitude(req.Location.Latitude) {
+		if !service.validator.ValidateLongitude(*req.Location.Longitude) || !service.validator.ValidateLatitude(*req.Location.Latitude) {
 			return nil, customerrors.BadRequest, http.StatusBadRequest
 		}
 	}
@@ -106,9 +107,9 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *m
 	if req.Location != nil { // if location is present, create location object and save it
 		location := models.Location{
 			Id:        uuid.New(),
-			Longitude: req.Location.Longitude,
-			Latitude:  req.Location.Latitude,
-			Accuracy:  req.Location.Accuracy,
+			Longitude: *req.Location.Longitude,
+			Latitude:  *req.Location.Latitude,
+			Accuracy:  *req.Location.Accuracy,
 		}
 		locationId = &location.Id
 		err = service.locationRepo.CreateLocation(&location)
@@ -177,10 +178,13 @@ func (service *PostService) GetPostsByUsername(username string, offset, limit in
 	for _, post := range posts {
 		var locationDTO *models.LocationDTO
 		if post.LocationId != nil {
+			tempLatitude := post.Location.Latitude // need to use temp variables because the pointers change in the loop
+			tempLongitude := post.Location.Longitude
+			tempAccuracy := post.Location.Accuracy
 			locationDTO = &models.LocationDTO{
-				Longitude: post.Location.Longitude,
-				Latitude:  post.Location.Latitude,
-				Accuracy:  post.Location.Accuracy,
+				Longitude: &tempLongitude,
+				Latitude:  &tempLatitude,
+				Accuracy:  &tempAccuracy,
 			}
 		}
 		postDto := models.UserFeedRecordDTO{
@@ -244,43 +248,9 @@ func (service *PostService) GetPostsGlobalFeed(lastPostId string, limit int) (*m
 	}
 
 	// Create response dto
-	newLastPostId := ""
-	if len(posts) > 0 {
-		newLastPostId = posts[len(posts)-1].Id.String()
-	}
-	feed := models.GeneralFeedDTO{
-		Records: []models.PostResponseDTO{},
-		Pagination: &models.GeneralFeedPaginationDTO{
-			LastPostId: newLastPostId,
-			Limit:      limit,
-			Records:    totalPostsCount,
-		},
-	}
-	for _, post := range posts {
-		authorDto := models.AuthorDTO{
-			Username:          post.User.Username,
-			Nickname:          post.User.Nickname,
-			ProfilePictureUrl: post.User.ProfilePictureUrl,
-		}
-		var locationDTO *models.LocationDTO
-		if post.LocationId != nil {
-			locationDTO = &models.LocationDTO{
-				Longitude: post.Location.Longitude,
-				Latitude:  post.Location.Latitude,
-				Accuracy:  post.Location.Accuracy,
-			}
-		}
-		postDto := models.PostResponseDTO{
-			PostId:       post.Id,
-			Author:       &authorDto,
-			CreationDate: post.CreatedAt,
-			Content:      post.Content,
-			Location:     locationDTO,
-		}
-		feed.Records = append(feed.Records, postDto)
-	}
+	feed := generatePostFeedWithAuthor(posts, totalPostsCount, limit)
 
-	return &feed, nil, http.StatusOK
+	return feed, nil, http.StatusOK
 }
 
 // GetPostsPersonalFeed returns a pagination object with the posts in the personal feed using pagination parameters
@@ -321,44 +291,9 @@ func (service *PostService) GetPostsPersonalFeed(username string, lastPostId str
 	}
 
 	// Create response dto
-	newLastPostId := ""
-	if len(posts) > 0 {
-		newLastPostId = posts[len(posts)-1].Id.String()
-	}
-	feed := models.GeneralFeedDTO{
-		Records: []models.PostResponseDTO{},
-		Pagination: &models.GeneralFeedPaginationDTO{
-			LastPostId: newLastPostId,
-			Limit:      limit,
-			Records:    totalPostsCount,
-		},
-	}
+	feed := generatePostFeedWithAuthor(posts, totalPostsCount, limit)
 
-	for _, post := range posts {
-		authorDto := models.AuthorDTO{
-			Username:          post.User.Username,
-			Nickname:          post.User.Nickname,
-			ProfilePictureUrl: post.User.ProfilePictureUrl,
-		}
-		var locationDTO *models.LocationDTO
-		if post.LocationId != nil {
-			locationDTO = &models.LocationDTO{
-				Longitude: post.Location.Longitude,
-				Latitude:  post.Location.Latitude,
-				Accuracy:  post.Location.Accuracy,
-			}
-		}
-		postDto := models.PostResponseDTO{
-			PostId:       post.Id,
-			Author:       &authorDto,
-			CreationDate: post.CreatedAt,
-			Content:      post.Content,
-			Location:     locationDTO,
-		}
-		feed.Records = append(feed.Records, postDto)
-	}
-
-	return &feed, nil, http.StatusOK
+	return feed, nil, http.StatusOK
 }
 
 // DeletePost deletes a post by id and returns an error if the post does not exist or the requesting user is not the author
@@ -424,6 +359,14 @@ func (service *PostService) GetPostsByHashtag(hashtag string, lastPostId string,
 	}
 
 	// Create response dto
+	feed := generatePostFeedWithAuthor(posts, totalPostsCount, limit)
+
+	return feed, nil, http.StatusOK
+}
+
+// generatePostFeedWithAuthor creates a GeneralFeedDTO from a list of posts and a total count
+func generatePostFeedWithAuthor(posts []models.Post, totalPostsCount int64, limit int) *models.GeneralFeedDTO {
+	// Create response dto
 	newLastPostId := ""
 	if len(posts) > 0 {
 		newLastPostId = posts[len(posts)-1].Id.String()
@@ -442,12 +385,15 @@ func (service *PostService) GetPostsByHashtag(hashtag string, lastPostId string,
 			Nickname:          post.User.Nickname,
 			ProfilePictureUrl: post.User.ProfilePictureUrl,
 		}
-		var locationDTO *models.LocationDTO
+		var locationDTO *models.LocationDTO = nil
 		if post.LocationId != nil {
+			tempLatitude := post.Location.Latitude // need to use temp variables because the pointers change in the loop
+			tempLongitude := post.Location.Longitude
+			tempAccuracy := post.Location.Accuracy
 			locationDTO = &models.LocationDTO{
-				Longitude: post.Location.Longitude,
-				Latitude:  post.Location.Latitude,
-				Accuracy:  post.Location.Accuracy,
+				Longitude: &tempLongitude,
+				Latitude:  &tempLatitude,
+				Accuracy:  &tempAccuracy,
 			}
 		}
 		postDto := models.PostResponseDTO{
@@ -457,8 +403,12 @@ func (service *PostService) GetPostsByHashtag(hashtag string, lastPostId string,
 			Content:      post.Content,
 			Location:     locationDTO,
 		}
+		if locationDTO != nil {
+			fmt.Println("Post id: ", post.Id)
+			fmt.Println("Location: ", post.Location.Longitude, post.Location.Latitude, post.Location.Accuracy)
+			fmt.Println("DTO: ", *locationDTO.Longitude, *locationDTO.Latitude, *locationDTO.Accuracy)
+		}
 		feed.Records = append(feed.Records, postDto)
 	}
-
-	return &feed, nil, http.StatusOK
+	return &feed
 }

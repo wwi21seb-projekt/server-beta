@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
 	"github.com/wwi21seb-projekt/server-beta/internal/middleware"
@@ -42,10 +43,11 @@ func (controller *PostController) CreatePost(c *gin.Context) {
 	if c.ContentType() == "application/json" {
 		// Read body
 		var postCreateRequestDTO models.PostCreateRequestDTO
-		if c.ShouldBindJSON(&postCreateRequestDTO) != nil {
+		if err := c.ShouldBindJSON(&postCreateRequestDTO); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error": customerrors.BadRequest,
 			})
+			fmt.Println("Error: ", err)
 			return
 		}
 
