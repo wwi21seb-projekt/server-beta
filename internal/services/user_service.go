@@ -73,9 +73,6 @@ func (service *UserService) CreateUser(req models.UserCreateRequestDTO) (*models
 	if !service.validator.ValidateNickname(req.Nickname) {
 		return nil, customerrors.BadRequest, http.StatusBadRequest
 	}
-	if !service.validator.ValidateStatus(req.Status) {
-		return nil, customerrors.BadRequest, http.StatusBadRequest
-	}
 	if !service.validator.ValidateEmailSyntax(req.Email) {
 		return nil, customerrors.BadRequest, http.StatusBadRequest
 	}

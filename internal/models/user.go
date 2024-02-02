@@ -20,7 +20,6 @@ type UserCreateRequestDTO struct {
 	Password string `json:"password" binding:"required"`
 	Nickname string `json:"nickname"`
 	Email    string `json:"email" binding:"required"`
-	Status   string `json:"status"`
 }
 
 type UserLoginRequestDTO struct {
