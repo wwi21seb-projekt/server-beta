@@ -12,6 +12,8 @@ type Post struct {
 	Content    string     `gorm:"column:content;type:varchar(256);null"`
 	ImageUrl   string     `gorm:"column:image_url;type:varchar(128);null"`
 	Hashtags   []Hashtag  `gorm:"many2many:post_hashtags;onDelete:CASCADE"` // gorm handles the join table, onDelete:CASCADE deletes the hashtags if the post is deleted
+	Likes      int        `gorm:"column:likes;type:integer;null"`
+	Liked      int        `gorm:"column:likes;type:boolean;null"`
 	CreatedAt  time.Time  `gorm:"column:created_at;not_null"`
 	LocationId *uuid.UUID `gorm:"column:location_id;null"`
 	Location   Location   `gorm:"foreignKey:location_id;references:id"`
