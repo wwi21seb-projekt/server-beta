@@ -27,6 +27,8 @@ type PostResponseDTO struct {
 	Author       *AuthorDTO   `json:"author"`
 	CreationDate time.Time    `json:"creationDate"`
 	Content      string       `json:"content"`
+	Likes        int          `json:"likes"`
+	Liked        bool         `json:"liked"`
 	Location     *LocationDTO `json:"location"`
 }
 
