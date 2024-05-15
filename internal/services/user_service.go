@@ -11,6 +11,7 @@ import (
 	"gorm.io/gorm"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -420,6 +421,7 @@ func (service *UserService) SearchUser(username string, limit int, offset int, c
 func (service *UserService) UpdateUserInformation(req *models.UserInformationUpdateDTO, currentUsername string) (*models.UserInformationUpdateDTO, *customerrors.CustomError, int) {
 	// Sanitize status because it is a free text field
 	// Other fields are checked with regex patterns, that don't allow for malicious input
+	req.Status = strings.Trim(req.Status, " ") // Trim leading and trailing whitespaces
 	req.Status = service.policy.Sanitize(req.Status)
 
 	// Check if the new nickname and status are valid

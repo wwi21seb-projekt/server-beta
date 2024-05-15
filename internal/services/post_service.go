@@ -12,6 +12,7 @@ import (
 	"gorm.io/gorm"
 	"mime/multipart"
 	"net/http"
+	"strings"
 	"time"
 	"unicode/utf8"
 )
@@ -48,6 +49,7 @@ func NewPostService(postRepo repositories.PostRepositoryInterface,
 func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *multipart.FileHeader, username string) (*models.PostResponseDTO, *customerrors.CustomError, int) {
 	// Sanitize content because it is a free text field
 	// Other fields are checked with regex patterns, that don't allow for malicious input
+	req.Content = strings.Trim(req.Content, " ") // remove leading and trailing whitespaces
 	req.Content = service.policy.Sanitize(req.Content)
 
 	// Validations: 0-256 characters and utf8 characters
