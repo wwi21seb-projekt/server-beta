@@ -8,6 +8,7 @@ import (
 	"github.com/wwi21seb-projekt/server-beta/internal/controllers"
 	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
 	"github.com/wwi21seb-projekt/server-beta/internal/middleware"
+	"github.com/wwi21seb-projekt/server-beta/internal/models"
 	"github.com/wwi21seb-projekt/server-beta/internal/services"
 	"github.com/wwi21seb-projekt/server-beta/internal/utils"
 	"net/http"
@@ -17,7 +18,33 @@ import (
 
 // TestGetVapidKeySuccess tests if the function GetVapidKey returns a token if user is authorized
 func TestGetVapidKeySuccess(t *testing.T) {
-	// TODO: Implement
+	// Arrange
+	pushSubscriptionService := services.NewPushSubscriptionService(nil)
+	pushSubscriptionController := controllers.NewPushSubscriptionController(pushSubscriptionService)
+
+	authorizationToken, err := utils.GenerateAccessToken("testUser")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Setup HTTP request and recorder
+	req, _ := http.NewRequest(http.MethodGet, "/push/vapid", nil)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+authorizationToken)
+	w := httptest.NewRecorder()
+
+	// Act
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+	router.GET("/push/vapid", middleware.AuthorizeUser, pushSubscriptionController.GetVapidKey)
+	router.ServeHTTP(w, req)
+
+	// Assert
+	assert.Equal(t, http.StatusOK, w.Code) // Expect HTTP 200 OK
+
+	var vapidKeyResponse models.VapidKeyResponseDTO
+	err = json.Unmarshal(w.Body.Bytes(), &vapidKeyResponse)
+	assert.NoError(t, err)
 }
 
 // TestGetVapidKeyUnauthorized tests if the function GetVapidKey returns an error if user is not authorized
