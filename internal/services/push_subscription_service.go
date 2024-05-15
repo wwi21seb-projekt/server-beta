@@ -20,14 +20,16 @@ type PushSubscriptionService struct {
 
 	vapidPrivateKey string
 	vapidPublicKey  string
+	serverMail      string
 }
 
 // NewPushSubscriptionService can be used as a constructor to create a PushSubscriptionService "object"
 func NewPushSubscriptionService(pushSubscriptionRepo repositories.PushSubscriptionRepositoryInterface) *PushSubscriptionService {
 	vapidPrivateKey := os.Getenv("VAPID_PRIVATE_KEY")
 	vapidPublicKey := os.Getenv("VAPID_PUBLIC_KEY")
+	serverMail := os.Getenv("EMAIL_ADDRESS")
 
-	return &PushSubscriptionService{PushSubscriptionRepo: pushSubscriptionRepo, vapidPrivateKey: vapidPrivateKey, vapidPublicKey: vapidPublicKey}
+	return &PushSubscriptionService{PushSubscriptionRepo: pushSubscriptionRepo, vapidPrivateKey: vapidPrivateKey, vapidPublicKey: vapidPublicKey, serverMail: serverMail}
 }
 
 // GetVapidKey returns a VAPID key for clients to register for push notifications
@@ -74,7 +76,7 @@ func (service *PushSubscriptionService) SendPushMessages(body string, toUsername
 		}
 
 		resp, err := webpush.SendNotification([]byte(body), sub, &webpush.Options{
-			Subscriber:      "mailto:example@example.com",
+			Subscriber:      service.serverMail,
 			VAPIDPrivateKey: service.vapidPrivateKey,
 			TTL:             30,
 		})
