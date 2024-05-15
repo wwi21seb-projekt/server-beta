@@ -34,7 +34,7 @@ func (repo *PostRepository) CreatePost(post *models.Post) error {
 
 func (repo *PostRepository) GetPostCountByUsername(username string) (int64, error) {
 	var count int64
-	err := repo.DB.Model(&models.Post{}).Where("username = ?", username).Count(&count).Error
+	err := repo.DB.Model(&models.Post{}).Where("username_fk = ?", username).Count(&count).Error
 	return count, err
 }
 
@@ -42,7 +42,7 @@ func (repo *PostRepository) GetPostsByUsername(username string, offset, limit in
 	var posts []models.Post
 	var count int64
 
-	baseQuery := repo.DB.Model(&models.Post{}).Where("username = ?", username)
+	baseQuery := repo.DB.Model(&models.Post{}).Where("username_fk = ?", username)
 
 	// Count number of posts based on username
 	err := baseQuery.Count(&count).Error
@@ -102,7 +102,7 @@ func (repo *PostRepository) GetPostsPersonalFeed(username string, lastPost *mode
 	var err error
 
 	baseQuery := repo.DB.Model(&models.Post{}).
-		Joins("JOIN subscriptions ON subscriptions.following = posts.username").
+		Joins("JOIN subscriptions ON subscriptions.following = posts.username_fk").
 		Where("subscriptions.follower = ?", username)
 
 	// Number of posts in global feed

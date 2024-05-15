@@ -18,12 +18,13 @@ func SyncDatabase() {
 
 	// Migrate models
 	modelsToMigrate := []interface{}{
-		&models.Location{},
 		&models.User{},
+		&models.Location{},
 		&models.ActivationToken{},
 		&models.Post{},
 		&models.Hashtag{},
 		&models.Subscription{},
+		&models.Notification{},
 	}
 
 	for _, model := range modelsToMigrate {
@@ -31,6 +32,13 @@ func SyncDatabase() {
 			panic(fmt.Sprintf("Failed to auto-migrate %T: %v", model, err))
 		}
 	}
+
+	//DB.Exec("ALTER TABLE activation_tokens ADD FOREIGN KEY (username) REFERENCES users(username)")
+	//DB.Exec("ALTER TABLE posts ADD FOREIGN KEY (username) REFERENCES users(username)")
+	//DB.Exec("ALTER TABLE subscriptions ADD FOREIGN KEY (follower) REFERENCES users(username)")
+	//DB.Exec("ALTER TABLE subscriptions ADD FOREIGN KEY (following) REFERENCES users(username)")
+	//DB.Exec("ALTER TABLE notifications ADD FOREIGN KEY (forUsername) REFERENCES users(username)")
+	//DB.Exec("ALTER TABLE notifications ADD FOREIGN KEY (fromUsername) REFERENCES users(username)")
 
 	fmt.Println("Synchronizing database successful...")
 }

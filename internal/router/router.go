@@ -49,18 +49,21 @@ func SetupRouter() *gin.Engine {
 	fileSystem := repositories.NewFileSystem()
 	subscriptionRepo := repositories.NewSubscriptionRepository(initializers.DB)
 	locationRepo := repositories.NewLocationRepository(initializers.DB)
+	notificationRepo := repositories.NewNotificationRepository(initializers.DB)
 
 	validator := utils.NewValidator()
 	mailService := services.NewMailService()
 	imageService := services.NewImageService(fileSystem, validator)
 	userService := services.NewUserService(userRepo, activationTokenRepo, mailService, validator, postRepo, subscriptionRepo)
 	postService := services.NewPostService(postRepo, userRepo, hashtagRepo, imageService, validator, locationRepo)
-	subscriptionService := services.NewSubscriptionService(subscriptionRepo, userRepo)
+	notificationService := services.NewNotificationService(notificationRepo)
+	subscriptionService := services.NewSubscriptionService(subscriptionRepo, userRepo, notificationService)
 
 	imprintController := controllers.NewImprintController()
 	userController := controllers.NewUserController(userService)
 	postController := controllers.NewPostController(postService)
 	imageController := controllers.NewImageController(imageService)
+	notificationController := controllers.NewNotificationController(notificationService)
 
 	subscriptionController := controllers.NewSubscriptionController(subscriptionService)
 
@@ -95,6 +98,10 @@ func SetupRouter() *gin.Engine {
 	api.POST("/subscriptions", middleware.AuthorizeUser, subscriptionController.PostSubscription)
 	api.DELETE("/subscriptions/:subscriptionId", middleware.AuthorizeUser, subscriptionController.DeleteSubscription)
 	api.GET("/subscriptions/:username", middleware.AuthorizeUser, subscriptionController.GetSubscriptions)
+
+	// Notification
+	api.GET("/notifications", middleware.AuthorizeUser, notificationController.GetNotifications)
+	api.DELETE("/notifications/:notificationId", middleware.AuthorizeUser, notificationController.DeleteNotificationById)
 
 	return r
 }
