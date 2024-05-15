@@ -4,12 +4,12 @@ import (
 	"errors"
 	"fmt"
 	"github.com/google/uuid"
+	"github.com/microcosm-cc/bluemonday"
 	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
 	"github.com/wwi21seb-projekt/server-beta/internal/models"
 	"github.com/wwi21seb-projekt/server-beta/internal/repositories"
 	"github.com/wwi21seb-projekt/server-beta/internal/utils"
 	"gorm.io/gorm"
-	"html"
 	"mime/multipart"
 	"net/http"
 	"time"
@@ -32,6 +32,7 @@ type PostService struct {
 	imageService ImageServiceInterface
 	validator    utils.ValidatorInterface
 	locationRepo repositories.LocationRepositoryInterface
+	policy       *bluemonday.Policy
 }
 
 // NewPostService can be used as a constructor to create a PostService "object"
@@ -41,12 +42,13 @@ func NewPostService(postRepo repositories.PostRepositoryInterface,
 	imageService ImageServiceInterface,
 	validator utils.ValidatorInterface,
 	locationRepo repositories.LocationRepositoryInterface) *PostService {
-	return &PostService{postRepo: postRepo, userRepo: userRepo, hashtagRepo: hashtagRepo, imageService: imageService, validator: validator, locationRepo: locationRepo}
+	return &PostService{postRepo: postRepo, userRepo: userRepo, hashtagRepo: hashtagRepo, imageService: imageService, validator: validator, locationRepo: locationRepo, policy: bluemonday.UGCPolicy()}
 }
 
 func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *multipart.FileHeader, username string) (*models.PostResponseDTO, *customerrors.CustomError, int) {
-	// Escape html content to prevent XSS
-	req.Content = html.EscapeString(req.Content)
+	// Sanitize content because it is a free text field
+	// Other fields are checked with regex patterns, that don't allow for malicious input
+	req.Content = service.policy.Sanitize(req.Content)
 
 	// Validations: 0-256 characters and utf8 characters
 	if len(req.Content) > 256 {

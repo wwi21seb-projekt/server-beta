@@ -3,12 +3,12 @@ package services
 import (
 	"errors"
 	"github.com/google/uuid"
+	"github.com/microcosm-cc/bluemonday"
 	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
 	"github.com/wwi21seb-projekt/server-beta/internal/models"
 	"github.com/wwi21seb-projekt/server-beta/internal/repositories"
 	"github.com/wwi21seb-projekt/server-beta/internal/utils"
 	"gorm.io/gorm"
-	"html"
 	"net/http"
 	"strconv"
 	"time"
@@ -34,6 +34,7 @@ type UserService struct {
 	validator           utils.ValidatorInterface
 	postRepo            repositories.PostRepositoryInterface
 	subscriptionRepo    repositories.SubscriptionRepositoryInterface
+	policy              *bluemonday.Policy
 }
 
 // NewUserService can be used as a constructor to generate a new UserService "object"
@@ -50,7 +51,9 @@ func NewUserService(
 		mailService:         mailService,
 		validator:           validator,
 		postRepo:            postRepo,
-		subscriptionRepo:    subscriptionRepo}
+		subscriptionRepo:    subscriptionRepo,
+		policy:              bluemonday.UGCPolicy(),
+	}
 }
 
 // sendActivationToken deletes old activation tokens, generates a new six-digit code and sends it to user via mail
@@ -415,8 +418,9 @@ func (service *UserService) SearchUser(username string, limit int, offset int, c
 
 // UpdateUserInformation can be called from the controller to update a user's nickname and status
 func (service *UserService) UpdateUserInformation(req *models.UserInformationUpdateDTO, currentUsername string) (*models.UserInformationUpdateDTO, *customerrors.CustomError, int) {
-	// Escape html in status
-	req.Status = html.EscapeString(req.Status)
+	// Sanitize status because it is a free text field
+	// Other fields are checked with regex patterns, that don't allow for malicious input
+	req.Status = service.policy.Sanitize(req.Status)
 
 	// Check if the new nickname and status are valid
 	if !service.validator.ValidateNickname(req.Nickname) || !service.validator.ValidateStatus(req.Status) {
