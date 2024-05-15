@@ -50,6 +50,7 @@ func SetupRouter() *gin.Engine {
 	subscriptionRepo := repositories.NewSubscriptionRepository(initializers.DB)
 	locationRepo := repositories.NewLocationRepository(initializers.DB)
 	notificationRepo := repositories.NewNotificationRepository(initializers.DB)
+	pushSubscriptionRepo := repositories.NewPushSubscriptionRepository(initializers.DB)
 
 	validator := utils.NewValidator()
 	mailService := services.NewMailService()
@@ -58,12 +59,14 @@ func SetupRouter() *gin.Engine {
 	postService := services.NewPostService(postRepo, userRepo, hashtagRepo, imageService, validator, locationRepo)
 	notificationService := services.NewNotificationService(notificationRepo)
 	subscriptionService := services.NewSubscriptionService(subscriptionRepo, userRepo, notificationService)
+	pushSubscriptionService := services.NewPushSubscriptionService(pushSubscriptionRepo)
 
 	imprintController := controllers.NewImprintController()
 	userController := controllers.NewUserController(userService)
 	postController := controllers.NewPostController(postService)
 	imageController := controllers.NewImageController(imageService)
 	notificationController := controllers.NewNotificationController(notificationService)
+	pushSubscriptionController := controllers.NewPushSubscriptionController(pushSubscriptionService)
 
 	subscriptionController := controllers.NewSubscriptionController(subscriptionService)
 
@@ -102,6 +105,10 @@ func SetupRouter() *gin.Engine {
 	// Notification
 	api.GET("/notifications", middleware.AuthorizeUser, notificationController.GetNotifications)
 	api.DELETE("/notifications/:notificationId", middleware.AuthorizeUser, notificationController.DeleteNotificationById)
+
+	// Push subscription (for web or mobile push notifications)
+	api.GET("/push/vapid", middleware.AuthorizeUser, pushSubscriptionController.GetVapidKey)
+	api.POST("/push/register", middleware.AuthorizeUser, pushSubscriptionController.CreatePushSubscription)
 
 	return r
 }

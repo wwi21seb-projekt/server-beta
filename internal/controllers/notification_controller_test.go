@@ -1,4 +1,4 @@
-package controllers
+package controllers_test
 
 import (
 	"encoding/json"
@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/wwi21seb-projekt/server-beta/internal/controllers"
 	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
 	"github.com/wwi21seb-projekt/server-beta/internal/middleware"
 	"github.com/wwi21seb-projekt/server-beta/internal/models"
@@ -25,7 +26,7 @@ func TestGetNotificationsSuccess(t *testing.T) {
 	mockNotificationRepo := new(repositories.MockNotificationRepository)
 
 	notificationService := services.NewNotificationService(mockNotificationRepo)
-	notificationController := NewNotificationController(notificationService)
+	notificationController := controllers.NewNotificationController(notificationService)
 
 	currentUsername := "testUser"
 	authenticationToken, err := utils.GenerateAccessToken(currentUsername)
@@ -98,7 +99,7 @@ func TestGetNotificationsUnauthorized(t *testing.T) {
 	mockNotificationRepo := new(repositories.MockNotificationRepository)
 
 	notificationService := services.NewNotificationService(mockNotificationRepo)
-	notificationController := NewNotificationController(notificationService)
+	notificationController := controllers.NewNotificationController(notificationService)
 
 	// Setup HTTP request and recorder
 	req, _ := http.NewRequest(http.MethodGet, "/notifications", nil)
@@ -130,7 +131,7 @@ func TestDeleteNotificationByIdSuccess(t *testing.T) {
 	mockNotificationRepo := new(repositories.MockNotificationRepository)
 
 	notificationService := services.NewNotificationService(mockNotificationRepo)
-	notificationController := NewNotificationController(notificationService)
+	notificationController := controllers.NewNotificationController(notificationService)
 
 	currentUsername := "testUser"
 	authenticationToken, err := utils.GenerateAccessToken(currentUsername)
@@ -174,7 +175,7 @@ func TestDeleteNotificationByIdUnauthorized(t *testing.T) {
 	mockNotificationRepo := new(repositories.MockNotificationRepository)
 
 	notificationService := services.NewNotificationService(mockNotificationRepo)
-	notificationController := NewNotificationController(notificationService)
+	notificationController := controllers.NewNotificationController(notificationService)
 
 	notificationId := uuid.New()
 
@@ -207,7 +208,7 @@ func TestDeleteNotificationByIdNotFound(t *testing.T) {
 	mockNotificationRepo := new(repositories.MockNotificationRepository)
 
 	notificationService := services.NewNotificationService(mockNotificationRepo)
-	notificationController := NewNotificationController(notificationService)
+	notificationController := controllers.NewNotificationController(notificationService)
 
 	currentUsername := "testUser"
 	authenticationToken, err := utils.GenerateAccessToken(currentUsername)
@@ -251,7 +252,7 @@ func TestDeleteNotificationByIdForbidden(t *testing.T) {
 	mockNotificationRepo := new(repositories.MockNotificationRepository)
 
 	notificationService := services.NewNotificationService(mockNotificationRepo)
-	notificationController := NewNotificationController(notificationService)
+	notificationController := controllers.NewNotificationController(notificationService)
 
 	currentUsername := "testUser"
 	authenticationToken, err := utils.GenerateAccessToken(currentUsername)
