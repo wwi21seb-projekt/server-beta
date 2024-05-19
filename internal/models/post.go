@@ -6,24 +6,34 @@ import (
 )
 
 type Post struct {
-	Id         uuid.UUID  `gorm:"column:id;primary_key"`
-	Username   string     `gorm:"column:username"`
-	User       User       `gorm:"foreignKey:username;references:username"`
-	Content    string     `gorm:"column:content;type:varchar(256);null"`
-	ImageUrl   string     `gorm:"column:image_url;type:varchar(128);null"`
-	Hashtags   []Hashtag  `gorm:"many2many:post_hashtags;onDelete:CASCADE"` // gorm handles the join table, onDelete:CASCADE deletes the hashtags if the post is deleted
-	CreatedAt  time.Time  `gorm:"column:created_at;not_null"`
-	LocationId *uuid.UUID `gorm:"column:location_id;null"`
-	Location   Location   `gorm:"foreignKey:location_id;references:id"`
+	Id             uuid.UUID  `gorm:"column:id;primary_key"`
+	Username       string     `gorm:"column:username"`
+	User           User       `gorm:"foreignKey:username;references:username"`
+	Content        string     `gorm:"column:content;type:varchar(256);null"`
+	ImageUrl       string     `gorm:"column:image_url;type:varchar(128);null"`
+	Hashtags       []Hashtag  `gorm:"many2many:post_hashtags;onDelete:CASCADE"` // gorm handles the join table, onDelete:CASCADE deletes the hashtags if the post is deleted
+	CreatedAt      time.Time  `gorm:"column:created_at;not_null"`
+	LocationId     *uuid.UUID `gorm:"column:location_id;null"`
+	Location       Location   `gorm:"foreignKey:location_id;references:id"`
+	RepostedPostId *uuid.UUID `gorm:"foreignKey:repostedPost;references:post"`
+	RepostedPost   *Post      `gorm:"foreignKey:RepostedPostId"`
 }
 
 type PostCreateRequestDTO struct {
-	Content  string       `json:"content" binding:"required"`
-	Location *LocationDTO `json:"location" `
+	Content        string       `json:"content" binding:"required"`
+	Location       *LocationDTO `json:"location" `
+	RepostedPostId string       `json:"repostedPostId" `
 }
 
 type PostResponseDTO struct {
 	PostId       uuid.UUID    `json:"postId"`
+	Author       *AuthorDTO   `json:"author"`
+	CreationDate time.Time    `json:"creationDate"`
+	Content      string       `json:"content"`
+	Repost       *RepostDTO   `json:"repost"`
+	Location     *LocationDTO `json:"location"`
+}
+type RepostDTO struct {
 	Author       *AuthorDTO   `json:"author"`
 	CreationDate time.Time    `json:"creationDate"`
 	Content      string       `json:"content"`

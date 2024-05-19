@@ -52,7 +52,7 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *m
 	if len(req.Content) > 256 {
 		return nil, customerrors.BadRequest, http.StatusBadRequest
 	}
-	if len(req.Content) <= 0 && file == nil { // image or file can be empty, but not both
+	if len(req.Content) <= 0 && file == nil && len(req.RepostedPostId) <= 0 { // image or file can be empty, or it can be a repost, but not none
 		return nil, customerrors.BadRequest, http.StatusBadRequest
 	}
 	if !utf8.ValidString(req.Content) {
@@ -79,6 +79,19 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *m
 		return nil, customerrors.UserUnauthorized, http.StatusUnauthorized
 	}
 
+	// check repost and if repost is already a repost
+
+	var repost *models.Post = nil
+	if len(req.RepostedPostId) > 0 {
+		repostObj, err := service.postRepo.GetPostById(req.RepostedPostId)
+		if err != nil {
+			return nil, customerrors.DatabaseError, http.StatusInternalServerError
+		}
+		if repostObj.RepostedPostId != nil {
+			return nil, customerrors.BadRequest, http.StatusBadRequest
+		}
+		repost = repostObj // Ensure we correctly convert the value to a pointer
+	}
 	//Extract hashtags
 	hashtagNames := utils.ExtractHashtags(req.Content)
 
@@ -119,13 +132,17 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *m
 	}
 
 	post := models.Post{
-		Id:         uuid.New(),
-		Username:   username,
-		Content:    req.Content,
-		ImageUrl:   imageUrl,
-		Hashtags:   hashtags,
-		CreatedAt:  time.Now(),
-		LocationId: locationId,
+		Id:             uuid.New(),
+		Username:       username,
+		Content:        req.Content,
+		ImageUrl:       imageUrl,
+		Hashtags:       hashtags,
+		CreatedAt:      time.Now(),
+		RepostedPostId: nil,
+		LocationId:     locationId,
+	}
+	if repost != nil {
+		post.RepostedPostId = &repost.Id
 	}
 	err = service.postRepo.CreatePost(&post)
 	if err != nil {
@@ -141,6 +158,25 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *m
 			Accuracy:  req.Location.Accuracy,
 		}
 	}
+
+	// create repostDTO if it's a repost
+	var repostDTO *models.RepostDTO
+	if repost != nil {
+		repostDTO = &models.RepostDTO{
+
+			Author: &models.AuthorDTO{
+				Username:          repost.User.Username,
+				Nickname:          repost.User.Nickname,
+				ProfilePictureUrl: repost.User.ProfilePictureUrl,
+			},
+			CreationDate: repost.CreatedAt,
+			Content:      repost.Content,
+			Location: &models.LocationDTO{
+				Longitude: &repost.Location.Longitude,
+				Latitude:  &repost.Location.Latitude,
+				Accuracy:  &repost.Location.Accuracy},
+		}
+	}
 	postDto := models.PostResponseDTO{
 		PostId: post.Id,
 		Author: &models.AuthorDTO{
@@ -150,6 +186,7 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *m
 		},
 		CreationDate: post.CreatedAt,
 		Content:      post.Content,
+		Repost:       repostDTO,
 		Location:     locationDTO,
 	}
 
@@ -238,7 +275,7 @@ func (service *PostService) GetPostsGlobalFeed(lastPostId string, limit int) (*m
 			return nil, customerrors.DatabaseError, http.StatusInternalServerError
 		}
 
-		lastPost = post
+		lastPost = *post
 	}
 
 	// Retrieve posts from the database
@@ -281,7 +318,7 @@ func (service *PostService) GetPostsPersonalFeed(username string, lastPostId str
 			return nil, customerrors.DatabaseError, http.StatusInternalServerError
 		}
 
-		lastPost = post
+		lastPost = *post
 	}
 
 	// Retrieve posts from the database
@@ -349,7 +386,7 @@ func (service *PostService) GetPostsByHashtag(hashtag string, lastPostId string,
 			return nil, customerrors.DatabaseError, http.StatusInternalServerError
 		}
 
-		lastPost = post
+		lastPost = *post
 	}
 
 	// Retrieve posts from the database

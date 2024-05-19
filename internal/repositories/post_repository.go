@@ -11,7 +11,7 @@ type PostRepositoryInterface interface {
 	CreatePost(post *models.Post) error
 	GetPostCountByUsername(username string) (int64, error)
 	GetPostsByUsername(username string, offset, limit int) ([]models.Post, int64, error)
-	GetPostById(postId string) (models.Post, error)
+	GetPostById(postId string) (*models.Post, error)
 	GetPostsGlobalFeed(lastPost *models.Post, limit int) ([]models.Post, int64, error)
 	GetPostsPersonalFeed(username string, lastPost *models.Post, limit int) ([]models.Post, int64, error)
 	DeletePostById(postId string) error
@@ -59,10 +59,10 @@ func (repo *PostRepository) GetPostsByUsername(username string, offset, limit in
 	return posts, count, nil
 }
 
-func (repo *PostRepository) GetPostById(postId string) (models.Post, error) {
+func (repo *PostRepository) GetPostById(postId string) (*models.Post, error) {
 	var post models.Post
 	err := repo.DB.Preload("Location").Preload("User").Where("id = ?", postId).First(&post).Error
-	return post, err
+	return &post, err
 }
 
 func (repo *PostRepository) GetPostsGlobalFeed(lastPost *models.Post, limit int) ([]models.Post, int64, error) {
