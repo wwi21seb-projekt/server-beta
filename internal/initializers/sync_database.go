@@ -23,7 +23,7 @@ func SyncDatabase() {
 		&models.ActivationToken{},
 		&models.Post{},
 		&models.Hashtag{},
-		&models.Subscription{},
+		//&models.Subscription{},
 		&models.Notification{},
 	}
 
