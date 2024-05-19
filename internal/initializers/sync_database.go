@@ -25,6 +25,7 @@ func SyncDatabase() {
 		&models.Hashtag{},
 		//&models.Subscription{},
 		&models.Notification{},
+		&models.PushSubscription{},
 	}
 
 	for _, model := range modelsToMigrate {
