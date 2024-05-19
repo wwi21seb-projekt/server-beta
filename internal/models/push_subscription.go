@@ -16,13 +16,21 @@ type VapidKeyResponseDTO struct {
 	Key string `json:"key"`
 }
 
+type SubscriptionKeys struct {
+	P256dh string `json:"p256dh"`
+	Auth   string `json:"auth"`
+}
+
 type SubscriptionInfo struct {
-	Endpoint string `json:"endpoint"`
-	P256dh   string `json:"p256dh"`
-	Auth     string `json:"auth"`
+	Endpoint         string           `json:"endpoint"`
+	SubscriptionKeys SubscriptionKeys `json:"keys"`
 }
 
 type PushSubscriptionRequestDTO struct {
 	Type             string           `json:"type" binding:"required"`
 	SubscriptionInfo SubscriptionInfo `json:"subscription" binding:"required"`
+}
+
+type PushSubscriptionResponseDTO struct {
+	SubscriptionId string `json:"subscriptionId"`
 }
