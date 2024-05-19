@@ -45,6 +45,7 @@ func SetupRouter() *gin.Engine {
 	activationTokenRepo := repositories.NewActivationTokenRepository(initializers.DB)
 	userRepo := repositories.NewUserRepository(initializers.DB)
 	postRepo := repositories.NewPostRepository(initializers.DB)
+	commentRepo := repositories.NewCommentRepository(initializers.DB)
 	hashtagRepo := repositories.NewHashtagRepository(initializers.DB)
 	fileSystem := repositories.NewFileSystem()
 	subscriptionRepo := repositories.NewSubscriptionRepository(initializers.DB)
@@ -60,6 +61,7 @@ func SetupRouter() *gin.Engine {
 	postService := services.NewPostService(postRepo, userRepo, hashtagRepo, imageService, validator, locationRepo)
 	notificationService := services.NewNotificationService(notificationRepo, pushSubscriptionService)
 	subscriptionService := services.NewSubscriptionService(subscriptionRepo, userRepo, notificationService)
+	commentService := services.NewCommentService(commentRepo, postRepo)
 
 	imprintController := controllers.NewImprintController()
 	userController := controllers.NewUserController(userService)
@@ -67,7 +69,7 @@ func SetupRouter() *gin.Engine {
 	imageController := controllers.NewImageController(imageService)
 	notificationController := controllers.NewNotificationController(notificationService)
 	pushSubscriptionController := controllers.NewPushSubscriptionController(pushSubscriptionService)
-
+	commentController := controllers.NewCommentController(commentService)
 	subscriptionController := controllers.NewSubscriptionController(subscriptionService)
 
 	// API Routes
@@ -101,6 +103,10 @@ func SetupRouter() *gin.Engine {
 	api.POST("/subscriptions", middleware.AuthorizeUser, subscriptionController.PostSubscription)
 	api.DELETE("/subscriptions/:subscriptionId", middleware.AuthorizeUser, subscriptionController.DeleteSubscription)
 	api.GET("/subscriptions/:username", middleware.AuthorizeUser, subscriptionController.GetSubscriptions)
+
+	// Comment
+	api.POST("/posts/:postId/comments", middleware.AuthorizeUser, commentController.CreateComment)
+	api.GET("/posts/:postId/comments", middleware.AuthorizeUser, commentController.GetCommentsByPostId)
 
 	// Notification
 	api.GET("/notifications", middleware.AuthorizeUser, notificationController.GetNotifications)
