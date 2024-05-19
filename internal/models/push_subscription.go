@@ -16,10 +16,14 @@ type VapidKeyResponseDTO struct {
 	Key string `json:"key"`
 }
 
+type SubscriptionKeys struct {
+	P256dh string `json:"p256dh"`
+	Auth   string `json:"auth"`
+}
+
 type SubscriptionInfo struct {
-	Endpoint string `json:"endpoint"`
-	P256dh   string `json:"p256dh"`
-	Auth     string `json:"auth"`
+	Endpoint         string           `json:"endpoint"`
+	SubscriptionKeys SubscriptionKeys `json:"keys"`
 }
 
 type PushSubscriptionRequestDTO struct {
@@ -28,10 +32,5 @@ type PushSubscriptionRequestDTO struct {
 }
 
 type PushSubscriptionResponseDTO struct {
-	Id       string `json:"id"`
-	Username string `json:"username"`
-	Type     string `json:"type"`
-	Endpoint string `json:"endpoint"`
-	P256dh   string `json:"p256dh"`
-	Auth     string `json:"auth"`
+	SubscriptionId string `json:"subscriptionId"`
 }

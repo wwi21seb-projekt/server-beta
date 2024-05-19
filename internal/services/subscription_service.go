@@ -69,10 +69,7 @@ func (service *SubscriptionService) PostSubscription(req *models.SubscriptionPos
 	}
 
 	// Create notification
-	err = service.notificationService.CreateNotification("follow", req.Following, currentUsername)
-	if err != nil {
-		// do not return error to user
-	}
+	_ = service.notificationService.CreateNotification("follow", req.Following, currentUsername)
 
 	// Create response
 	response := &models.SubscriptionPostResponseDTO{
