@@ -14,7 +14,7 @@ import (
 )
 
 type CommentServiceInterface interface {
-	CreateComment(req *models.CommentCreateRequestDTO, postId, currentUsername string) (*models.CommentRecordDTO, *customerrors.CustomError, int)
+	CreateComment(req *models.CommentCreateRequestDTO, postId, currentUsername string) (*models.CommentCreateResponseDTO, *customerrors.CustomError, int)
 	GetCommentsByPostId(postId string, offset, limit int) (*models.CommentFeedResponseDTO, *customerrors.CustomError, int)
 }
 
@@ -30,7 +30,7 @@ func NewCommentService(commentRepo repositories.CommentRepositoryInterface, post
 }
 
 // CreateComment creates a new comment for a given post id using the provided request data
-func (service *CommentService) CreateComment(req *models.CommentCreateRequestDTO, postId, currentUsername string) (*models.CommentRecordDTO, *customerrors.CustomError, int) {
+func (service *CommentService) CreateComment(req *models.CommentCreateRequestDTO, postId, currentUsername string) (*models.CommentCreateResponseDTO, *customerrors.CustomError, int) {
 	// Sanitize content because it is a free text field
 	req.Content = strings.Trim(req.Content, " ") // remove leading and trailing whitespaces
 	req.Content = service.policy.Sanitize(req.Content)
@@ -70,7 +70,7 @@ func (service *CommentService) CreateComment(req *models.CommentCreateRequestDTO
 	}
 
 	// Prepare response
-	responseDto := &models.CommentRecordDTO{
+	responseDto := &models.CommentCreateResponseDTO{
 		CommentId:    comment.Id,
 		Content:      comment.Content,
 		CreationDate: comment.CreatedAt,
