@@ -26,3 +26,12 @@ type PushSubscriptionRequestDTO struct {
 	Type             string           `json:"type" binding:"required"`
 	SubscriptionInfo SubscriptionInfo `json:"subscription" binding:"required"`
 }
+
+type PushSubscriptionResponseDTO struct {
+	Id       string `json:"id"`
+	Username string `json:"username"`
+	Type     string `json:"type"`
+	Endpoint string `json:"endpoint"`
+	P256dh   string `json:"p256dh"`
+	Auth     string `json:"auth"`
+}
