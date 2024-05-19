@@ -16,6 +16,7 @@ require (
 )
 
 require (
+	github.com/SherClockHolmes/webpush-go v1.3.0 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
 	github.com/brianvoe/gofakeit/v6 v6.20.1 // indirect
 	github.com/bytedance/sonic v1.10.2 // indirect

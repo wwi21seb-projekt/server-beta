@@ -5,14 +5,14 @@ import (
 )
 
 type User struct {
-	Username          string    `gorm:"primary_key;type:varchar(20);not_null;unique"`
-	Nickname          string    `gorm:"type:varchar(25)"`
-	Email             string    `gorm:"type:varchar(128);not_null;unique"`
-	PasswordHash      string    `gorm:"type:varchar(80);not_null"`
+	Username          string    `gorm:"column:username;primary_key;type:varchar(20)"`
+	Nickname          string    `gorm:"column:nickname;type:varchar(25)"`
+	Email             string    `gorm:"column:email;type:varchar(128);not_null;unique"`
+	PasswordHash      string    `gorm:"column:password_hash;type:varchar(80);not_null"`
 	CreatedAt         time.Time `gorm:"column:created_at;not_null"`
-	Activated         bool      `gorm:"not_null"`
-	ProfilePictureUrl string    `gorm:"type:varchar(128);null"`
-	Status            string    `gorm:"type:varchar(128)"`
+	Activated         bool      `gorm:"column:activated;not_null"`
+	ProfilePictureUrl string    `gorm:"column:profile_picture_url;type:varchar(128);null"`
+	Status            string    `gorm:"column:status;type:varchar(128)"`
 }
 
 type UserCreateRequestDTO struct {

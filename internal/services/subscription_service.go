@@ -18,14 +18,16 @@ type SubscriptionServiceInterface interface {
 }
 
 type SubscriptionService struct {
-	subscriptionRepo repositories.SubscriptionRepositoryInterface
-	userRepo         repositories.UserRepositoryInterface
+	subscriptionRepo    repositories.SubscriptionRepositoryInterface
+	userRepo            repositories.UserRepositoryInterface
+	notificationService NotificationServiceInterface
 }
 
 func NewSubscriptionService(
 	subscriptionRepo repositories.SubscriptionRepositoryInterface,
-	userRepo repositories.UserRepositoryInterface) *SubscriptionService {
-	return &SubscriptionService{subscriptionRepo: subscriptionRepo, userRepo: userRepo}
+	userRepo repositories.UserRepositoryInterface,
+	notificationService NotificationServiceInterface) *SubscriptionService {
+	return &SubscriptionService{subscriptionRepo: subscriptionRepo, userRepo: userRepo, notificationService: notificationService}
 }
 
 func (service *SubscriptionService) PostSubscription(req *models.SubscriptionPostRequestDTO, currentUsername string) (*models.SubscriptionPostResponseDTO, *customerrors.CustomError, int) {
@@ -64,6 +66,12 @@ func (service *SubscriptionService) PostSubscription(req *models.SubscriptionPos
 	err = service.subscriptionRepo.CreateSubscription(&newSubscription)
 	if err != nil {
 		return nil, customerrors.DatabaseError, http.StatusInternalServerError
+	}
+
+	// Create notification
+	err = service.notificationService.CreateNotification("follow", req.Following, currentUsername)
+	if err != nil {
+		// do not return error to user
 	}
 
 	// Create response

@@ -103,6 +103,14 @@ var (
 		Message: "The post was not found. Please check the post ID and try again.",
 		Code:    "ERR-020",
 	}
+	NotificationNotFound = &CustomError{
+		Message: "The notification was not found. Please check the notification ID and try again.",
+		Code:    "ERR-023",
+	}
+	DeleteNotificationForbidden = &CustomError{
+		Message: "You can only delete your own notifications.",
+		Code:    "ERR-024",
+	}
 	FileNotFound = &CustomError{
 		Message: "file not found: to be defined",
 		Code:    "",
