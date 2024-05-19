@@ -3,7 +3,6 @@ package controllers
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
-	"github.com/wwi21seb-projekt/server-beta/internal/models"
 	"github.com/wwi21seb-projekt/server-beta/internal/services"
 	"net/http"
 )
@@ -21,6 +20,7 @@ func NewLikeController(likeService services.LikeServiceInterface) *LikeControlle
 	return &LikeController{likeService: likeService}
 }
 
+// PostLike creates a like for a given post id and the current logged-in user
 func (controller *LikeController) PostLike(c *gin.Context) {
 
 	// Get current user from middleware
@@ -32,16 +32,11 @@ func (controller *LikeController) PostLike(c *gin.Context) {
 		return
 	}
 
-	var req models.LikePostRequestDTO
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": customerrors.BadRequest,
-		})
-		return
-	}
+	// Read post id from request
+	postId := c.Param("postId")
 
 	// Create like
-	response, serviceErr, httpStatus := controller.likeService.PostLike(&req, username.(string))
+	serviceErr, httpStatus := controller.likeService.PostLike(postId, username.(string))
 	if serviceErr != nil {
 		c.JSON(httpStatus, gin.H{
 			"error": serviceErr,
@@ -49,13 +44,11 @@ func (controller *LikeController) PostLike(c *gin.Context) {
 		return
 	}
 
-	c.JSON(httpStatus, response)
+	c.JSON(httpStatus, gin.H{})
 }
 
+// DeleteLike deletes a like for a given post id and the current logged-in user
 func (controller *LikeController) DeleteLike(c *gin.Context) {
-
-	likeId := c.Param("likeId")
-
 	// Get current user from middleware
 	username, exists := c.Get("username")
 	if !exists {
@@ -65,8 +58,11 @@ func (controller *LikeController) DeleteLike(c *gin.Context) {
 		return
 	}
 
+	// Read post id from request
+	postId := c.Param("postId")
+
 	// Delete like
-	serviceErr, httpStatus := controller.likeService.DeleteLike(likeId, username.(string))
+	serviceErr, httpStatus := controller.likeService.DeleteLike(postId, username.(string))
 	if serviceErr != nil {
 		c.JSON(httpStatus, gin.H{
 			"error": serviceErr,

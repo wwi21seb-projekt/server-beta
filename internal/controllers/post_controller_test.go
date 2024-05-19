@@ -44,6 +44,7 @@ func TestCreatePostWithLocationSuccess(t *testing.T) {
 		new(services.ImageService),
 		validator,
 		mockLocationRepository,
+		nil,
 	)
 	postController := controllers.NewPostController(postService)
 
@@ -167,6 +168,7 @@ func TestCreatePostWithLocationZeroValues(t *testing.T) {
 		new(services.ImageService),
 		validator,
 		mockLocationRepository,
+		nil,
 	)
 	postController := controllers.NewPostController(postService)
 
@@ -289,6 +291,7 @@ func TestCreatePostWithoutLocationSuccess(t *testing.T) {
 		new(services.ImageService),
 		validator,
 		mockLocationRepository,
+		nil,
 	)
 	postController := controllers.NewPostController(postService)
 
@@ -400,6 +403,7 @@ func TestCreatePostBadRequest(t *testing.T) {
 			new(services.ImageService),
 			nil,
 			nil,
+			nil,
 		)
 		postController := controllers.NewPostController(postService)
 
@@ -462,6 +466,7 @@ func TestCreatePostUnauthorized(t *testing.T) {
 			new(services.ImageService),
 			nil,
 			nil,
+			nil,
 		)
 		postController := controllers.NewPostController(postService)
 
@@ -507,6 +512,7 @@ func TestCreatePostUserNotActivated(t *testing.T) {
 		mockHashtagRepository,
 		new(services.ImageService),
 		new(utils.Validator),
+		nil,
 		nil,
 	)
 	postController := controllers.NewPostController(postService)
@@ -613,6 +619,7 @@ func TestCreatePostWithImageSuccess(t *testing.T) {
 			mockHashtagRepository,
 			services.NewImageService(mockFileSystem, validator),
 			validator,
+			nil,
 			nil,
 		)
 		postController := controllers.NewPostController(postService)
@@ -737,6 +744,7 @@ func TestCreatePostWithImageBadRequest(t *testing.T) {
 		services.NewImageService(mockFileSystem, validator),
 		validator,
 		nil,
+		nil,
 	)
 	postController := controllers.NewPostController(postService)
 
@@ -826,6 +834,7 @@ func TestCreatePostWithEmptyImageSuccess(t *testing.T) {
 		mockHashtagRepository,
 		services.NewImageService(mockFileSystem, validator),
 		validator,
+		nil,
 		nil,
 	)
 	postController := controllers.NewPostController(postService)
@@ -929,6 +938,7 @@ func TestCreatePostWithWrongContentTypeBadRequest(t *testing.T) {
 			services.NewImageService(mockFileSystem, validator),
 			nil,
 			nil,
+			nil,
 		)
 		postController := controllers.NewPostController(postService)
 
@@ -973,6 +983,7 @@ func TestGetPostsByUsernameSuccess(t *testing.T) {
 		mockPostRepository,
 		mockUserRepository,
 		mockHashtagRepository,
+		nil,
 		nil,
 		nil,
 		nil,
@@ -1084,6 +1095,7 @@ func TestGetPostsByUsernameUnauthorized(t *testing.T) {
 			nil,
 			nil,
 			nil,
+			nil,
 		)
 		postController := controllers.NewPostController(postService)
 
@@ -1124,6 +1136,7 @@ func TestGetPostsByUsernameUserNotFound(t *testing.T) {
 		mockPostRepository,
 		mockUserRepository,
 		mockHashtagRepository,
+		nil,
 		nil,
 		nil,
 		nil,
@@ -1185,6 +1198,7 @@ func TestGetGlobalPostFeedSuccess(t *testing.T) {
 		postService := services.NewPostService(
 			mockPostRepository,
 			mockUserRepository,
+			nil,
 			nil,
 			nil,
 			nil,
@@ -1312,6 +1326,7 @@ func TestGetGlobalPostFeedDefaultParameters(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		nil,
 	)
 	postController := controllers.NewPostController(postService)
 
@@ -1355,6 +1370,7 @@ func TestGetPersonalPostFeedSuccess(t *testing.T) {
 	postService := services.NewPostService(
 		mockPostRepository,
 		mockUserRepository,
+		nil,
 		nil,
 		nil,
 		nil,
@@ -1482,6 +1498,7 @@ func TestGetPersonalPostFeeDefaultParameters(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		nil,
 	)
 	postController := controllers.NewPostController(postService)
 
@@ -1542,6 +1559,7 @@ func TestGetPersonalPostFeedUnauthorized(t *testing.T) {
 			nil,
 			nil,
 			nil,
+			nil,
 		)
 		postController := controllers.NewPostController(postService)
 
@@ -1578,7 +1596,7 @@ func TestDeletePostSuccess(t *testing.T) {
 	// Arrange
 	mockPostRepository := new(repositories.MockPostRepository)
 
-	postService := services.NewPostService(mockPostRepository, nil, nil, nil, nil, nil)
+	postService := services.NewPostService(mockPostRepository, nil, nil, nil, nil, nil, nil)
 	postController := controllers.NewPostController(postService)
 
 	postId := uuid.New().String()
@@ -1617,12 +1635,13 @@ func TestDeletePostUnauthorized(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		nil,
 	)
 	postController := controllers.NewPostController(postService)
 
 	postId := uuid.New()
 
-	// Setup HTTP request ohne Authorization Header
+	// Setup HTTP request without Authorization Header
 	req, _ := http.NewRequest("DELETE", "/posts/"+postId.String(), nil)
 	w := httptest.NewRecorder()
 
@@ -1635,6 +1654,14 @@ func TestDeletePostUnauthorized(t *testing.T) {
 	// Assert
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
 
+	var errorResponse customerrors.ErrorResponse
+	err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
+	assert.NoError(t, err)
+
+	expectedCustomError := customerrors.UserUnauthorized
+	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
+	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
+
 	mockPostRepository.AssertExpectations(t)
 }
 
@@ -1643,7 +1670,7 @@ func TestDeletePostForbidden(t *testing.T) {
 	// Arrange
 	mockPostRepository := new(repositories.MockPostRepository)
 
-	postService := services.NewPostService(mockPostRepository, nil, nil, nil, nil, nil)
+	postService := services.NewPostService(mockPostRepository, nil, nil, nil, nil, nil, nil)
 	postController := controllers.NewPostController(postService)
 
 	postId := uuid.New().String()
@@ -1674,7 +1701,7 @@ func TestDeletePostNotFound(t *testing.T) {
 	// Arrange
 	mockPostRepository := new(repositories.MockPostRepository)
 
-	postService := services.NewPostService(mockPostRepository, nil, nil, nil, nil, nil)
+	postService := services.NewPostService(mockPostRepository, nil, nil, nil, nil, nil, nil)
 	postController := controllers.NewPostController(postService)
 
 	postId := uuid.New().String()
@@ -1707,6 +1734,7 @@ func TestGetPostsByHashtagSuccess(t *testing.T) {
 
 	postService := services.NewPostService(
 		mockPostRepository,
+		nil,
 		nil,
 		nil,
 		nil,
@@ -1838,6 +1866,7 @@ func TestGetPostsByHashtagUnauthorized(t *testing.T) {
 
 		postService := services.NewPostService(
 			mockPostRepository,
+			nil,
 			nil,
 			nil,
 			nil,

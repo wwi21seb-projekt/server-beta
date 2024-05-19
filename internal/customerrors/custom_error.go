@@ -103,11 +103,11 @@ var (
 		Message: "The post was not found. Please check the post ID and try again.",
 		Code:    "ERR-020",
 	}
-	LikeAlreadyExists = &CustomError{
+	AlreadyLiked = &CustomError{
 		Message: "You have already liked this post.",
 		Code:    "ERR-021",
 	}
-	LikeNotFound = &CustomError{
+	NotLiked = &CustomError{
 		Message: "You can't unlike a post you haven't liked.",
 		Code:    "ERR-022",
 	}
