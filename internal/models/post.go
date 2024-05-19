@@ -12,8 +12,6 @@ type Post struct {
 	Content    string     `gorm:"column:content;type:varchar(256);null"`
 	ImageUrl   string     `gorm:"column:image_url;type:varchar(128);null"`
 	Hashtags   []Hashtag  `gorm:"many2many:post_hashtags;onDelete:CASCADE"` // gorm handles the join table, onDelete:CASCADE deletes the hashtags if the post is deleted
-	Likes      int        `gorm:"column:likes;type:integer;null"`
-	Liked      bool       `gorm:"column:likes;type:boolean;null"`
 	CreatedAt  time.Time  `gorm:"column:created_at;not_null"`
 	LocationId *uuid.UUID `gorm:"column:location_id;null"`
 	Location   Location   `gorm:"foreignKey:location_id;references:id"`
@@ -29,7 +27,7 @@ type PostResponseDTO struct {
 	Author       *AuthorDTO   `json:"author"`
 	CreationDate time.Time    `json:"creationDate"`
 	Content      string       `json:"content"`
-	Likes        int          `json:"likes"`
+	Likes        int64        `json:"likes"`
 	Liked        bool         `json:"liked"`
 	Location     *LocationDTO `json:"location"`
 }
@@ -49,6 +47,8 @@ type UserFeedRecordDTO struct {
 	PostId       string       `json:"postId"`
 	CreationDate time.Time    `json:"creationDate"`
 	Content      string       `json:"content"`
+	Likes        int64        `json:"likes"`
+	Liked        bool         `json:"liked"`
 	Location     *LocationDTO `json:"location"`
 }
 

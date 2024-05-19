@@ -49,18 +49,21 @@ func SetupRouter() *gin.Engine {
 	fileSystem := repositories.NewFileSystem()
 	subscriptionRepo := repositories.NewSubscriptionRepository(initializers.DB)
 	locationRepo := repositories.NewLocationRepository(initializers.DB)
+	likeRepo := repositories.NewLikeRepository(initializers.DB)
 
 	validator := utils.NewValidator()
 	mailService := services.NewMailService()
 	imageService := services.NewImageService(fileSystem, validator)
 	userService := services.NewUserService(userRepo, activationTokenRepo, mailService, validator, postRepo, subscriptionRepo)
-	postService := services.NewPostService(postRepo, userRepo, hashtagRepo, imageService, validator, locationRepo)
+	postService := services.NewPostService(postRepo, userRepo, hashtagRepo, imageService, validator, locationRepo, likeRepo)
 	subscriptionService := services.NewSubscriptionService(subscriptionRepo, userRepo)
+	likeService := services.NewLikeService(likeRepo, userRepo, postRepo)
 
 	imprintController := controllers.NewImprintController()
 	userController := controllers.NewUserController(userService)
 	postController := controllers.NewPostController(postService)
 	imageController := controllers.NewImageController(imageService)
+	likeController := controllers.NewLikeController(likeService)
 
 	subscriptionController := controllers.NewSubscriptionController(subscriptionService)
 
@@ -95,6 +98,10 @@ func SetupRouter() *gin.Engine {
 	api.POST("/subscriptions", middleware.AuthorizeUser, subscriptionController.PostSubscription)
 	api.DELETE("/subscriptions/:subscriptionId", middleware.AuthorizeUser, subscriptionController.DeleteSubscription)
 	api.GET("/subscriptions/:username", middleware.AuthorizeUser, subscriptionController.GetSubscriptions)
+
+	// Like
+	api.POST("/posts/:postId/likes", middleware.AuthorizeUser, likeController.PostLike)
+	api.DELETE("/posts/:postId/likes", middleware.AuthorizeUser, likeController.DeleteLike)
 
 	return r
 }

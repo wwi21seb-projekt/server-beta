@@ -32,6 +32,7 @@ type PostService struct {
 	imageService ImageServiceInterface
 	validator    utils.ValidatorInterface
 	locationRepo repositories.LocationRepositoryInterface
+	likeRepo     repositories.LikeRepositoryInterface
 }
 
 // NewPostService can be used as a constructor to create a PostService "object"
@@ -40,8 +41,9 @@ func NewPostService(postRepo repositories.PostRepositoryInterface,
 	hashtagRepo repositories.HashtagRepositoryInterface,
 	imageService ImageServiceInterface,
 	validator utils.ValidatorInterface,
-	locationRepo repositories.LocationRepositoryInterface) *PostService {
-	return &PostService{postRepo: postRepo, userRepo: userRepo, hashtagRepo: hashtagRepo, imageService: imageService, validator: validator, locationRepo: locationRepo}
+	locationRepo repositories.LocationRepositoryInterface,
+	likeRepo repositories.LikeRepositoryInterface) *PostService {
+	return &PostService{postRepo: postRepo, userRepo: userRepo, hashtagRepo: hashtagRepo, imageService: imageService, validator: validator, locationRepo: locationRepo, likeRepo: likeRepo}
 }
 
 func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *multipart.FileHeader, username string) (*models.PostResponseDTO, *customerrors.CustomError, int) {
@@ -150,6 +152,8 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *m
 		},
 		CreationDate: post.CreatedAt,
 		Content:      post.Content,
+		Likes:        0,
+		Liked:        false,
 		Location:     locationDTO,
 	}
 
@@ -177,6 +181,16 @@ func (service *PostService) GetPostsByUsername(username string, offset, limit in
 	var postDtos []models.UserFeedRecordDTO
 	for _, post := range posts {
 		var locationDTO *models.LocationDTO
+		//Like handling
+		var liked = false
+		var like *models.Like
+		var likes int64
+		like, _ = service.likeRepo.FindLike(post.Id.String(), post.Username)
+		if like != nil {
+			liked = true
+		}
+		likes = service.likeRepo.CountLikes(post.Id.String())
+		//Like handling complete
 		if post.LocationId != nil {
 			tempLatitude := post.Location.Latitude // need to use temp variables because the pointers change in the loop
 			tempLongitude := post.Location.Longitude
@@ -191,6 +205,8 @@ func (service *PostService) GetPostsByUsername(username string, offset, limit in
 			PostId:       post.Id.String(),
 			CreationDate: post.CreatedAt,
 			Content:      post.Content,
+			Likes:        likes,
+			Liked:        liked,
 			Location:     locationDTO,
 		}
 		postDtos = append(postDtos, postDto)
@@ -248,7 +264,7 @@ func (service *PostService) GetPostsGlobalFeed(lastPostId string, limit int) (*m
 	}
 
 	// Create response dto
-	feed := generatePostFeedWithAuthor(posts, totalPostsCount, limit)
+	feed := generatePostFeedWithAuthor(service, posts, totalPostsCount, limit)
 
 	return feed, nil, http.StatusOK
 }
@@ -291,7 +307,7 @@ func (service *PostService) GetPostsPersonalFeed(username string, lastPostId str
 	}
 
 	// Create response dto
-	feed := generatePostFeedWithAuthor(posts, totalPostsCount, limit)
+	feed := generatePostFeedWithAuthor(service, posts, totalPostsCount, limit)
 
 	return feed, nil, http.StatusOK
 }
@@ -359,13 +375,13 @@ func (service *PostService) GetPostsByHashtag(hashtag string, lastPostId string,
 	}
 
 	// Create response dto
-	feed := generatePostFeedWithAuthor(posts, totalPostsCount, limit)
+	feed := generatePostFeedWithAuthor(service, posts, totalPostsCount, limit)
 
 	return feed, nil, http.StatusOK
 }
 
 // generatePostFeedWithAuthor creates a GeneralFeedDTO from a list of posts and a total count
-func generatePostFeedWithAuthor(posts []models.Post, totalPostsCount int64, limit int) *models.GeneralFeedDTO {
+func generatePostFeedWithAuthor(service *PostService, posts []models.Post, totalPostsCount int64, limit int) *models.GeneralFeedDTO {
 	// Create response dto
 	newLastPostId := ""
 	if len(posts) > 0 {
@@ -380,6 +396,16 @@ func generatePostFeedWithAuthor(posts []models.Post, totalPostsCount int64, limi
 		},
 	}
 	for _, post := range posts {
+		//Like handling
+		var liked = false
+		var like *models.Like
+		var likes int64
+		like, _ = service.likeRepo.FindLike(post.Id.String(), post.Username)
+		if like != nil {
+			liked = true
+		}
+		likes = service.likeRepo.CountLikes(post.Id.String())
+		//Like handling complete
 		authorDto := models.AuthorDTO{
 			Username:          post.User.Username,
 			Nickname:          post.User.Nickname,
@@ -401,6 +427,8 @@ func generatePostFeedWithAuthor(posts []models.Post, totalPostsCount int64, limi
 			Author:       &authorDto,
 			CreationDate: post.CreatedAt,
 			Content:      post.Content,
+			Likes:        likes,
+			Liked:        liked,
 			Location:     locationDTO,
 		}
 		if locationDTO != nil {
