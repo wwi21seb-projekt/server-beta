@@ -25,7 +25,7 @@ func TestGetNotificationsSuccess(t *testing.T) {
 	// Arrange
 	mockNotificationRepo := new(repositories.MockNotificationRepository)
 
-	notificationService := services.NewNotificationService(mockNotificationRepo)
+	notificationService := services.NewNotificationService(mockNotificationRepo, nil)
 	notificationController := controllers.NewNotificationController(notificationService)
 
 	currentUsername := "testUser"
@@ -98,7 +98,7 @@ func TestGetNotificationsUnauthorized(t *testing.T) {
 	// Arrange
 	mockNotificationRepo := new(repositories.MockNotificationRepository)
 
-	notificationService := services.NewNotificationService(mockNotificationRepo)
+	notificationService := services.NewNotificationService(mockNotificationRepo, nil)
 	notificationController := controllers.NewNotificationController(notificationService)
 
 	// Setup HTTP request and recorder
@@ -130,7 +130,7 @@ func TestDeleteNotificationByIdSuccess(t *testing.T) {
 	// Arrange
 	mockNotificationRepo := new(repositories.MockNotificationRepository)
 
-	notificationService := services.NewNotificationService(mockNotificationRepo)
+	notificationService := services.NewNotificationService(mockNotificationRepo, nil)
 	notificationController := controllers.NewNotificationController(notificationService)
 
 	currentUsername := "testUser"
@@ -174,7 +174,7 @@ func TestDeleteNotificationByIdUnauthorized(t *testing.T) {
 	// Arrange
 	mockNotificationRepo := new(repositories.MockNotificationRepository)
 
-	notificationService := services.NewNotificationService(mockNotificationRepo)
+	notificationService := services.NewNotificationService(mockNotificationRepo, nil)
 	notificationController := controllers.NewNotificationController(notificationService)
 
 	notificationId := uuid.New()
@@ -207,7 +207,7 @@ func TestDeleteNotificationByIdNotFound(t *testing.T) {
 	// Arrange
 	mockNotificationRepo := new(repositories.MockNotificationRepository)
 
-	notificationService := services.NewNotificationService(mockNotificationRepo)
+	notificationService := services.NewNotificationService(mockNotificationRepo, nil)
 	notificationController := controllers.NewNotificationController(notificationService)
 
 	currentUsername := "testUser"
@@ -251,7 +251,7 @@ func TestDeleteNotificationByIdForbidden(t *testing.T) {
 	// Arrange
 	mockNotificationRepo := new(repositories.MockNotificationRepository)
 
-	notificationService := services.NewNotificationService(mockNotificationRepo)
+	notificationService := services.NewNotificationService(mockNotificationRepo, nil)
 	notificationController := controllers.NewNotificationController(notificationService)
 
 	currentUsername := "testUser"

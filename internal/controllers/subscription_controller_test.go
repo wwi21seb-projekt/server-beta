@@ -27,9 +27,10 @@ func TestPostSubscriptionSuccess(t *testing.T) {
 	// Arrange
 	mockSubscriptionRepo := new(repositories.MockSubscriptionRepository)
 	mockUserRepo := new(repositories.MockUserRepository)
-
+	mockPushSubscriptionRepo := new(repositories.MockPushSubscriptionRepository)
 	mockNotificationRepo := new(repositories.MockNotificationRepository)
-	notificationService := services.NewNotificationService(mockNotificationRepo)
+	pushSubscriptionService := services.NewPushSubscriptionService(mockPushSubscriptionRepo)
+	notificationService := services.NewNotificationService(mockNotificationRepo, pushSubscriptionService)
 
 	subscriptionService := services.NewSubscriptionService(mockSubscriptionRepo, mockUserRepo, notificationService)
 	subscriptionController := controllers.NewSubscriptionController(subscriptionService)
@@ -52,6 +53,7 @@ func TestPostSubscriptionSuccess(t *testing.T) {
 		Run(func(args mock.Arguments) {
 			capturedSubscription = *args.Get(0).(*models.Subscription) // Save argument to captor
 		}).Return(nil) // Expect subscription to be created
+	mockPushSubscriptionRepo.On("GetPushSubscriptionsByUsername", subscriptionCreateRequest.Following).Return([]models.PushSubscription{}, nil) // Expect no push subscriptions to be found)
 
 	var capturedNotification models.Notification
 	mockNotificationRepo.On("CreateNotification", mock.AnythingOfType("*models.Notification")).

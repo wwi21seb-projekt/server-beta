@@ -56,10 +56,10 @@ func SetupRouter() *gin.Engine {
 	mailService := services.NewMailService()
 	imageService := services.NewImageService(fileSystem, validator)
 	userService := services.NewUserService(userRepo, activationTokenRepo, mailService, validator, postRepo, subscriptionRepo)
-	postService := services.NewPostService(postRepo, userRepo, hashtagRepo, imageService, validator, locationRepo)
-	notificationService := services.NewNotificationService(notificationRepo)
-	subscriptionService := services.NewSubscriptionService(subscriptionRepo, userRepo, notificationService)
 	pushSubscriptionService := services.NewPushSubscriptionService(pushSubscriptionRepo)
+	postService := services.NewPostService(postRepo, userRepo, hashtagRepo, imageService, validator, locationRepo)
+	notificationService := services.NewNotificationService(notificationRepo, pushSubscriptionService)
+	subscriptionService := services.NewSubscriptionService(subscriptionRepo, userRepo, notificationService)
 
 	imprintController := controllers.NewImprintController()
 	userController := controllers.NewUserController(userService)

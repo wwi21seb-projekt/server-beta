@@ -1,8 +1,10 @@
 package services
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/SherClockHolmes/webpush-go"
+	"github.com/google/uuid"
 	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
 	"github.com/wwi21seb-projekt/server-beta/internal/models"
 	"github.com/wwi21seb-projekt/server-beta/internal/repositories"
@@ -13,6 +15,7 @@ import (
 type PushSubscriptionServiceInterface interface {
 	GetVapidKey() (*models.VapidKeyResponseDTO, *customerrors.CustomError, int)
 	CreatePushSubscription(req *models.PushSubscriptionRequestDTO, currentUsername string) (*models.PushSubscription, *customerrors.CustomError, int)
+	SendPushMessages(notificationObject interface{}, toUsername string)
 }
 
 type PushSubscriptionService struct {
@@ -43,20 +46,37 @@ func (service *PushSubscriptionService) GetVapidKey() (*models.VapidKeyResponseD
 
 // CreatePushSubscription saves a new push subscription key to the database to send notifications to the client
 func (service *PushSubscriptionService) CreatePushSubscription(req *models.PushSubscriptionRequestDTO, currentUsername string) (*models.PushSubscription, *customerrors.CustomError, int) {
-	// type either needs to be web or expo
+	// type either needs to be "web" or "expo"
 	if req.Type != "web" && req.Type != "expo" {
 		return nil, customerrors.BadRequest, http.StatusBadRequest
 	}
 
 	// Create a new push subscription
-	// TODO: Implement
+	newPushSubscription := models.PushSubscription{
+		Id:       uuid.New(),
+		Username: currentUsername,
+		Type:     req.Type,
+		Endpoint: req.SubscriptionInfo.Endpoint,
+		P256dh:   req.SubscriptionInfo.P256dh,
+		Auth:     req.SubscriptionInfo.Auth,
+	}
 
-	return nil, nil, http.StatusNotImplemented
+	err := service.PushSubscriptionRepo.CreatePushSubscription(&newPushSubscription)
+	if err != nil {
+		return nil, customerrors.DatabaseError, http.StatusInternalServerError
+	}
+
+	return &newPushSubscription, nil, http.StatusCreated
 }
 
 // SendPushMessages sends push messages to all push subscriptions of a user
-func (service *PushSubscriptionService) SendPushMessages(body string, toUsername string) {
-	// TODO: Finalize
+func (service *PushSubscriptionService) SendPushMessages(notificationObject interface{}, toUsername string) {
+	// Create notification json string from object
+	notificationJson, err := json.Marshal(notificationObject)
+	if err != nil {
+		return
+	}
+	notificationString := string(notificationJson)
 
 	// Get all push subscriptions by username
 	pushSubscriptions, err := service.PushSubscriptionRepo.GetPushSubscriptionsByUsername(toUsername)
@@ -66,16 +86,15 @@ func (service *PushSubscriptionService) SendPushMessages(body string, toUsername
 
 	// Send push messages
 	for _, pushSubscription := range pushSubscriptions {
-		fmt.Println(pushSubscription)
 		sub := &webpush.Subscription{
-			Endpoint: "",
+			Endpoint: pushSubscription.Endpoint,
 			Keys: webpush.Keys{
-				P256dh: "",
-				Auth:   "",
+				P256dh: pushSubscription.P256dh,
+				Auth:   pushSubscription.Auth,
 			},
 		}
 
-		resp, err := webpush.SendNotification([]byte(body), sub, &webpush.Options{
+		resp, err := webpush.SendNotification([]byte(notificationString), sub, &webpush.Options{
 			Subscriber:      service.serverMail,
 			VAPIDPrivateKey: service.vapidPrivateKey,
 			TTL:             30,

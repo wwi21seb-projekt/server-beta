@@ -18,16 +18,20 @@ type NotificationServiceInterface interface {
 }
 
 type NotificationService struct {
-	notificationRepository repositories.NotificationRepositoryInterface
+	notificationRepository  repositories.NotificationRepositoryInterface
+	PushSubscriptionService PushSubscriptionServiceInterface
 }
 
 // NewNotificationService can be used as a constructor to create a NotificationService "object"
-func NewNotificationService(notificationRepository repositories.NotificationRepositoryInterface) *NotificationService {
-	return &NotificationService{notificationRepository: notificationRepository}
+func NewNotificationService(
+	notificationRepository repositories.NotificationRepositoryInterface,
+	puhSubscriptionService PushSubscriptionServiceInterface) *NotificationService {
+	return &NotificationService{notificationRepository: notificationRepository, PushSubscriptionService: puhSubscriptionService}
 }
 
 // CreateNotification is a service function that creates a notification and pushes it to client if push service is registered
 func (service *NotificationService) CreateNotification(notificationType string, forUsername string, fromUsername string) error {
+	// Create notification and save to database
 	newNotification := models.Notification{
 		Id:               uuid.New(),
 		NotificationType: notificationType,
@@ -37,7 +41,8 @@ func (service *NotificationService) CreateNotification(notificationType string, 
 	}
 	err := service.notificationRepository.CreateNotification(&newNotification)
 
-	// TODO: send notification to client
+	// Send push message to client if push service is registered
+	service.PushSubscriptionService.SendPushMessages(newNotification, forUsername)
 
 	return err
 }

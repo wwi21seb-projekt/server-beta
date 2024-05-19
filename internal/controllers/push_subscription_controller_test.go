@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/wwi21seb-projekt/server-beta/internal/controllers"
 	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
 	"github.com/wwi21seb-projekt/server-beta/internal/middleware"
 	"github.com/wwi21seb-projekt/server-beta/internal/models"
+	"github.com/wwi21seb-projekt/server-beta/internal/repositories"
 	"github.com/wwi21seb-projekt/server-beta/internal/services"
 	"github.com/wwi21seb-projekt/server-beta/internal/utils"
 	"net/http"
@@ -78,7 +80,72 @@ func TestGetVapidKeyUnauthorized(t *testing.T) {
 
 // TestCreatePushSubscriptionSuccess tests if the function CreatePushSubscription saves a new push subscription key to the database if user is authorized and req body is correct
 func TestCreatePushSubscriptionSuccess(t *testing.T) {
-	// TODO: Implement
+	// Arrange
+	mockPushSubscriptionRepo := new(repositories.MockPushSubscriptionRepository)
+
+	pushSubscriptionService := services.NewPushSubscriptionService(mockPushSubscriptionRepo)
+	pushSubscriptionController := controllers.NewPushSubscriptionController(pushSubscriptionService)
+
+	testUsername := "testUser"
+	authorizationToken, err := utils.GenerateAccessToken(testUsername)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pushSubscriptionCreateRequest := models.PushSubscriptionRequestDTO{
+		Type: "web",
+		SubscriptionInfo: models.SubscriptionInfo{
+			Endpoint: "https://example.com",
+			P256dh:   "p256dh",
+			Auth:     "auth",
+		},
+	}
+
+	// Mock expectations
+	var capturedPushSubscription models.PushSubscription
+	mockPushSubscriptionRepo.On("CreatePushSubscription", mock.AnythingOfType("*models.PushSubscription")).
+		Run(func(args mock.Arguments) {
+			capturedPushSubscription = *args.Get(0).(*models.PushSubscription)
+		}).Return(nil)
+
+	// Setup HTTP request and recorder
+	requestBody, err := json.Marshal(pushSubscriptionCreateRequest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req, _ := http.NewRequest(http.MethodPost, "/push/register", bytes.NewBuffer(requestBody))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+authorizationToken)
+	w := httptest.NewRecorder()
+
+	// Act
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+	router.POST("/push/register", middleware.AuthorizeUser, pushSubscriptionController.CreatePushSubscription)
+	router.ServeHTTP(w, req)
+
+	// Assert
+	assert.Equal(t, http.StatusCreated, w.Code) // Expect HTTP 201 Created
+
+	var responseObject models.PushSubscription
+	err = json.Unmarshal(w.Body.Bytes(), &responseObject)
+	assert.NoError(t, err)
+
+	assert.NotEqual(t, responseObject.Id, "")
+	assert.Equal(t, responseObject.Username, testUsername)
+	assert.Equal(t, pushSubscriptionCreateRequest.Type, responseObject.Type)
+	assert.Equal(t, pushSubscriptionCreateRequest.SubscriptionInfo.Endpoint, responseObject.Endpoint)
+	assert.Equal(t, pushSubscriptionCreateRequest.SubscriptionInfo.P256dh, responseObject.P256dh)
+	assert.Equal(t, pushSubscriptionCreateRequest.SubscriptionInfo.Auth, responseObject.Auth)
+
+	assert.Equal(t, capturedPushSubscription.Id, responseObject.Id)
+	assert.Equal(t, capturedPushSubscription.Username, testUsername)
+	assert.Equal(t, capturedPushSubscription.Type, pushSubscriptionCreateRequest.Type)
+	assert.Equal(t, capturedPushSubscription.Endpoint, pushSubscriptionCreateRequest.SubscriptionInfo.Endpoint)
+	assert.Equal(t, capturedPushSubscription.P256dh, pushSubscriptionCreateRequest.SubscriptionInfo.P256dh)
+	assert.Equal(t, capturedPushSubscription.Auth, pushSubscriptionCreateRequest.SubscriptionInfo.Auth)
+
+	mockPushSubscriptionRepo.AssertExpectations(t)
 }
 
 // TestCreatePushSubscriptionUnauthorized tests if the function CreatePushSubscription returns an error if user is not authorized
@@ -114,7 +181,7 @@ func TestCreatePushSubscriptionBadRequest(t *testing.T) {
 	invalidBodies := []string{
 		`{"invalidField": "value"}`,
 		``,
-		`{type: "invalid, subscriptionObject: {}}"`, // invalid type, only "web" or "expo" allowed
+		`{type: "invalid, subscription: {}}"`, // invalid type, only "web" or "expo" allowed
 	}
 
 	for _, body := range invalidBodies {
