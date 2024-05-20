@@ -97,8 +97,8 @@ func TestCreatePushSubscriptionSuccess(t *testing.T) {
 		SubscriptionInfo: models.SubscriptionInfo{
 			Endpoint: "https://example.com",
 			SubscriptionKeys: models.SubscriptionKeys{
-				P256dh: "dGVzdA==",
-				Auth:   "dGVzdA==",
+				P256dh: "dGVzdA",
+				Auth:   "dGVzdA",
 			},
 		},
 	}
@@ -179,10 +179,10 @@ func TestCreatePushSubscriptionBadRequest(t *testing.T) {
 	invalidBodies := []string{
 		`{"invalidField": "value"}`,
 		``,
-		`{type: "w", "subscription": {"endpoint": "http://www.example.com", "keys":{"pd256dh": "dGVzdA==", "auth": "dGVzdA=="}}}`, // invalid type, only "web" or "expo" allowed
-		`{type: "web", "subscription": {"endpoint": "no url", "keys":{"pd256dh": "dGVzdA==", "auth": "dGVzdA=="}}}`,               // invalid endpoint
-		`{type: "web", "subscription": {"endpoint": "http://www.example.com", "keys":{"pd256dh": "t", "auth": "dGVzdA=="}}}`,      // no base64 encoded pd256dh
-		`{type: "web", "subscription": {"endpoint": "http://www.example.com", "keys":{"pd256dh": "dGVzdA==", "auth": "t"}}}`,      // no base64 encoded auth
+		`{type: "w", "subscription": {"endpoint": "https://www.example.com", "keys":{"pd256dh": "dGVzdA", "auth": "dGVzdA"}}}`, // invalid type, only "web" or "expo" allowed
+		`{type: "web", "subscription": {"endpoint": "no url", "keys":{"pd256dh": "dGVzdA", "auth": "dGVzdA"}}}`,                // invalid endpoint
+		`{type: "web", "subscription": {"endpoint": "https://www.example.com", "keys":{"pd256dh": "t", "auth": "dGVzdA"}}}`,    // no base64 encoded pd256dh
+		`{type: "web", "subscription": {"endpoint": "https://www.example.com", "keys":{"pd256dh": "dGVzdA", "auth": "t"}}}`,    // no base64 encoded auth
 	}
 
 	for _, body := range invalidBodies {

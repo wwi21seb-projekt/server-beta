@@ -1,6 +1,7 @@
 package services
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"github.com/SherClockHolmes/webpush-go"
@@ -21,7 +22,7 @@ type PushSubscriptionServiceInterface interface {
 }
 
 type PushSubscriptionService struct {
-	PushSubscriptionRepo repositories.PushSubscriptionRepositoryInterface
+	pushSubscriptionRepo repositories.PushSubscriptionRepositoryInterface
 
 	vapidPrivateKey string
 	vapidPublicKey  string
@@ -34,7 +35,7 @@ func NewPushSubscriptionService(pushSubscriptionRepo repositories.PushSubscripti
 	vapidPublicKey := os.Getenv("VAPID_PUBLIC_KEY")
 	serverMail := os.Getenv("EMAIL_ADDRESS")
 
-	return &PushSubscriptionService{PushSubscriptionRepo: pushSubscriptionRepo, vapidPrivateKey: vapidPrivateKey, vapidPublicKey: vapidPublicKey, serverMail: serverMail}
+	return &PushSubscriptionService{pushSubscriptionRepo: pushSubscriptionRepo, vapidPrivateKey: vapidPrivateKey, vapidPublicKey: vapidPublicKey, serverMail: serverMail}
 }
 
 // GetVapidKey returns a VAPID key for clients to register for push notifications
@@ -58,20 +59,18 @@ func (service *PushSubscriptionService) CreatePushSubscription(req *models.PushS
 	if err != nil || len(req.SubscriptionInfo.Endpoint) <= 0 {
 		return nil, customerrors.BadRequest, http.StatusBadRequest
 	}
-	// keys cannot be empty
+	// keys cannot be empty and need to be base64-URL encoded
 	if len(req.SubscriptionInfo.SubscriptionKeys.P256dh) <= 0 || len(req.SubscriptionInfo.SubscriptionKeys.Auth) <= 0 {
 		return nil, customerrors.BadRequest, http.StatusBadRequest
 	}
-	//_, err = base64.StdEncoding.DecodeString(req.SubscriptionInfo.SubscriptionKeys.P256dh)
-	//if err != nil {
-	//	fmt.Println("Error decoding P256dh: ", err)
-	//	return nil, customerrors.BadRequest, http.StatusBadRequest
-	//}
-	//_, err = base64.StdEncoding.DecodeString(req.SubscriptionInfo.SubscriptionKeys.Auth)
-	//if err != nil {
-	//	fmt.Println("Error decoding Auth: ", err)
-	//	return nil, customerrors.BadRequest, http.StatusBadRequest
-	//}
+	_, err = base64.RawURLEncoding.DecodeString(req.SubscriptionInfo.SubscriptionKeys.P256dh)
+	if err != nil {
+		return nil, customerrors.BadRequest, http.StatusBadRequest
+	}
+	_, err = base64.RawURLEncoding.DecodeString(req.SubscriptionInfo.SubscriptionKeys.Auth)
+	if err != nil {
+		return nil, customerrors.BadRequest, http.StatusBadRequest
+	}
 
 	// Create a new push subscription
 	newPushSubscription := models.PushSubscription{
@@ -83,7 +82,7 @@ func (service *PushSubscriptionService) CreatePushSubscription(req *models.PushS
 		Auth:     req.SubscriptionInfo.SubscriptionKeys.Auth,
 	}
 
-	err = service.PushSubscriptionRepo.CreatePushSubscription(&newPushSubscription)
+	err = service.pushSubscriptionRepo.CreatePushSubscription(&newPushSubscription)
 	if err != nil {
 		return nil, customerrors.DatabaseError, http.StatusInternalServerError
 	}
@@ -106,11 +105,11 @@ func (service *PushSubscriptionService) SendPushMessages(notificationObject inte
 	notificationString := string(notificationJson)
 
 	// Get all push subscriptions by username
-	pushSubscriptions, err := service.PushSubscriptionRepo.GetPushSubscriptionsByUsername(toUsername)
+	pushSubscriptions, err := service.pushSubscriptionRepo.GetPushSubscriptionsByUsername(toUsername)
 	if err != nil {
 		return
 	}
-	fmt.Println("Vapid Private Key:", service.vapidPrivateKey)
+
 	// Send push messages
 	for _, pushSubscription := range pushSubscriptions {
 		sub := &webpush.Subscription{
@@ -130,27 +129,18 @@ func (service *PushSubscriptionService) SendPushMessages(notificationObject inte
 
 		if err != nil {
 			fmt.Println(err, ", error sending notification to", pushSubscription.Username)
-			return
+			continue
 		}
+
 		fmt.Println("Notification sent to", pushSubscription.Username)
-		fmt.Println(resp.Body)
-		fmt.Println(resp.Status)
+		fmt.Println("Status:", resp.Status)
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		fmt.Println("Response Body:", string(bodyBytes))
 
-		bodyBytes, err := io.ReadAll(resp.Body)
-		if err != nil {
-			fmt.Println("Error reading response body:", err)
-			return
+		// If the subscription is deactivated or expired, delete it
+		if resp.StatusCode == http.StatusGone {
+			_ = service.pushSubscriptionRepo.DeletePushSubscriptionById(pushSubscription.Id.String())
+			continue
 		}
-
-		// Den Body als String konvertieren
-		bodyString := string(bodyBytes)
-		fmt.Println("Response Body:", bodyString)
-		//resp.Body.Close()
-
-		//// Ensure the response body is closed after reading
-		//func() {
-		//	defer resp.Body.Close()
-		//	fmt.Println("Response: ", resp.Status)
-		//}()
 	}
 }
