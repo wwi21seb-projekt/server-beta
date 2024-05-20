@@ -66,7 +66,7 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *m
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, customerrors.UserUnauthorized, http.StatusUnauthorized
 		}
-		return nil, customerrors.InternalServerError, http.StatusInternalServerError
+		return nil, customerrors.DatabaseError, http.StatusInternalServerError
 	}
 
 	// Check if user is activated
