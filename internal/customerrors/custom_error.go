@@ -110,6 +110,7 @@ var (
 	NotLiked = &CustomError{
 		Message: "You can't unlike a post you haven't liked.",
 		Code:    "ERR-022",
+	}
 	NotificationNotFound = &CustomError{
 		Message: "The notification was not found. Please check the notification ID and try again.",
 		Code:    "ERR-023",
