@@ -18,13 +18,15 @@ func SyncDatabase() {
 
 	// Migrate models
 	modelsToMigrate := []interface{}{
-		//&models.Location{},
-		//&models.User{},
-		//&models.ActivationToken{},
-		//&models.Post{},
-		&models.Like{},
-		//&models.Hashtag{},
+		&models.User{},
+		&models.Location{},
+		&models.ActivationToken{},
+		&models.Post{},
+		&models.Comment{},
+		&models.Hashtag{},
 		//&models.Subscription{},
+		&models.Notification{},
+		&models.PushSubscription{},
 	}
 
 	for _, model := range modelsToMigrate {

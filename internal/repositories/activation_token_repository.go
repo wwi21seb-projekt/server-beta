@@ -34,13 +34,13 @@ func (repo *ActivationTokenRepository) CreateActivationTokenTx(activationToken *
 
 func (repo *ActivationTokenRepository) FindTokenByUsername(username string) ([]models.ActivationToken, error) {
 	var tokens []models.ActivationToken
-	err := repo.DB.Where("username = ?", username).Find(&tokens).Error
+	err := repo.DB.Where("username_fk = ?", username).Find(&tokens).Error
 	return tokens, err
 }
 
 func (repo *ActivationTokenRepository) FindActivationToken(username string, token string) (*models.ActivationToken, error) {
 	var activationToken models.ActivationToken
-	err := repo.DB.Where("username = ? AND token = ?", username, token).First(&activationToken).Error
+	err := repo.DB.Where("username_fk = ? AND token = ?", username, token).First(&activationToken).Error
 	if err != nil {
 		return nil, err
 	}
@@ -48,6 +48,6 @@ func (repo *ActivationTokenRepository) FindActivationToken(username string, toke
 }
 
 func (repo *ActivationTokenRepository) DeleteActivationTokenByUsername(username string) error {
-	err := repo.DB.Where("username = ?", username).Delete(models.ActivationToken{}).Error
+	err := repo.DB.Where("username_fk = ?", username).Delete(models.ActivationToken{}).Error
 	return err
 }

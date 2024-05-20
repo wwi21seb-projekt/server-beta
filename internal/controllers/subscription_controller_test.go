@@ -27,8 +27,12 @@ func TestPostSubscriptionSuccess(t *testing.T) {
 	// Arrange
 	mockSubscriptionRepo := new(repositories.MockSubscriptionRepository)
 	mockUserRepo := new(repositories.MockUserRepository)
+	mockPushSubscriptionRepo := new(repositories.MockPushSubscriptionRepository)
+	mockNotificationRepo := new(repositories.MockNotificationRepository)
+	pushSubscriptionService := services.NewPushSubscriptionService(mockPushSubscriptionRepo)
+	notificationService := services.NewNotificationService(mockNotificationRepo, pushSubscriptionService)
 
-	subscriptionService := services.NewSubscriptionService(mockSubscriptionRepo, mockUserRepo)
+	subscriptionService := services.NewSubscriptionService(mockSubscriptionRepo, mockUserRepo, notificationService)
 	subscriptionController := controllers.NewSubscriptionController(subscriptionService)
 
 	currentUsername := "testUser"
@@ -49,6 +53,13 @@ func TestPostSubscriptionSuccess(t *testing.T) {
 		Run(func(args mock.Arguments) {
 			capturedSubscription = *args.Get(0).(*models.Subscription) // Save argument to captor
 		}).Return(nil) // Expect subscription to be created
+	mockPushSubscriptionRepo.On("GetPushSubscriptionsByUsername", subscriptionCreateRequest.Following).Return([]models.PushSubscription{}, nil) // Expect no push subscriptions to be found)
+
+	var capturedNotification models.Notification
+	mockNotificationRepo.On("CreateNotification", mock.AnythingOfType("*models.Notification")).
+		Run(func(args mock.Arguments) {
+			capturedNotification = *args.Get(0).(*models.Notification)
+		}).Return(nil)
 
 	// Setup HTTP request and recorder
 	requestBody, err := json.Marshal(subscriptionCreateRequest)
@@ -82,8 +93,15 @@ func TestPostSubscriptionSuccess(t *testing.T) {
 	assert.Equal(t, subscriptionCreateRequest.Following, responseSubscription.Following)
 	assert.True(t, capturedSubscription.SubscriptionDate.Equal(responseSubscription.SubscriptionDate))
 
+	assert.Equal(t, "follow", capturedNotification.NotificationType)
+	assert.Equal(t, subscriptionCreateRequest.Following, capturedNotification.ForUsername)
+	assert.Equal(t, currentUsername, capturedNotification.FromUsername)
+	assert.NotNil(t, capturedNotification.Id)
+	assert.NotNil(t, capturedNotification.Timestamp)
+
 	mockSubscriptionRepo.AssertExpectations(t)
 	mockUserRepo.AssertExpectations(t)
+	mockNotificationRepo.AssertExpectations(t)
 
 }
 
@@ -100,7 +118,7 @@ func TestPostSubscriptionBadRequest(t *testing.T) {
 		mockSubscriptionRepo := new(repositories.MockSubscriptionRepository)
 		mockUserRepo := new(repositories.MockUserRepository)
 
-		subscriptionService := services.NewSubscriptionService(mockSubscriptionRepo, mockUserRepo)
+		subscriptionService := services.NewSubscriptionService(mockSubscriptionRepo, mockUserRepo, nil)
 		subscriptionController := controllers.NewSubscriptionController(subscriptionService)
 
 		currentUsername := "testUser"
@@ -149,7 +167,7 @@ func TestPostSubscriptionUnauthorized(t *testing.T) {
 		mockSubscriptionRepo := new(repositories.MockSubscriptionRepository)
 		mockUserRepo := new(repositories.MockUserRepository)
 
-		subscriptionService := services.NewSubscriptionService(mockSubscriptionRepo, mockUserRepo)
+		subscriptionService := services.NewSubscriptionService(mockSubscriptionRepo, mockUserRepo, nil)
 		subscriptionController := controllers.NewSubscriptionController(subscriptionService)
 
 		// Setup HTTP request and recorder
@@ -186,7 +204,7 @@ func TestPostSubscriptionAlreadyExists(t *testing.T) {
 	mockSubscriptionRepo := new(repositories.MockSubscriptionRepository)
 	mockUserRepo := new(repositories.MockUserRepository)
 
-	subscriptionService := services.NewSubscriptionService(mockSubscriptionRepo, mockUserRepo)
+	subscriptionService := services.NewSubscriptionService(mockSubscriptionRepo, mockUserRepo, nil)
 	subscriptionController := controllers.NewSubscriptionController(subscriptionService)
 
 	currentUsername := "testUser"
@@ -240,7 +258,7 @@ func TestPostSubscriptionUserNotFound(t *testing.T) {
 	mockSubscriptionRepo := new(repositories.MockSubscriptionRepository)
 	mockUserRepo := new(repositories.MockUserRepository)
 
-	subscriptionService := services.NewSubscriptionService(mockSubscriptionRepo, mockUserRepo)
+	subscriptionService := services.NewSubscriptionService(mockSubscriptionRepo, mockUserRepo, nil)
 	subscriptionController := controllers.NewSubscriptionController(subscriptionService)
 
 	currentUsername := "testUser"
@@ -293,7 +311,7 @@ func TestPostSubscriptionSelfFollow(t *testing.T) {
 	mockSubscriptionRepo := new(repositories.MockSubscriptionRepository)
 	mockUserRepo := new(repositories.MockUserRepository)
 
-	subscriptionService := services.NewSubscriptionService(mockSubscriptionRepo, mockUserRepo)
+	subscriptionService := services.NewSubscriptionService(mockSubscriptionRepo, mockUserRepo, nil)
 	subscriptionController := controllers.NewSubscriptionController(subscriptionService)
 
 	currentUsername := "testUser"
@@ -343,7 +361,7 @@ func TestDeleteSubscriptionSuccess(t *testing.T) {
 	mockSubscriptionRepo := new(repositories.MockSubscriptionRepository)
 	mockUserRepo := new(repositories.MockUserRepository)
 
-	subscriptionService := services.NewSubscriptionService(mockSubscriptionRepo, mockUserRepo)
+	subscriptionService := services.NewSubscriptionService(mockSubscriptionRepo, mockUserRepo, nil)
 	subscriptionController := controllers.NewSubscriptionController(subscriptionService)
 
 	currentUsername := "testUser"
@@ -394,7 +412,7 @@ func TestDeleteSubscriptionUnauthorized(t *testing.T) {
 		mockSubscriptionRepo := new(repositories.MockSubscriptionRepository)
 		mockUserRepo := new(repositories.MockUserRepository)
 
-		subscriptionService := services.NewSubscriptionService(mockSubscriptionRepo, mockUserRepo)
+		subscriptionService := services.NewSubscriptionService(mockSubscriptionRepo, mockUserRepo, nil)
 		subscriptionController := controllers.NewSubscriptionController(subscriptionService)
 
 		// Setup HTTP request and recorder
@@ -431,7 +449,7 @@ func TestDeleteSubscriptionNotFound(t *testing.T) {
 	mockSubscriptionRepo := new(repositories.MockSubscriptionRepository)
 	mockUserRepo := new(repositories.MockUserRepository)
 
-	subscriptionService := services.NewSubscriptionService(mockSubscriptionRepo, mockUserRepo)
+	subscriptionService := services.NewSubscriptionService(mockSubscriptionRepo, mockUserRepo, nil)
 	subscriptionController := controllers.NewSubscriptionController(subscriptionService)
 
 	currentUsername := "testUser"
@@ -478,7 +496,7 @@ func TestDeleteSubscriptionForbidden(t *testing.T) {
 	mockSubscriptionRepo := new(repositories.MockSubscriptionRepository)
 	mockUserRepo := new(repositories.MockUserRepository)
 
-	subscriptionService := services.NewSubscriptionService(mockSubscriptionRepo, mockUserRepo)
+	subscriptionService := services.NewSubscriptionService(mockSubscriptionRepo, mockUserRepo, nil)
 	subscriptionController := controllers.NewSubscriptionController(subscriptionService)
 
 	currentUsername := "testUser"
@@ -531,7 +549,7 @@ func TestGetSubscriptionsFollowerSuccess(t *testing.T) {
 	mockSubscriptionRepo := new(repositories.MockSubscriptionRepository)
 	mockUserRepo := new(repositories.MockUserRepository)
 
-	subscriptionService := services.NewSubscriptionService(mockSubscriptionRepo, mockUserRepo)
+	subscriptionService := services.NewSubscriptionService(mockSubscriptionRepo, mockUserRepo, nil)
 	subscriptionController := controllers.NewSubscriptionController(subscriptionService)
 
 	currentUsername := "testUser"
@@ -610,7 +628,7 @@ func TestGetSubscriptionsFollowingSuccess(t *testing.T) {
 	mockSubscriptionRepo := new(repositories.MockSubscriptionRepository)
 	mockUserRepo := new(repositories.MockUserRepository)
 
-	subscriptionService := services.NewSubscriptionService(mockSubscriptionRepo, mockUserRepo)
+	subscriptionService := services.NewSubscriptionService(mockSubscriptionRepo, mockUserRepo, nil)
 	subscriptionController := controllers.NewSubscriptionController(subscriptionService)
 
 	currentUsername := "testUser"
@@ -689,7 +707,7 @@ func TestGetSubscriptionsUserNotFound(t *testing.T) {
 	mockSubscriptionRepo := new(repositories.MockSubscriptionRepository)
 	mockUserRepo := new(repositories.MockUserRepository)
 
-	subscriptionService := services.NewSubscriptionService(mockSubscriptionRepo, mockUserRepo)
+	subscriptionService := services.NewSubscriptionService(mockSubscriptionRepo, mockUserRepo, nil)
 	subscriptionController := controllers.NewSubscriptionController(subscriptionService)
 
 	ftype := "followingss"
@@ -752,7 +770,7 @@ func TestGetSubscriptionsUnauthorized(t *testing.T) {
 		mockSubscriptionRepo := new(repositories.MockSubscriptionRepository)
 		mockUserRepo := new(repositories.MockUserRepository)
 
-		subscriptionService := services.NewSubscriptionService(mockSubscriptionRepo, mockUserRepo)
+		subscriptionService := services.NewSubscriptionService(mockSubscriptionRepo, mockUserRepo, nil)
 		subscriptionController := controllers.NewSubscriptionController(subscriptionService)
 
 		// Setup HTTP request und recorder

@@ -9,9 +9,9 @@ type Subscription struct {
 	Id                uuid.UUID `gorm:"column:id;primary_key"`
 	SubscriptionDate  time.Time `gorm:"column:subscription_date;not null"`
 	FollowerUsername  string    `gorm:"column:follower;type:varchar(20)"`
-	Follower          User      `gorm:"foreignKey:username;references:follower"` // Person who follows
+	Follower          User      `gorm:"foreignKey:follower;references:username"` // Person who follows
 	FollowingUsername string    `gorm:"column:following;type:varchar(20)"`       // Person who is being followed
-	Following         User      `gorm:"foreignKey:username;references:following"`
+	Following         User      `gorm:"foreignKey:following;references:username"`
 }
 
 type SubscriptionPostRequestDTO struct {

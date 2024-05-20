@@ -7,7 +7,7 @@ import (
 
 type Post struct {
 	Id         uuid.UUID  `gorm:"column:id;primary_key"`
-	Username   string     `gorm:"column:username_fk"`
+	Username   string     `gorm:"column:username_fk;type:varchar(20)"`
 	User       User       `gorm:"foreignKey:username_fk;references:username"`
 	Content    string     `gorm:"column:content;type:varchar(256);null"`
 	ImageUrl   string     `gorm:"column:image_url;type:varchar(128);null"`

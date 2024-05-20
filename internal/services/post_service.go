@@ -3,14 +3,15 @@ package services
 import (
 	"errors"
 	"github.com/google/uuid"
+	"github.com/microcosm-cc/bluemonday"
 	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
 	"github.com/wwi21seb-projekt/server-beta/internal/models"
 	"github.com/wwi21seb-projekt/server-beta/internal/repositories"
 	"github.com/wwi21seb-projekt/server-beta/internal/utils"
 	"gorm.io/gorm"
-	"html"
 	"mime/multipart"
 	"net/http"
+	"strings"
 	"time"
 	"unicode/utf8"
 )
@@ -28,6 +29,7 @@ type PostService struct {
 	validator    utils.ValidatorInterface
 	locationRepo repositories.LocationRepositoryInterface
 	likeRepo     repositories.LikeRepositoryInterface
+	policy       *bluemonday.Policy
 }
 
 // NewPostService can be used as a constructor to create a PostService "object"
@@ -38,12 +40,14 @@ func NewPostService(postRepo repositories.PostRepositoryInterface,
 	validator utils.ValidatorInterface,
 	locationRepo repositories.LocationRepositoryInterface,
 	likeRepo repositories.LikeRepositoryInterface) *PostService {
-	return &PostService{postRepo: postRepo, userRepo: userRepo, hashtagRepo: hashtagRepo, imageService: imageService, validator: validator, locationRepo: locationRepo, likeRepo: likeRepo}
+	return &PostService{postRepo: postRepo, userRepo: userRepo, hashtagRepo: hashtagRepo, imageService: imageService, validator: validator, locationRepo: locationRepo, , likeRepo: likeRepo, policy: bluemonday.UGCPolicy()}
 }
 
 func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *multipart.FileHeader, username string) (*models.PostResponseDTO, *customerrors.CustomError, int) {
-	// Escape html content to prevent XSS
-	req.Content = html.EscapeString(req.Content)
+	// Sanitize content because it is a free text field
+	// Other fields are checked with regex patterns, that don't allow for malicious input
+	req.Content = strings.Trim(req.Content, " ") // remove leading and trailing whitespaces
+	req.Content = service.policy.Sanitize(req.Content)
 
 	// Get repost if a repost id is given
 	var repostDto *models.PostResponseDTO
@@ -105,6 +109,7 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *m
 		}
 		return nil, customerrors.DatabaseError, http.StatusInternalServerError
 	}
+
 
 	//Extract hashtags
 	hashtagNames := utils.ExtractHashtags(req.Content)
