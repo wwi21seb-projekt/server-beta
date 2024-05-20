@@ -531,8 +531,7 @@ func TestCreatePostRepostNotFound(t *testing.T) {
 	}
 
 	// Mock expectations
-	mockUserRepository.On("FindUserByUsername", user.Username).Return(&user, nil)                // User found successfully
-	mockPostRepository.On("GetPostById", falseId).Return(&models.Post{}, gorm.ErrRecordNotFound) // Post not found
+	mockPostRepository.On("GetPostById", falseId).Return(models.Post{}, gorm.ErrRecordNotFound) // Post not found
 
 	// Setup HTTP request
 	requestBody, err := json.Marshal(postCreateRequestDTO)
