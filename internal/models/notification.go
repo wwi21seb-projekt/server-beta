@@ -21,9 +21,13 @@ type NotificationUserDTO struct {
 	ProfilePictureUrl string `json:"profilePictureUrl"`
 }
 
-type NotificationResponseDTO struct {
+type NotificationRecordDTO struct {
 	NotificationId   string               `json:"notificationId"`
 	Timestamp        time.Time            `json:"timestamp"`
 	NotificationType string               `json:"notificationType"`
 	User             *NotificationUserDTO `json:"user"`
+}
+
+type NotificationsResponseDTO struct {
+	Records []NotificationRecordDTO `json:"records"`
 }
