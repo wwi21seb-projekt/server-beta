@@ -2,7 +2,6 @@ package services
 
 import (
 	"errors"
-	"fmt"
 	"github.com/google/uuid"
 	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
 	"github.com/wwi21seb-projekt/server-beta/internal/models"
@@ -18,11 +17,7 @@ import (
 
 type PostServiceInterface interface {
 	CreatePost(req *models.PostCreateRequestDTO, file *multipart.FileHeader, username string) (*models.PostResponseDTO, *customerrors.CustomError, int)
-	GetPostsByUsername(username string, offset, limit int) (*models.UserFeedDTO, *customerrors.CustomError, int)
-	GetPostsGlobalFeed(lastPostId string, limit int) (*models.GeneralFeedDTO, *customerrors.CustomError, int)
-	GetPostsPersonalFeed(username string, lastPostId string, limit int) (*models.GeneralFeedDTO, *customerrors.CustomError, int)
 	DeletePost(postId string, username string) (*customerrors.CustomError, int)
-	GetPostsByHashtag(hashtag string, lastPostId string, limit int) (*models.GeneralFeedDTO, *customerrors.CustomError, int)
 }
 
 type PostService struct {
@@ -32,7 +27,6 @@ type PostService struct {
 	imageService ImageServiceInterface
 	validator    utils.ValidatorInterface
 	locationRepo repositories.LocationRepositoryInterface
-	likeRepo     repositories.LikeRepositoryInterface
 }
 
 // NewPostService can be used as a constructor to create a PostService "object"
@@ -41,9 +35,8 @@ func NewPostService(postRepo repositories.PostRepositoryInterface,
 	hashtagRepo repositories.HashtagRepositoryInterface,
 	imageService ImageServiceInterface,
 	validator utils.ValidatorInterface,
-	locationRepo repositories.LocationRepositoryInterface,
-	likeRepo repositories.LikeRepositoryInterface) *PostService {
-	return &PostService{postRepo: postRepo, userRepo: userRepo, hashtagRepo: hashtagRepo, imageService: imageService, validator: validator, locationRepo: locationRepo, likeRepo: likeRepo}
+	locationRepo repositories.LocationRepositoryInterface) *PostService {
+	return &PostService{postRepo: postRepo, userRepo: userRepo, hashtagRepo: hashtagRepo, imageService: imageService, validator: validator, locationRepo: locationRepo}
 }
 
 func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *multipart.FileHeader, username string) (*models.PostResponseDTO, *customerrors.CustomError, int) {
@@ -152,164 +145,12 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *m
 		},
 		CreationDate: post.CreatedAt,
 		Content:      post.Content,
-		Likes:        0,
+		Likes:        0, // no likes yet
 		Liked:        false,
 		Location:     locationDTO,
 	}
 
 	return &postDto, nil, http.StatusCreated
-}
-
-func (service *PostService) GetPostsByUsername(username string, offset, limit int) (*models.UserFeedDTO, *customerrors.CustomError, int) {
-
-	// See if user exists
-	_, err := service.userRepo.FindUserByUsername(username)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, customerrors.UserNotFound, http.StatusNotFound
-		}
-		return nil, customerrors.DatabaseError, http.StatusInternalServerError
-	}
-
-	// Get posts
-	posts, totalPostsCount, err := service.postRepo.GetPostsByUsername(username, offset, limit)
-	if err != nil {
-		return nil, customerrors.DatabaseError, http.StatusInternalServerError
-	}
-
-	// Create response dto and return
-	var postDtos []models.UserFeedRecordDTO
-	for _, post := range posts {
-		var locationDTO *models.LocationDTO
-		//Like handling
-		var liked = false
-		var like *models.Like
-		var likes int64
-		like, _ = service.likeRepo.FindLike(post.Id.String(), post.Username)
-		if like != nil {
-			liked = true
-		}
-		likes = service.likeRepo.CountLikes(post.Id.String())
-		//Like handling complete
-		if post.LocationId != nil {
-			tempLatitude := post.Location.Latitude // need to use temp variables because the pointers change in the loop
-			tempLongitude := post.Location.Longitude
-			tempAccuracy := post.Location.Accuracy
-			locationDTO = &models.LocationDTO{
-				Longitude: &tempLongitude,
-				Latitude:  &tempLatitude,
-				Accuracy:  &tempAccuracy,
-			}
-		}
-		postDto := models.UserFeedRecordDTO{
-			PostId:       post.Id.String(),
-			CreationDate: post.CreatedAt,
-			Content:      post.Content,
-			Likes:        likes,
-			Liked:        liked,
-			Location:     locationDTO,
-		}
-		postDtos = append(postDtos, postDto)
-	}
-
-	paginationDto := models.UserFeedPaginationDTO{
-		Offset:  offset,
-		Limit:   limit,
-		Records: totalPostsCount,
-	}
-
-	userFeedDto := models.UserFeedDTO{
-		Records:    postDtos,
-		Pagination: &paginationDto,
-	}
-
-	return &userFeedDto, nil, http.StatusOK
-}
-
-// GetPostsGlobalFeed returns a pagination object with the posts in the global feed using pagination parameters
-func (service *PostService) GetPostsGlobalFeed(lastPostId string, limit int) (*models.GeneralFeedDTO, *customerrors.CustomError, int) {
-	// Get last post if lastPostId is not empty
-	var lastPost models.Post
-	if lastPostId != "" {
-		post, err := service.postRepo.GetPostById(lastPostId)
-		if err != nil {
-
-			// If post is not found, return empty feed with number of records
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				_, totalPostsCount, err := service.postRepo.GetPostsGlobalFeed(&lastPost, limit)
-				if err != nil {
-					return nil, customerrors.DatabaseError, http.StatusInternalServerError
-				}
-				emptyFeed := models.GeneralFeedDTO{
-					Records: []models.PostResponseDTO{},
-					Pagination: &models.GeneralFeedPaginationDTO{
-						LastPostId: "",
-						Limit:      limit,
-						Records:    totalPostsCount,
-					},
-				}
-				return &emptyFeed, nil, http.StatusOK
-			}
-
-			return nil, customerrors.DatabaseError, http.StatusInternalServerError
-		}
-
-		lastPost = post
-	}
-
-	// Retrieve posts from the database
-	posts, totalPostsCount, err := service.postRepo.GetPostsGlobalFeed(&lastPost, limit)
-	if err != nil {
-		return nil, customerrors.DatabaseError, http.StatusInternalServerError
-	}
-
-	// Create response dto
-	feed := generatePostFeedWithAuthor(service, posts, totalPostsCount, limit)
-
-	return feed, nil, http.StatusOK
-}
-
-// GetPostsPersonalFeed returns a pagination object with the posts in the personal feed using pagination parameters
-func (service *PostService) GetPostsPersonalFeed(username string, lastPostId string, limit int) (*models.GeneralFeedDTO, *customerrors.CustomError, int) {
-	// Get last post if lastPostId is not empty
-	var lastPost models.Post
-	if lastPostId != "" {
-		post, err := service.postRepo.GetPostById(lastPostId)
-		if err != nil {
-
-			// If post is not found, return empty feed with number of records
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				_, totalPostsCount, err := service.postRepo.GetPostsPersonalFeed(username, &lastPost, limit)
-				if err != nil {
-					return nil, customerrors.DatabaseError, http.StatusInternalServerError
-				}
-				emptyFeed := models.GeneralFeedDTO{
-					Records: []models.PostResponseDTO{},
-					Pagination: &models.GeneralFeedPaginationDTO{
-						LastPostId: "",
-						Limit:      limit,
-						Records:    totalPostsCount,
-					},
-				}
-				return &emptyFeed, nil, http.StatusOK
-			}
-
-			return nil, customerrors.DatabaseError, http.StatusInternalServerError
-		}
-
-		lastPost = post
-	}
-
-	// Retrieve posts from the database
-	posts, totalPostsCount, err := service.postRepo.GetPostsPersonalFeed(username, &lastPost, limit)
-	if err != nil {
-		return nil, customerrors.DatabaseError, http.StatusInternalServerError
-	}
-
-	// Create response dto
-	feed := generatePostFeedWithAuthor(service, posts, totalPostsCount, limit)
-
-	return feed, nil, http.StatusOK
 }
 
 // DeletePost deletes a post by id and returns an error if the post does not exist or the requesting user is not the author
@@ -335,108 +176,4 @@ func (service *PostService) DeletePost(postId string, username string) (*custome
 	}
 
 	return nil, http.StatusNoContent
-}
-
-// GetPostsByHashtag returns a pagination object with the posts in the personal feed using pagination parameters
-func (service *PostService) GetPostsByHashtag(hashtag string, lastPostId string, limit int) (*models.GeneralFeedDTO, *customerrors.CustomError, int) {
-	// Get last post if lastPostId is not empty
-	var lastPost models.Post
-	if lastPostId != "" {
-		post, err := service.postRepo.GetPostById(lastPostId)
-		if err != nil {
-
-			// If post is not found, return empty feed with number of records
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				_, totalPostsCount, err := service.postRepo.GetPostsGlobalFeed(&lastPost, limit)
-				if err != nil {
-					return nil, customerrors.DatabaseError, http.StatusInternalServerError
-				}
-				emptyFeed := models.GeneralFeedDTO{
-					Records: []models.PostResponseDTO{},
-					Pagination: &models.GeneralFeedPaginationDTO{
-						LastPostId: "",
-						Limit:      limit,
-						Records:    totalPostsCount,
-					},
-				}
-				return &emptyFeed, nil, http.StatusOK
-			}
-
-			return nil, customerrors.DatabaseError, http.StatusInternalServerError
-		}
-
-		lastPost = post
-	}
-
-	// Retrieve posts from the database
-	posts, totalPostsCount, err := service.postRepo.GetPostsByHashtag(hashtag, &lastPost, limit)
-	if err != nil {
-		return nil, customerrors.DatabaseError, http.StatusInternalServerError
-	}
-
-	// Create response dto
-	feed := generatePostFeedWithAuthor(service, posts, totalPostsCount, limit)
-
-	return feed, nil, http.StatusOK
-}
-
-// generatePostFeedWithAuthor creates a GeneralFeedDTO from a list of posts and a total count
-func generatePostFeedWithAuthor(service *PostService, posts []models.Post, totalPostsCount int64, limit int) *models.GeneralFeedDTO {
-	// Create response dto
-	newLastPostId := ""
-	if len(posts) > 0 {
-		newLastPostId = posts[len(posts)-1].Id.String()
-	}
-	feed := models.GeneralFeedDTO{
-		Records: []models.PostResponseDTO{},
-		Pagination: &models.GeneralFeedPaginationDTO{
-			LastPostId: newLastPostId,
-			Limit:      limit,
-			Records:    totalPostsCount,
-		},
-	}
-	for _, post := range posts {
-		//Like handling
-		var liked = false
-		var like *models.Like
-		var likes int64
-		like, _ = service.likeRepo.FindLike(post.Id.String(), post.Username)
-		if like != nil {
-			liked = true
-		}
-		likes = service.likeRepo.CountLikes(post.Id.String())
-		//Like handling complete
-		authorDto := models.AuthorDTO{
-			Username:          post.User.Username,
-			Nickname:          post.User.Nickname,
-			ProfilePictureUrl: post.User.ProfilePictureUrl,
-		}
-		var locationDTO *models.LocationDTO = nil
-		if post.LocationId != nil {
-			tempLatitude := post.Location.Latitude // need to use temp variables because the pointers change in the loop
-			tempLongitude := post.Location.Longitude
-			tempAccuracy := post.Location.Accuracy
-			locationDTO = &models.LocationDTO{
-				Longitude: &tempLongitude,
-				Latitude:  &tempLatitude,
-				Accuracy:  &tempAccuracy,
-			}
-		}
-		postDto := models.PostResponseDTO{
-			PostId:       post.Id,
-			Author:       &authorDto,
-			CreationDate: post.CreatedAt,
-			Content:      post.Content,
-			Likes:        likes,
-			Liked:        liked,
-			Location:     locationDTO,
-		}
-		if locationDTO != nil {
-			fmt.Println("Post id: ", post.Id)
-			fmt.Println("Location: ", post.Location.Longitude, post.Location.Latitude, post.Location.Accuracy)
-			fmt.Println("DTO: ", *locationDTO.Longitude, *locationDTO.Latitude, *locationDTO.Accuracy)
-		}
-		feed.Records = append(feed.Records, postDto)
-	}
-	return &feed
 }

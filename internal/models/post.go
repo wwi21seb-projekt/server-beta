@@ -7,8 +7,8 @@ import (
 
 type Post struct {
 	Id         uuid.UUID  `gorm:"column:id;primary_key"`
-	Username   string     `gorm:"column:username"`
-	User       User       `gorm:"foreignKey:username;references:username"`
+	Username   string     `gorm:"column:username_fk"`
+	User       User       `gorm:"foreignKey:username_fk;references:username"`
 	Content    string     `gorm:"column:content;type:varchar(256);null"`
 	ImageUrl   string     `gorm:"column:image_url;type:varchar(128);null"`
 	Hashtags   []Hashtag  `gorm:"many2many:post_hashtags;onDelete:CASCADE"` // gorm handles the join table, onDelete:CASCADE deletes the hashtags if the post is deleted

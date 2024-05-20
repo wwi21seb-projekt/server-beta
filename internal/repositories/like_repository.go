@@ -36,7 +36,7 @@ func (repo *LikeRepository) FindLike(postId string, currentUsername string) (*mo
 
 func (repo *LikeRepository) CountLikes(postId string) int64 {
 	var count int64
-	query := repo.DB.Where("post_id = ?", postId)
+	query := repo.DB.Model(&models.Like{}).Where("post_id = ?", postId)
 	query.Count(&count)
 	return count
 }

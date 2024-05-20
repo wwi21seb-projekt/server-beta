@@ -55,13 +55,15 @@ func SetupRouter() *gin.Engine {
 	mailService := services.NewMailService()
 	imageService := services.NewImageService(fileSystem, validator)
 	userService := services.NewUserService(userRepo, activationTokenRepo, mailService, validator, postRepo, subscriptionRepo)
-	postService := services.NewPostService(postRepo, userRepo, hashtagRepo, imageService, validator, locationRepo, likeRepo)
+	postService := services.NewPostService(postRepo, userRepo, hashtagRepo, imageService, validator, locationRepo)
+	feedService := services.NewFeedService(postRepo, userRepo, likeRepo)
 	subscriptionService := services.NewSubscriptionService(subscriptionRepo, userRepo)
 	likeService := services.NewLikeService(likeRepo, postRepo)
 
 	imprintController := controllers.NewImprintController()
 	userController := controllers.NewUserController(userService)
 	postController := controllers.NewPostController(postService)
+	feedController := controllers.NewFeedController(feedService)
 	imageController := controllers.NewImageController(imageService)
 	likeController := controllers.NewLikeController(likeService)
 
@@ -83,13 +85,13 @@ func SetupRouter() *gin.Engine {
 	api.PUT("/users", middleware.AuthorizeUser, userController.UpdateUserInformation)
 	api.PATCH("/users", middleware.AuthorizeUser, userController.ChangeUserPassword)
 	api.GET("/users/:username", middleware.AuthorizeUser, userController.GetUserProfile)
-	api.GET("/users/:username/feed", middleware.AuthorizeUser, postController.GetPostsByUserUsername)
+	api.GET("/users/:username/feed", middleware.AuthorizeUser, feedController.GetPostsByUserUsername)
 
 	// Post
 	api.POST("/posts", middleware.AuthorizeUser, postController.CreatePost)
 	api.DELETE("/posts/:postId", middleware.AuthorizeUser, postController.DeletePost)
-	api.GET("/feed", postController.GetPostFeed)
-	api.GET("/posts", middleware.AuthorizeUser, postController.GetPostsByHashtag)
+	api.GET("/feed", feedController.GetPostFeed)
+	api.GET("/posts", middleware.AuthorizeUser, feedController.GetPostsByHashtag)
 
 	// Image
 	api.GET("/images/:filename", imageController.GetImage)
