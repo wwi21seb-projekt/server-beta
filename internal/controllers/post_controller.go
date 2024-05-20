@@ -118,6 +118,15 @@ func (controller *PostController) GetPostsByUserUsername(c *gin.Context) {
 		limit = 10
 	}
 
+	// Check if user is logged in
+	_, exists := c.Get("username")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": customerrors.UserUnauthorized,
+		})
+		return
+	}
+
 	feedDto, serviceErr, httpStatus := controller.postService.GetPostsByUsername(username, offset, limit)
 	if serviceErr != nil {
 		c.JSON(httpStatus, gin.H{

@@ -2,7 +2,6 @@ package services
 
 import (
 	"errors"
-	"fmt"
 	"github.com/google/uuid"
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
@@ -75,7 +74,7 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *m
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, customerrors.UserUnauthorized, http.StatusUnauthorized
 		}
-		return nil, customerrors.InternalServerError, http.StatusInternalServerError
+		return nil, customerrors.DatabaseError, http.StatusInternalServerError
 	}
 
 	// Check if user is activated
@@ -406,11 +405,6 @@ func generatePostFeedWithAuthor(posts []models.Post, totalPostsCount int64, limi
 			CreationDate: post.CreatedAt,
 			Content:      post.Content,
 			Location:     locationDTO,
-		}
-		if locationDTO != nil {
-			fmt.Println("Post id: ", post.Id)
-			fmt.Println("Location: ", post.Location.Longitude, post.Location.Latitude, post.Location.Accuracy)
-			fmt.Println("DTO: ", *locationDTO.Longitude, *locationDTO.Latitude, *locationDTO.Accuracy)
 		}
 		feed.Records = append(feed.Records, postDto)
 	}
