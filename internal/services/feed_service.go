@@ -66,6 +66,11 @@ func (service *FeedService) GetPostsByUsername(username string, offset, limit in
 			}
 		}
 
+		repostDto, err := service.getRepostResponseDto(post, currentUsername)
+		if err != nil {
+			return nil, customerrors.DatabaseError, http.StatusInternalServerError
+		}
+
 		postDto := models.UserFeedRecordDTO{
 			PostId:       post.Id.String(),
 			CreationDate: post.CreatedAt,
@@ -73,6 +78,7 @@ func (service *FeedService) GetPostsByUsername(username string, offset, limit in
 			Likes:        likeCount,
 			Liked:        likedByCurrentUser,
 			Location:     locationDTO,
+			Repost:       repostDto,
 		}
 		postDtos = append(postDtos, postDto)
 	}
@@ -267,6 +273,12 @@ func (service *FeedService) generatePostFeedWithAuthor(posts []models.Post, tota
 				Accuracy:  &tempAccuracy,
 			}
 		}
+
+		repostDto, err := service.getRepostResponseDto(post, currentUsername)
+		if err != nil {
+			return nil, err
+		}
+
 		postDto := models.PostResponseDTO{
 			PostId:       post.Id,
 			Author:       &authorDto,
@@ -275,6 +287,7 @@ func (service *FeedService) generatePostFeedWithAuthor(posts []models.Post, tota
 			Likes:        likeCount,
 			Liked:        likedByCurrentUser,
 			Location:     locationDTO,
+			Repost:       repostDto,
 		}
 		feed.Records = append(feed.Records, postDto)
 	}
@@ -294,4 +307,63 @@ func (service *FeedService) getLikeInformationByPost(post models.Post, currentUs
 	}
 	likeCount = service.likeRepo.CountLikes(post.Id.String())
 	return likedByCurrentUser, likeCount, nil
+}
+
+func (service *FeedService) getRepostResponseDto(post models.Post, currentUsername string) (*models.PostResponseDTO, error) {
+	var repostDto *models.PostResponseDTO = nil
+
+	// If post is not a repost, return empty dto
+	if post.RepostId == nil {
+		return repostDto, nil
+	}
+
+	// Get repost
+	repost, err := service.postRepo.GetPostById(post.RepostId.String())
+	if err != nil {
+
+		// If repost is not found because it may have been deleted, return repost dto with only the repost id
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			repostDto = &models.PostResponseDTO{
+				PostId: *post.RepostId,
+			}
+			return repostDto, nil
+		}
+
+		// Else database error
+		return nil, err
+	}
+
+	// Get like information
+	likedByCurrentUser, likeCount, err := service.getLikeInformationByPost(repost, currentUsername)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create dto
+	authorDto := models.AuthorDTO{
+		Username:          repost.User.Username,
+		Nickname:          repost.User.Nickname,
+		ProfilePictureUrl: repost.User.ProfilePictureUrl,
+	}
+
+	var locationDTO *models.LocationDTO = nil
+	if repost.LocationId != nil {
+		locationDTO = &models.LocationDTO{
+			Longitude: &repost.Location.Longitude,
+			Latitude:  &repost.Location.Latitude,
+			Accuracy:  &repost.Location.Accuracy,
+		}
+	}
+
+	repostDto = &models.PostResponseDTO{
+		PostId:       repost.Id,
+		Author:       &authorDto,
+		CreationDate: repost.CreatedAt,
+		Content:      repost.Content,
+		Likes:        likeCount,
+		Liked:        likedByCurrentUser,
+		Location:     locationDTO,
+		Repost:       nil, // cannot have a repost of a repost, so always nil
+	}
+	return repostDto, nil
 }

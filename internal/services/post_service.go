@@ -46,8 +46,8 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *m
 	req.Content = html.EscapeString(req.Content)
 
 	// Get repost if a repost id is given
-	var repost *models.Post
 	var repostDto *models.PostResponseDTO
+	var repostId *uuid.UUID
 	if req.RepostId != nil {
 		repost, err := service.postRepo.GetPostById(*req.RepostId)
 		if err != nil {
@@ -56,6 +56,7 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *m
 			}
 			return nil, customerrors.DatabaseError, http.StatusInternalServerError
 		}
+		repostId = &repost.Id
 
 		// Check if repost is a repost
 		if repost.RepostId != nil {
@@ -75,7 +76,7 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *m
 		repostLikeCount = service.likeRepo.CountLikes(repost.Id.String())
 
 		// Create dto
-		repostDto = createPostResponseDTOfromPostObject(&repost, &repost.User, &repost.Location, nil, repostLikeCount, repostLikedByCurrentUser)
+		repostDto = createPostResponseFromPostObject(&repost, &repost.User, &repost.Location, nil, repostLikeCount, repostLikedByCurrentUser)
 
 	}
 
@@ -113,7 +114,7 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *m
 	for _, name := range hashtagNames {
 		hashtag, err := service.hashtagRepo.FindOrCreateHashtag(name)
 		if err != nil {
-			return nil, customerrors.InternalServerError, http.StatusInternalServerError
+			return nil, customerrors.DatabaseError, http.StatusInternalServerError
 		}
 		hashtags = append(hashtags, hashtag)
 	}
@@ -132,19 +133,18 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *m
 	var locationId *uuid.UUID
 	var location *models.Location
 	if req.Location != nil { // if location is present, create location object and save it
-		location := models.Location{
+		location = &models.Location{
 			Id:        uuid.New(),
 			Longitude: *req.Location.Longitude,
 			Latitude:  *req.Location.Latitude,
 			Accuracy:  *req.Location.Accuracy,
 		}
 		locationId = &location.Id
-		err = service.locationRepo.CreateLocation(&location)
+		err = service.locationRepo.CreateLocation(location)
 		if err != nil {
 			return nil, customerrors.DatabaseError, http.StatusInternalServerError
 		}
 	}
-
 	post := models.Post{
 		Id:         uuid.New(),
 		Username:   username,
@@ -153,7 +153,7 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *m
 		Hashtags:   hashtags,
 		CreatedAt:  time.Now(),
 		LocationId: locationId,
-		RepostId:   repost.RepostId,
+		RepostId:   repostId,
 	}
 	err = service.postRepo.CreatePost(&post)
 	if err != nil {
@@ -161,9 +161,41 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *m
 	}
 
 	// Create response dto and return
-	postDto := createPostResponseDTOfromPostObject(&post, user, location, repostDto, 0, false) // no likes yet
+	postDto := createPostResponseFromPostObject(&post, user, location, repostDto, 0, false) // no likes yet
 
 	return postDto, nil, http.StatusCreated
+}
+
+func createPostResponseFromPostObject(
+	post *models.Post, user *models.User,
+	location *models.Location,
+	repostDto *models.PostResponseDTO,
+	likesCount int64,
+	likedByCurrentUser bool) *models.PostResponseDTO {
+	var locationDTO *models.LocationDTO
+	if post.LocationId != nil {
+		locationDTO = &models.LocationDTO{
+			Longitude: &location.Longitude,
+			Latitude:  &location.Latitude,
+			Accuracy:  &location.Accuracy,
+		}
+	}
+
+	postDto := models.PostResponseDTO{
+		PostId: post.Id,
+		Author: &models.AuthorDTO{
+			Username:          user.Username,
+			Nickname:          user.Nickname,
+			ProfilePictureUrl: user.ProfilePictureUrl,
+		},
+		CreationDate: post.CreatedAt,
+		Content:      post.Content,
+		Likes:        likesCount,
+		Liked:        likedByCurrentUser,
+		Location:     locationDTO,
+		Repost:       repostDto,
+	}
+	return &postDto
 }
 
 // DeletePost deletes a post by id and returns an error if the post does not exist or the requesting user is not the author
@@ -189,31 +221,4 @@ func (service *PostService) DeletePost(postId string, username string) (*custome
 	}
 
 	return nil, http.StatusNoContent
-}
-
-func createPostResponseDTOfromPostObject(post *models.Post, user *models.User, location *models.Location, repostDto *models.PostResponseDTO, likesCount int64, likedByCurrentUser bool) *models.PostResponseDTO {
-	var locationDTO *models.LocationDTO
-	if location != nil {
-		locationDTO = &models.LocationDTO{
-			Longitude: &location.Longitude,
-			Latitude:  &location.Latitude,
-			Accuracy:  &location.Accuracy,
-		}
-	}
-
-	postDto := models.PostResponseDTO{
-		PostId: post.Id,
-		Author: &models.AuthorDTO{
-			Username:          user.Username,
-			Nickname:          user.Nickname,
-			ProfilePictureUrl: user.ProfilePictureUrl,
-		},
-		CreationDate: post.CreatedAt,
-		Content:      post.Content,
-		Likes:        likesCount,
-		Liked:        likedByCurrentUser,
-		Location:     locationDTO,
-		Repost:       repostDto,
-	}
-	return &postDto
 }
