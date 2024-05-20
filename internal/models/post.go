@@ -15,13 +15,13 @@ type Post struct {
 	CreatedAt  time.Time  `gorm:"column:created_at;not_null"`
 	LocationId *uuid.UUID `gorm:"column:location_id;null"`
 	Location   Location   `gorm:"foreignKey:location_id;references:id"`
-	RepostId   uuid.UUID  `gorm:"column:repost_id;null"` // no foreign key constraint, original post may be deleted without affecting repost
+	RepostId   *uuid.UUID `gorm:"column:repost_id;null"` // no foreign key constraint, original post may be deleted without affecting repost
 }
 
 type PostCreateRequestDTO struct {
 	Content  string       `json:"content"`
 	Location *LocationDTO `json:"location"`
-	RepostId string       `json:"repostId"`
+	RepostId *string      `json:"repostId"`
 }
 
 type PostResponseDTO struct {

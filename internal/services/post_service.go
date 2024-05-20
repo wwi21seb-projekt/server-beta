@@ -27,6 +27,7 @@ type PostService struct {
 	imageService ImageServiceInterface
 	validator    utils.ValidatorInterface
 	locationRepo repositories.LocationRepositoryInterface
+	likeRepo     repositories.LikeRepositoryInterface
 }
 
 // NewPostService can be used as a constructor to create a PostService "object"
@@ -35,19 +36,54 @@ func NewPostService(postRepo repositories.PostRepositoryInterface,
 	hashtagRepo repositories.HashtagRepositoryInterface,
 	imageService ImageServiceInterface,
 	validator utils.ValidatorInterface,
-	locationRepo repositories.LocationRepositoryInterface) *PostService {
-	return &PostService{postRepo: postRepo, userRepo: userRepo, hashtagRepo: hashtagRepo, imageService: imageService, validator: validator, locationRepo: locationRepo}
+	locationRepo repositories.LocationRepositoryInterface,
+	likeRepo repositories.LikeRepositoryInterface) *PostService {
+	return &PostService{postRepo: postRepo, userRepo: userRepo, hashtagRepo: hashtagRepo, imageService: imageService, validator: validator, locationRepo: locationRepo, likeRepo: likeRepo}
 }
 
 func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *multipart.FileHeader, username string) (*models.PostResponseDTO, *customerrors.CustomError, int) {
 	// Escape html content to prevent XSS
 	req.Content = html.EscapeString(req.Content)
 
+	// Get repost if a repost id is given
+	var repost *models.Post
+	var repostDto *models.PostResponseDTO
+	if req.RepostId != nil {
+		repost, err := service.postRepo.GetPostById(*req.RepostId)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, customerrors.PostNotFound, http.StatusNotFound
+			}
+			return nil, customerrors.DatabaseError, http.StatusInternalServerError
+		}
+
+		// Check if repost is a repost
+		if repost.RepostId != nil {
+			return nil, customerrors.BadRequest, http.StatusBadRequest // repost of a repost is not allowed
+		}
+
+		// Get like information of repost
+		var repostLikeCount int64 = 0
+		var repostLikedByCurrentUser = false
+		_, err = service.likeRepo.FindLike(repost.Id.String(), username)
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, customerrors.DatabaseError, http.StatusInternalServerError
+		}
+		if err == nil {
+			repostLikedByCurrentUser = true
+		}
+		repostLikeCount = service.likeRepo.CountLikes(repost.Id.String())
+
+		// Create dto
+		repostDto = createPostResponseDTOfromPostObject(&repost, &repost.User, &repost.Location, nil, repostLikeCount, repostLikedByCurrentUser)
+
+	}
+
 	// Validations: 0-256 characters and utf8 characters
 	if len(req.Content) > 256 {
 		return nil, customerrors.BadRequest, http.StatusBadRequest
 	}
-	if len(req.Content) <= 0 && file == nil { // image or file can be empty, but not both
+	if len(req.Content) <= 0 && file == nil && req.RepostId == nil { // either content, repostId or image is required
 		return nil, customerrors.BadRequest, http.StatusBadRequest
 	}
 	if !utf8.ValidString(req.Content) {
@@ -67,11 +103,6 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *m
 			return nil, customerrors.UserUnauthorized, http.StatusUnauthorized
 		}
 		return nil, customerrors.DatabaseError, http.StatusInternalServerError
-	}
-
-	// Check if user is activated
-	if !user.Activated {
-		return nil, customerrors.UserUnauthorized, http.StatusUnauthorized
 	}
 
 	//Extract hashtags
@@ -99,6 +130,7 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *m
 
 	// Create post
 	var locationId *uuid.UUID
+	var location *models.Location
 	if req.Location != nil { // if location is present, create location object and save it
 		location := models.Location{
 			Id:        uuid.New(),
@@ -121,6 +153,7 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *m
 		Hashtags:   hashtags,
 		CreatedAt:  time.Now(),
 		LocationId: locationId,
+		RepostId:   repost.RepostId,
 	}
 	err = service.postRepo.CreatePost(&post)
 	if err != nil {
@@ -128,29 +161,9 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *m
 	}
 
 	// Create response dto and return
-	var locationDTO *models.LocationDTO
-	if req.Location != nil {
-		locationDTO = &models.LocationDTO{
-			Longitude: req.Location.Longitude,
-			Latitude:  req.Location.Latitude,
-			Accuracy:  req.Location.Accuracy,
-		}
-	}
-	postDto := models.PostResponseDTO{
-		PostId: post.Id,
-		Author: &models.AuthorDTO{
-			Username:          user.Username,
-			Nickname:          user.Nickname,
-			ProfilePictureUrl: user.ProfilePictureUrl,
-		},
-		CreationDate: post.CreatedAt,
-		Content:      post.Content,
-		Likes:        0, // no likes yet
-		Liked:        false,
-		Location:     locationDTO,
-	}
+	postDto := createPostResponseDTOfromPostObject(&post, user, location, repostDto, 0, false) // no likes yet
 
-	return &postDto, nil, http.StatusCreated
+	return postDto, nil, http.StatusCreated
 }
 
 // DeletePost deletes a post by id and returns an error if the post does not exist or the requesting user is not the author
@@ -176,4 +189,31 @@ func (service *PostService) DeletePost(postId string, username string) (*custome
 	}
 
 	return nil, http.StatusNoContent
+}
+
+func createPostResponseDTOfromPostObject(post *models.Post, user *models.User, location *models.Location, repostDto *models.PostResponseDTO, likesCount int64, likedByCurrentUser bool) *models.PostResponseDTO {
+	var locationDTO *models.LocationDTO
+	if location != nil {
+		locationDTO = &models.LocationDTO{
+			Longitude: &location.Longitude,
+			Latitude:  &location.Latitude,
+			Accuracy:  &location.Accuracy,
+		}
+	}
+
+	postDto := models.PostResponseDTO{
+		PostId: post.Id,
+		Author: &models.AuthorDTO{
+			Username:          user.Username,
+			Nickname:          user.Nickname,
+			ProfilePictureUrl: user.ProfilePictureUrl,
+		},
+		CreationDate: post.CreatedAt,
+		Content:      post.Content,
+		Likes:        likesCount,
+		Liked:        likedByCurrentUser,
+		Location:     locationDTO,
+		Repost:       repostDto,
+	}
+	return &postDto
 }
