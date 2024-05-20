@@ -1,7 +1,6 @@
 package services
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"github.com/SherClockHolmes/webpush-go"
@@ -9,6 +8,7 @@ import (
 	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
 	"github.com/wwi21seb-projekt/server-beta/internal/models"
 	"github.com/wwi21seb-projekt/server-beta/internal/repositories"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -58,18 +58,20 @@ func (service *PushSubscriptionService) CreatePushSubscription(req *models.PushS
 	if err != nil || len(req.SubscriptionInfo.Endpoint) <= 0 {
 		return nil, customerrors.BadRequest, http.StatusBadRequest
 	}
-	// keys need to be base64 encoded
+	// keys cannot be empty
 	if len(req.SubscriptionInfo.SubscriptionKeys.P256dh) <= 0 || len(req.SubscriptionInfo.SubscriptionKeys.Auth) <= 0 {
 		return nil, customerrors.BadRequest, http.StatusBadRequest
 	}
-	_, err = base64.StdEncoding.DecodeString(req.SubscriptionInfo.SubscriptionKeys.P256dh)
-	if err != nil {
-		return nil, customerrors.BadRequest, http.StatusBadRequest
-	}
-	_, err = base64.StdEncoding.DecodeString(req.SubscriptionInfo.SubscriptionKeys.Auth)
-	if err != nil {
-		return nil, customerrors.BadRequest, http.StatusBadRequest
-	}
+	//_, err = base64.StdEncoding.DecodeString(req.SubscriptionInfo.SubscriptionKeys.P256dh)
+	//if err != nil {
+	//	fmt.Println("Error decoding P256dh: ", err)
+	//	return nil, customerrors.BadRequest, http.StatusBadRequest
+	//}
+	//_, err = base64.StdEncoding.DecodeString(req.SubscriptionInfo.SubscriptionKeys.Auth)
+	//if err != nil {
+	//	fmt.Println("Error decoding Auth: ", err)
+	//	return nil, customerrors.BadRequest, http.StatusBadRequest
+	//}
 
 	// Create a new push subscription
 	newPushSubscription := models.PushSubscription{
@@ -108,7 +110,7 @@ func (service *PushSubscriptionService) SendPushMessages(notificationObject inte
 	if err != nil {
 		return
 	}
-
+	fmt.Println("Vapid Private Key:", service.vapidPrivateKey)
 	// Send push messages
 	for _, pushSubscription := range pushSubscriptions {
 		sub := &webpush.Subscription{
@@ -119,8 +121,9 @@ func (service *PushSubscriptionService) SendPushMessages(notificationObject inte
 			},
 		}
 
-		_, err := webpush.SendNotification([]byte(notificationString), sub, &webpush.Options{
+		resp, err := webpush.SendNotification([]byte(notificationString), sub, &webpush.Options{
 			Subscriber:      service.serverMail,
+			VAPIDPublicKey:  service.vapidPublicKey,
 			VAPIDPrivateKey: service.vapidPrivateKey,
 			TTL:             30,
 		})
@@ -129,7 +132,19 @@ func (service *PushSubscriptionService) SendPushMessages(notificationObject inte
 			fmt.Println(err, ", error sending notification to", pushSubscription.Username)
 			return
 		}
+		fmt.Println("Notification sent to", pushSubscription.Username)
+		fmt.Println(resp.Body)
+		fmt.Println(resp.Status)
 
+		bodyBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			fmt.Println("Error reading response body:", err)
+			return
+		}
+
+		// Den Body als String konvertieren
+		bodyString := string(bodyBytes)
+		fmt.Println("Response Body:", bodyString)
 		//resp.Body.Close()
 
 		//// Ensure the response body is closed after reading
