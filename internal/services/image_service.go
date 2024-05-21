@@ -42,8 +42,6 @@ func NewImageService(fileSystem repositories.FileSystemInterface, validator util
 
 // SaveImage can be used in other services to save an image to the file system and return the image url
 func (service *ImageService) SaveImage(fileHeader multipart.FileHeader) (string, *customerrors.CustomError, int) {
-	fmt.Println("Test")
-
 	// Get file type
 	var extension string
 	switch fileHeader.Header.Get("Content-Type") {
