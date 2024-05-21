@@ -21,7 +21,7 @@ type Post struct {
 type PostCreateRequestDTO struct {
 	Content  string       `json:"content"`
 	Location *LocationDTO `json:"location"`
-	RepostId *string      `json:"repostId"`
+	RepostId *string      `json:"repostedPostId"`
 }
 
 type PostResponseDTO struct {
