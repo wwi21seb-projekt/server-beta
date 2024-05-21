@@ -76,20 +76,20 @@ func TestGetNotificationsSuccess(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code) // Expect HTTP 200 OK
 	mockNotificationRepo.AssertExpectations(t)
 
-	var responseNotifications []models.NotificationResponseDTO
-	err = json.Unmarshal(w.Body.Bytes(), &responseNotifications)
+	var responseDto models.NotificationsResponseDTO
+	err = json.Unmarshal(w.Body.Bytes(), &responseDto)
 	if err != nil {
 		t.Error(err)
 	}
 
-	assert.Equal(t, len(foundNotifications), len(responseNotifications))
+	assert.Equal(t, len(foundNotifications), len(responseDto.Records))
 	for i, notification := range foundNotifications {
-		assert.Equal(t, notification.Id.String(), responseNotifications[i].NotificationId)
-		assert.Equal(t, notification.NotificationType, responseNotifications[i].NotificationType)
-		assert.Equal(t, notification.FromUsername, responseNotifications[i].User.Username)
-		assert.Equal(t, notification.FromUser.Nickname, responseNotifications[i].User.Nickname)
-		assert.Equal(t, notification.FromUser.ProfilePictureUrl, responseNotifications[i].User.ProfilePictureUrl)
-		assert.True(t, notification.Timestamp.Equal(responseNotifications[i].Timestamp))
+		assert.Equal(t, notification.Id.String(), responseDto.Records[i].NotificationId)
+		assert.Equal(t, notification.NotificationType, responseDto.Records[i].NotificationType)
+		assert.Equal(t, notification.FromUsername, responseDto.Records[i].User.Username)
+		assert.Equal(t, notification.FromUser.Nickname, responseDto.Records[i].User.Nickname)
+		assert.Equal(t, notification.FromUser.ProfilePictureUrl, responseDto.Records[i].User.ProfilePictureUrl)
+		assert.True(t, notification.Timestamp.Equal(responseDto.Records[i].Timestamp))
 	}
 }
 

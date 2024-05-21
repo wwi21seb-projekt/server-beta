@@ -13,8 +13,8 @@ import (
 
 type NotificationServiceInterface interface {
 	CreateNotification(notificationType string, forUsername string, fromUsername string) error
-	GetNotifications(username string) ([]models.NotificationResponseDTO, error, int)
-	DeleteNotificationById(notificationId string, currentUsername string) (error, int)
+	GetNotifications(username string) (*models.NotificationsResponseDTO, *customerrors.CustomError, int)
+	DeleteNotificationById(notificationId string, currentUsername string) (*customerrors.CustomError, int)
 }
 
 type NotificationService struct {
@@ -42,21 +42,33 @@ func (service *NotificationService) CreateNotification(notificationType string, 
 	err := service.notificationRepository.CreateNotification(&newNotification)
 
 	// Send push message to client if push service is registered
-	service.PushSubscriptionService.SendPushMessages(newNotification, forUsername)
+	notificationDto := models.NotificationRecordDTO{
+		NotificationId:   newNotification.Id.String(),
+		Timestamp:        newNotification.Timestamp,
+		NotificationType: newNotification.NotificationType,
+		User: &models.NotificationUserDTO{
+			Username:          newNotification.FromUsername,
+			Nickname:          newNotification.FromUser.Nickname,
+			ProfilePictureUrl: newNotification.FromUser.ProfilePictureUrl,
+		},
+	}
+	go service.PushSubscriptionService.SendPushMessages(notificationDto, forUsername) // send push message in background
 
 	return err
 }
 
 // GetNotifications is a service function that gets all notifications for the current user
-func (service *NotificationService) GetNotifications(username string) ([]models.NotificationResponseDTO, error, int) {
+func (service *NotificationService) GetNotifications(username string) (*models.NotificationsResponseDTO, *customerrors.CustomError, int) {
+	// Retrieve notifications from database
 	notifications, err := service.notificationRepository.GetNotificationsByUsername(username)
 	if err != nil {
 		return nil, customerrors.DatabaseError, http.StatusInternalServerError
 	}
 
-	notificationResponseDTOs := make([]models.NotificationResponseDTO, 0)
+	// Create response dto
+	notificationResponseDTOs := make([]models.NotificationRecordDTO, 0)
 	for _, notification := range notifications {
-		notificationResponseDTO := models.NotificationResponseDTO{
+		notificationResponseDTO := models.NotificationRecordDTO{
 			NotificationId:   notification.Id.String(),
 			Timestamp:        notification.Timestamp,
 			NotificationType: notification.NotificationType,
@@ -69,11 +81,15 @@ func (service *NotificationService) GetNotifications(username string) ([]models.
 		notificationResponseDTOs = append(notificationResponseDTOs, notificationResponseDTO)
 	}
 
-	return notificationResponseDTOs, nil, http.StatusOK
+	responseDto := models.NotificationsResponseDTO{
+		Records: notificationResponseDTOs,
+	}
+
+	return &responseDto, nil, http.StatusOK
 }
 
 // DeleteNotificationById is a service function that deletes a notification by its id
-func (service *NotificationService) DeleteNotificationById(notificationId string, currentUsername string) (error, int) {
+func (service *NotificationService) DeleteNotificationById(notificationId string, currentUsername string) (*customerrors.CustomError, int) {
 	notification, err := service.notificationRepository.GetNotificationById(notificationId)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

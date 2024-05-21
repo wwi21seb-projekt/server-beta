@@ -137,8 +137,15 @@ func (repo *PostRepository) DeletePostById(postId string) error {
 			return result.Error
 		}
 
-		// Löschen der Kommentare
+		// Delete comments
 		if err := tx.Where("post_id = ?", post.Id).Delete(&models.Comment{}).Error; err != nil {
+      if !errors.Is(err, gorm.ErrRecordNotFound) {
+				return err
+			}
+		}
+
+    // Delete likes
+		if err := tx.Where("post_id = ?", postId).Delete(&models.Like{}).Error; err != nil {
 			if !errors.Is(err, gorm.ErrRecordNotFound) {
 				return err
 			}
@@ -149,14 +156,14 @@ func (repo *PostRepository) DeletePostById(postId string) error {
 			return err
 		}
 
-		// Löschen der Hashtags-Beziehungen in der Join-Tabelle
+		// Delete hashtag associations
 		if err := tx.Model(&models.Post{Id: post.Id}).Association("Hashtags").Clear(); err != nil {
 			if !errors.Is(err, gorm.ErrRecordNotFound) {
 				return err
 			}
 		}
 
-		// Löschen der Location
+		// Delete location
 		if err := tx.Where("id = ?", post.LocationId).Delete(&models.Location{}).Error; err != nil {
 			if !errors.Is(err, gorm.ErrRecordNotFound) {
 				return err

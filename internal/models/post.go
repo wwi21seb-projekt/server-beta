@@ -8,26 +8,31 @@ import (
 type Post struct {
 	Id         uuid.UUID  `gorm:"column:id;primary_key"`
 	Username   string     `gorm:"column:username_fk;type:varchar(20)"`
-	User       User       `gorm:"ForeignKey:username_fk;references:username"`
+	User       User       `gorm:"foreignKey:username_fk;references:username"`
 	Content    string     `gorm:"column:content;type:varchar(256);null"`
 	ImageUrl   string     `gorm:"column:image_url;type:varchar(128);null"`
 	Hashtags   []Hashtag  `gorm:"many2many:post_hashtags;onDelete:CASCADE"` // gorm handles the join table, onDelete:CASCADE deletes the hashtags if the post is deleted
 	CreatedAt  time.Time  `gorm:"column:created_at;not_null"`
 	LocationId *uuid.UUID `gorm:"column:location_id;null"`
 	Location   Location   `gorm:"foreignKey:location_id;references:id"`
+	RepostId   *uuid.UUID `gorm:"column:repost_id;null"` // no foreign key constraint, original post may be deleted without affecting repost
 }
 
 type PostCreateRequestDTO struct {
-	Content  string       `json:"content" binding:"required"`
-	Location *LocationDTO `json:"location" `
+	Content  string       `json:"content"`
+	Location *LocationDTO `json:"location"`
+	RepostId *string      `json:"repostId"`
 }
 
 type PostResponseDTO struct {
-	PostId       uuid.UUID    `json:"postId"`
-	Author       *AuthorDTO   `json:"author"`
-	CreationDate time.Time    `json:"creationDate"`
-	Content      string       `json:"content"`
-	Location     *LocationDTO `json:"location"`
+	PostId       uuid.UUID        `json:"postId"`
+	Author       *AuthorDTO       `json:"author"`
+	CreationDate time.Time        `json:"creationDate"`
+	Content      string           `json:"content"`
+	Likes        int64            `json:"likes"`
+	Liked        bool             `json:"liked"`
+	Location     *LocationDTO     `json:"location"`
+	Repost       *PostResponseDTO `json:"repost"`
 }
 
 type AuthorDTO struct { // to be used in post response dto
@@ -41,11 +46,14 @@ type UserFeedDTO struct { // to be used for response to user feed request
 	Pagination *UserFeedPaginationDTO `json:"pagination"`
 }
 
-type UserFeedRecordDTO struct {
-	PostId       string       `json:"postId"`
-	CreationDate time.Time    `json:"creationDate"`
-	Content      string       `json:"content"`
-	Location     *LocationDTO `json:"location"`
+type UserFeedRecordDTO struct { // Post response dto without author for user feed
+	PostId       string           `json:"postId"`
+	CreationDate time.Time        `json:"creationDate"`
+	Content      string           `json:"content"`
+	Likes        int64            `json:"likes"`
+	Liked        bool             `json:"liked"`
+	Location     *LocationDTO     `json:"location"`
+	Repost       *PostResponseDTO `json:"repost"`
 }
 
 type UserFeedPaginationDTO struct {

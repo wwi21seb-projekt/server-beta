@@ -96,8 +96,10 @@ func TestCreatePushSubscriptionSuccess(t *testing.T) {
 		Type: "web",
 		SubscriptionInfo: models.SubscriptionInfo{
 			Endpoint: "https://example.com",
-			P256dh:   "p256dh",
-			Auth:     "auth",
+			SubscriptionKeys: models.SubscriptionKeys{
+				P256dh: "dGVzdA",
+				Auth:   "dGVzdA",
+			},
 		},
 	}
 
@@ -127,23 +129,19 @@ func TestCreatePushSubscriptionSuccess(t *testing.T) {
 	// Assert
 	assert.Equal(t, http.StatusCreated, w.Code) // Expect HTTP 201 Created
 
-	var responseObject models.PushSubscription
+	var responseObject models.PushSubscriptionResponseDTO
 	err = json.Unmarshal(w.Body.Bytes(), &responseObject)
 	assert.NoError(t, err)
 
-	assert.NotEqual(t, responseObject.Id, "")
-	assert.Equal(t, responseObject.Username, testUsername)
-	assert.Equal(t, pushSubscriptionCreateRequest.Type, responseObject.Type)
-	assert.Equal(t, pushSubscriptionCreateRequest.SubscriptionInfo.Endpoint, responseObject.Endpoint)
-	assert.Equal(t, pushSubscriptionCreateRequest.SubscriptionInfo.P256dh, responseObject.P256dh)
-	assert.Equal(t, pushSubscriptionCreateRequest.SubscriptionInfo.Auth, responseObject.Auth)
+	assert.NotEqual(t, responseObject.SubscriptionId, "")
+	assert.NotNil(t, responseObject.SubscriptionId)
 
-	assert.Equal(t, capturedPushSubscription.Id, responseObject.Id)
+	assert.Equal(t, responseObject.SubscriptionId, capturedPushSubscription.Id.String())
 	assert.Equal(t, capturedPushSubscription.Username, testUsername)
 	assert.Equal(t, capturedPushSubscription.Type, pushSubscriptionCreateRequest.Type)
 	assert.Equal(t, capturedPushSubscription.Endpoint, pushSubscriptionCreateRequest.SubscriptionInfo.Endpoint)
-	assert.Equal(t, capturedPushSubscription.P256dh, pushSubscriptionCreateRequest.SubscriptionInfo.P256dh)
-	assert.Equal(t, capturedPushSubscription.Auth, pushSubscriptionCreateRequest.SubscriptionInfo.Auth)
+	assert.Equal(t, capturedPushSubscription.P256dh, pushSubscriptionCreateRequest.SubscriptionInfo.SubscriptionKeys.P256dh)
+	assert.Equal(t, capturedPushSubscription.Auth, pushSubscriptionCreateRequest.SubscriptionInfo.SubscriptionKeys.Auth)
 
 	mockPushSubscriptionRepo.AssertExpectations(t)
 }
@@ -181,7 +179,10 @@ func TestCreatePushSubscriptionBadRequest(t *testing.T) {
 	invalidBodies := []string{
 		`{"invalidField": "value"}`,
 		``,
-		`{type: "invalid, subscription: {}}"`, // invalid type, only "web" or "expo" allowed
+		`{type: "w", "subscription": {"endpoint": "https://www.example.com", "keys":{"pd256dh": "dGVzdA", "auth": "dGVzdA"}}}`, // invalid type, only "web" or "expo" allowed
+		`{type: "web", "subscription": {"endpoint": "no url", "keys":{"pd256dh": "dGVzdA", "auth": "dGVzdA"}}}`,                // invalid endpoint
+		`{type: "web", "subscription": {"endpoint": "https://www.example.com", "keys":{"pd256dh": "t", "auth": "dGVzdA"}}}`,    // no base64 encoded pd256dh
+		`{type: "web", "subscription": {"endpoint": "https://www.example.com", "keys":{"pd256dh": "dGVzdA", "auth": "t"}}}`,    // no base64 encoded auth
 	}
 
 	for _, body := range invalidBodies {

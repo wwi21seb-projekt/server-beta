@@ -1,6 +1,7 @@
 package services
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"github.com/SherClockHolmes/webpush-go"
@@ -8,18 +9,20 @@ import (
 	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
 	"github.com/wwi21seb-projekt/server-beta/internal/models"
 	"github.com/wwi21seb-projekt/server-beta/internal/repositories"
+	"io"
 	"net/http"
+	"net/url"
 	"os"
 )
 
 type PushSubscriptionServiceInterface interface {
 	GetVapidKey() (*models.VapidKeyResponseDTO, *customerrors.CustomError, int)
-	CreatePushSubscription(req *models.PushSubscriptionRequestDTO, currentUsername string) (*models.PushSubscription, *customerrors.CustomError, int)
+	CreatePushSubscription(req *models.PushSubscriptionRequestDTO, currentUsername string) (*models.PushSubscriptionResponseDTO, *customerrors.CustomError, int)
 	SendPushMessages(notificationObject interface{}, toUsername string)
 }
 
 type PushSubscriptionService struct {
-	PushSubscriptionRepo repositories.PushSubscriptionRepositoryInterface
+	pushSubscriptionRepo repositories.PushSubscriptionRepositoryInterface
 
 	vapidPrivateKey string
 	vapidPublicKey  string
@@ -32,7 +35,7 @@ func NewPushSubscriptionService(pushSubscriptionRepo repositories.PushSubscripti
 	vapidPublicKey := os.Getenv("VAPID_PUBLIC_KEY")
 	serverMail := os.Getenv("EMAIL_ADDRESS")
 
-	return &PushSubscriptionService{PushSubscriptionRepo: pushSubscriptionRepo, vapidPrivateKey: vapidPrivateKey, vapidPublicKey: vapidPublicKey, serverMail: serverMail}
+	return &PushSubscriptionService{pushSubscriptionRepo: pushSubscriptionRepo, vapidPrivateKey: vapidPrivateKey, vapidPublicKey: vapidPublicKey, serverMail: serverMail}
 }
 
 // GetVapidKey returns a VAPID key for clients to register for push notifications
@@ -45,9 +48,27 @@ func (service *PushSubscriptionService) GetVapidKey() (*models.VapidKeyResponseD
 }
 
 // CreatePushSubscription saves a new push subscription key to the database to send notifications to the client
-func (service *PushSubscriptionService) CreatePushSubscription(req *models.PushSubscriptionRequestDTO, currentUsername string) (*models.PushSubscription, *customerrors.CustomError, int) {
+func (service *PushSubscriptionService) CreatePushSubscription(req *models.PushSubscriptionRequestDTO, currentUsername string) (*models.PushSubscriptionResponseDTO, *customerrors.CustomError, int) {
+	// Input validations
 	// type either needs to be "web" or "expo"
 	if req.Type != "web" && req.Type != "expo" {
+		return nil, customerrors.BadRequest, http.StatusBadRequest
+	}
+	// endpoint needs to be a valid URL
+	_, err := url.ParseRequestURI(req.SubscriptionInfo.Endpoint)
+	if err != nil || len(req.SubscriptionInfo.Endpoint) <= 0 {
+		return nil, customerrors.BadRequest, http.StatusBadRequest
+	}
+	// keys cannot be empty and need to be base64-URL encoded
+	if len(req.SubscriptionInfo.SubscriptionKeys.P256dh) <= 0 || len(req.SubscriptionInfo.SubscriptionKeys.Auth) <= 0 {
+		return nil, customerrors.BadRequest, http.StatusBadRequest
+	}
+	_, err = base64.RawURLEncoding.DecodeString(req.SubscriptionInfo.SubscriptionKeys.P256dh)
+	if err != nil {
+		return nil, customerrors.BadRequest, http.StatusBadRequest
+	}
+	_, err = base64.RawURLEncoding.DecodeString(req.SubscriptionInfo.SubscriptionKeys.Auth)
+	if err != nil {
 		return nil, customerrors.BadRequest, http.StatusBadRequest
 	}
 
@@ -57,16 +78,21 @@ func (service *PushSubscriptionService) CreatePushSubscription(req *models.PushS
 		Username: currentUsername,
 		Type:     req.Type,
 		Endpoint: req.SubscriptionInfo.Endpoint,
-		P256dh:   req.SubscriptionInfo.P256dh,
-		Auth:     req.SubscriptionInfo.Auth,
+		P256dh:   req.SubscriptionInfo.SubscriptionKeys.P256dh,
+		Auth:     req.SubscriptionInfo.SubscriptionKeys.Auth,
 	}
 
-	err := service.PushSubscriptionRepo.CreatePushSubscription(&newPushSubscription)
+	err = service.pushSubscriptionRepo.CreatePushSubscription(&newPushSubscription)
 	if err != nil {
 		return nil, customerrors.DatabaseError, http.StatusInternalServerError
 	}
 
-	return &newPushSubscription, nil, http.StatusCreated
+	// Create response object with subscription id
+	responseDto := models.PushSubscriptionResponseDTO{
+		SubscriptionId: newPushSubscription.Id.String(),
+	}
+
+	return &responseDto, nil, http.StatusCreated
 }
 
 // SendPushMessages sends push messages to all push subscriptions of a user
@@ -79,7 +105,7 @@ func (service *PushSubscriptionService) SendPushMessages(notificationObject inte
 	notificationString := string(notificationJson)
 
 	// Get all push subscriptions by username
-	pushSubscriptions, err := service.PushSubscriptionRepo.GetPushSubscriptionsByUsername(toUsername)
+	pushSubscriptions, err := service.pushSubscriptionRepo.GetPushSubscriptionsByUsername(toUsername)
 	if err != nil {
 		return
 	}
@@ -96,18 +122,25 @@ func (service *PushSubscriptionService) SendPushMessages(notificationObject inte
 
 		resp, err := webpush.SendNotification([]byte(notificationString), sub, &webpush.Options{
 			Subscriber:      service.serverMail,
+			VAPIDPublicKey:  service.vapidPublicKey,
 			VAPIDPrivateKey: service.vapidPrivateKey,
 			TTL:             30,
 		})
 
 		if err != nil {
-			print(err, "err sending notification")
+			fmt.Println(err, ", error sending notification to", pushSubscription.Username)
+			continue
 		}
 
-		// Ensure the response body is closed after reading
-		func() {
-			defer resp.Body.Close()
-			fmt.Println("Response: ", resp.Status)
-		}()
+		fmt.Println("Notification sent to", pushSubscription.Username)
+		fmt.Println("Status:", resp.Status)
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		fmt.Println("Response Body:", string(bodyBytes))
+
+		// If the subscription is deactivated or expired, delete it
+		if resp.StatusCode == http.StatusGone {
+			_ = service.pushSubscriptionRepo.DeletePushSubscriptionById(pushSubscription.Id.String())
+			continue
+		}
 	}
 }

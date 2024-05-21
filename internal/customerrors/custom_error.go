@@ -103,6 +103,14 @@ var (
 		Message: "The post was not found. Please check the post ID and try again.",
 		Code:    "ERR-020",
 	}
+	AlreadyLiked = &CustomError{
+		Message: "You have already liked this post.",
+		Code:    "ERR-021",
+	}
+	NotLiked = &CustomError{
+		Message: "You can't unlike a post you haven't liked.",
+		Code:    "ERR-022",
+	}
 	NotificationNotFound = &CustomError{
 		Message: "The notification was not found. Please check the notification ID and try again.",
 		Code:    "ERR-023",
@@ -112,7 +120,7 @@ var (
 		Code:    "ERR-024",
 	}
 	FileNotFound = &CustomError{
-		Message: "file not found: to be defined",
+		Message: "",
 		Code:    "",
 	}
 	FileTooLarge = &CustomError{
