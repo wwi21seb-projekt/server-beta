@@ -61,10 +61,10 @@ func SetupRouter() *gin.Engine {
 	feedService := services.NewFeedService(postRepo, userRepo, likeRepo)
 	likeService := services.NewLikeService(likeRepo, postRepo)
 	pushSubscriptionService := services.NewPushSubscriptionService(pushSubscriptionRepo)
-	postService := services.NewPostService(postRepo, userRepo, hashtagRepo, imageService, validator, locationRepo, likeRepo)
 	notificationService := services.NewNotificationService(notificationRepo, pushSubscriptionService)
 	subscriptionService := services.NewSubscriptionService(subscriptionRepo, userRepo, notificationService)
 	commentService := services.NewCommentService(commentRepo, postRepo)
+	postService := services.NewPostService(postRepo, userRepo, hashtagRepo, imageService, validator, locationRepo, likeRepo, notificationService)
 
 	imprintController := controllers.NewImprintController()
 	userController := controllers.NewUserController(userService)
