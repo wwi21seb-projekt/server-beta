@@ -22,14 +22,15 @@ type PostServiceInterface interface {
 }
 
 type PostService struct {
-	postRepo     repositories.PostRepositoryInterface
-	userRepo     repositories.UserRepositoryInterface
-	hashtagRepo  repositories.HashtagRepositoryInterface
-	imageService ImageServiceInterface
-	validator    utils.ValidatorInterface
-	locationRepo repositories.LocationRepositoryInterface
-	likeRepo     repositories.LikeRepositoryInterface
-	policy       *bluemonday.Policy
+	postRepo            repositories.PostRepositoryInterface
+	userRepo            repositories.UserRepositoryInterface
+	hashtagRepo         repositories.HashtagRepositoryInterface
+	imageService        ImageServiceInterface
+	validator           utils.ValidatorInterface
+	locationRepo        repositories.LocationRepositoryInterface
+	likeRepo            repositories.LikeRepositoryInterface
+	policy              *bluemonday.Policy
+	notificationService NotificationServiceInterface
 }
 
 // NewPostService can be used as a constructor to create a PostService "object"
@@ -39,8 +40,9 @@ func NewPostService(postRepo repositories.PostRepositoryInterface,
 	imageService ImageServiceInterface,
 	validator utils.ValidatorInterface,
 	locationRepo repositories.LocationRepositoryInterface,
-	likeRepo repositories.LikeRepositoryInterface) *PostService {
-	return &PostService{postRepo: postRepo, userRepo: userRepo, hashtagRepo: hashtagRepo, imageService: imageService, validator: validator, locationRepo: locationRepo, likeRepo: likeRepo, policy: bluemonday.UGCPolicy()}
+	likeRepo repositories.LikeRepositoryInterface,
+	notificationService NotificationServiceInterface) *PostService {
+	return &PostService{postRepo: postRepo, userRepo: userRepo, hashtagRepo: hashtagRepo, imageService: imageService, validator: validator, locationRepo: locationRepo, likeRepo: likeRepo, policy: bluemonday.UGCPolicy(), notificationService: notificationService}
 }
 
 func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *multipart.FileHeader, username string) (*models.PostResponseDTO, *customerrors.CustomError, int) {
@@ -167,6 +169,10 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *m
 	// Create response dto and return
 	postDto := createPostResponseFromPostObject(&post, user, location, repostDto, 0, false) // no likes yet
 
+	// Create notification for owner of original post
+	if repostId != nil {
+		_ = service.notificationService.CreateNotification("repost", repostDto.Author.Username, username)
+	}
 	return postDto, nil, http.StatusCreated
 }
 

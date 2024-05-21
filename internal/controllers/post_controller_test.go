@@ -46,6 +46,7 @@ func TestCreatePostWithLocationSuccess(t *testing.T) {
 		validator,
 		mockLocationRepository,
 		mockLikeRepository,
+		nil,
 	)
 	postController := controllers.NewPostController(postService)
 
@@ -170,6 +171,7 @@ func TestCreatePostWithLocationZeroValues(t *testing.T) {
 		validator,
 		mockLocationRepository,
 		nil,
+		nil,
 	)
 	postController := controllers.NewPostController(postService)
 
@@ -293,6 +295,7 @@ func TestCreatePostWithoutLocationSuccess(t *testing.T) {
 		validator,
 		mockLocationRepository,
 		nil,
+		nil,
 	)
 	postController := controllers.NewPostController(postService)
 
@@ -390,6 +393,11 @@ func TestCreatePostWithRepostSuccess(t *testing.T) {
 	mockLocationRepository := new(repositories.MockLocationRepository)
 	mockLikeRepository := new(repositories.MockLikeRepository)
 
+	mockNotificationRepo := new(repositories.MockNotificationRepository)
+	mockPushSubscriptionRepo := new(repositories.MockPushSubscriptionRepository)
+	pushSubscriptionService := services.NewPushSubscriptionService(mockPushSubscriptionRepo)
+	notificationService := services.NewNotificationService(mockNotificationRepo, pushSubscriptionService)
+
 	postService := services.NewPostService(
 		mockPostRepository,
 		mockUserRepository,
@@ -398,6 +406,7 @@ func TestCreatePostWithRepostSuccess(t *testing.T) {
 		validator,
 		mockLocationRepository,
 		mockLikeRepository,
+		notificationService,
 	)
 	postController := controllers.NewPostController(postService)
 
@@ -406,10 +415,13 @@ func TestCreatePostWithRepostSuccess(t *testing.T) {
 		Nickname:          "testNickname",
 		ProfilePictureUrl: "img.jpg",
 	}
-
+	originalUser := models.User{
+		Username: "originalUser",
+	}
 	originalPost := models.Post{
 		Id:         uuid.New(),
-		Username:   "originalUser",
+		Username:   originalUser.Username,
+		User:       originalUser,
 		Content:    "This is the original post.",
 		CreatedAt:  time.Now().Add(time.Hour * -24),
 		LocationId: nil,
@@ -431,6 +443,7 @@ func TestCreatePostWithRepostSuccess(t *testing.T) {
 
 	// Mock expectations
 	var capturedPost *models.Post
+	var capturedNotification *models.Notification
 	mockUserRepository.On("FindUserByUsername", user.Username).Return(&user, nil) // User found successfully
 	mockPostRepository.On("CreatePost", mock.AnythingOfType("*models.Post")).
 		Run(func(args mock.Arguments) {
@@ -439,6 +452,11 @@ func TestCreatePostWithRepostSuccess(t *testing.T) {
 	mockPostRepository.On("GetPostById", originalPost.Id.String()).Return(originalPost, nil)
 	mockLikeRepository.On("CountLikes", originalPost.Id.String()).Return(int64(0), nil)
 	mockLikeRepository.On("FindLike", originalPost.Id.String(), user.Username).Return(&models.Like{}, gorm.ErrRecordNotFound)
+	mockNotificationRepo.On("CreateNotification", mock.AnythingOfType("*models.Notification")).
+		Run(func(args mock.Arguments) {
+			capturedNotification = args.Get(0).(*models.Notification) // Save argument to captor
+		}).Return(nil)
+	mockPushSubscriptionRepo.On("GetPushSubscriptionsByUsername", originalPost.Username).Return([]models.PushSubscription{}, nil)
 
 	// Setup HTTP request
 	requestBody, err := json.Marshal(postCreateRequestDTO)
@@ -485,11 +503,18 @@ func TestCreatePostWithRepostSuccess(t *testing.T) {
 	assert.Nil(t, responsePost.Repost.Location)
 	assert.Nil(t, responsePost.Repost.Repost)
 
+	assert.Equal(t, user.Username, capturedNotification.FromUsername)
+	assert.Equal(t, originalPost.Username, capturedNotification.ForUsername)
+	assert.Equal(t, "repost", capturedNotification.NotificationType)
+	assert.NotNil(t, capturedNotification.Timestamp)
+
 	mockUserRepository.AssertExpectations(t)
 	mockPostRepository.AssertExpectations(t)
 	mockHashtagRepository.AssertExpectations(t)
 	mockLocationRepository.AssertExpectations(t)
 	mockLikeRepository.AssertExpectations(t)
+	mockNotificationRepo.AssertExpectations(t)
+	mockPushSubscriptionRepo.AssertExpectations(t)
 }
 
 // TestCreatePostRepostNotFound tests if the CreatePost function returns a 404 not found if the original post is not found
@@ -510,6 +535,7 @@ func TestCreatePostRepostNotFound(t *testing.T) {
 		validator,
 		mockLocationRepository,
 		mockLikeRepository,
+		nil,
 	)
 	postController := controllers.NewPostController(postService)
 
@@ -585,6 +611,7 @@ func TestCreatePostRepostOfRepost(t *testing.T) {
 		validator,
 		mockLocationRepository,
 		mockLikeRepository,
+		nil,
 	)
 	postController := controllers.NewPostController(postService)
 
@@ -677,6 +704,7 @@ func TestCreatePostBadRequest(t *testing.T) {
 			nil,
 			nil,
 			nil,
+			nil,
 		)
 		postController := controllers.NewPostController(postService)
 
@@ -737,6 +765,7 @@ func TestCreatePostUnauthorized(t *testing.T) {
 			mockUserRepository,
 			mockHashtagRepository,
 			new(services.ImageService),
+			nil,
 			nil,
 			nil,
 			nil,
@@ -814,6 +843,7 @@ func TestCreatePostWithImageSuccess(t *testing.T) {
 			mockHashtagRepository,
 			services.NewImageService(mockFileSystem, validator),
 			validator,
+			nil,
 			nil,
 			nil,
 		)
@@ -940,6 +970,7 @@ func TestCreatePostWithImageBadRequest(t *testing.T) {
 		validator,
 		nil,
 		nil,
+		nil,
 	)
 	postController := controllers.NewPostController(postService)
 
@@ -1032,6 +1063,7 @@ func TestCreatePostWithEmptyImageSuccess(t *testing.T) {
 		validator,
 		nil,
 		mockLikeRepo,
+		nil,
 	)
 	postController := controllers.NewPostController(postService)
 
@@ -1135,6 +1167,7 @@ func TestCreatePostWithWrongContentTypeBadRequest(t *testing.T) {
 			nil,
 			nil,
 			nil,
+			nil,
 		)
 		postController := controllers.NewPostController(postService)
 
@@ -1173,7 +1206,7 @@ func TestDeletePostSuccess(t *testing.T) {
 	// Arrange
 	mockPostRepository := new(repositories.MockPostRepository)
 
-	postService := services.NewPostService(mockPostRepository, nil, nil, nil, nil, nil, nil)
+	postService := services.NewPostService(mockPostRepository, nil, nil, nil, nil, nil, nil, nil)
 	postController := controllers.NewPostController(postService)
 
 	postId := uuid.New().String()
@@ -1207,6 +1240,7 @@ func TestDeletePostUnauthorized(t *testing.T) {
 
 	postService := services.NewPostService(
 		mockPostRepository,
+		nil,
 		nil,
 		nil,
 		nil,
@@ -1247,7 +1281,7 @@ func TestDeletePostForbidden(t *testing.T) {
 	// Arrange
 	mockPostRepository := new(repositories.MockPostRepository)
 
-	postService := services.NewPostService(mockPostRepository, nil, nil, nil, nil, nil, nil)
+	postService := services.NewPostService(mockPostRepository, nil, nil, nil, nil, nil, nil, nil)
 	postController := controllers.NewPostController(postService)
 
 	postId := uuid.New().String()
@@ -1278,7 +1312,7 @@ func TestDeletePostNotFound(t *testing.T) {
 	// Arrange
 	mockPostRepository := new(repositories.MockPostRepository)
 
-	postService := services.NewPostService(mockPostRepository, nil, nil, nil, nil, nil, nil)
+	postService := services.NewPostService(mockPostRepository, nil, nil, nil, nil, nil, nil, nil)
 	postController := controllers.NewPostController(postService)
 
 	postId := uuid.New().String()
