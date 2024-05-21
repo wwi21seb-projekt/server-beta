@@ -28,7 +28,7 @@ type CommentCreateResponseDTO struct {
 type CommentRecordDTO struct {
 	CommentId    uuid.UUID  `json:"commentId"`
 	Content      string     `json:"content"`
-	Author       *AuthorDTO // AuthorDTO is defined in post.go
+	Author       *AuthorDTO `json:"author"` // AuthorDTO is defined in post.go
 	CreationDate time.Time  `json:"creationDate"`
 }
 
