@@ -19,13 +19,7 @@ type CommentCreateRequestDTO struct {
 	Content string `json:"content" binding:"required"`
 }
 
-type CommentCreateResponseDTO struct {
-	CommentId    uuid.UUID `json:"commentId"`
-	Content      string    `json:"content"`
-	CreationDate time.Time `json:"creationDate"`
-}
-
-type CommentRecordDTO struct {
+type CommentResponseDTO struct {
 	CommentId    uuid.UUID  `json:"commentId"`
 	Content      string     `json:"content"`
 	Author       *AuthorDTO `json:"author"` // AuthorDTO is defined in post.go
@@ -39,6 +33,6 @@ type CommentPaginationDTO struct {
 }
 
 type CommentFeedResponseDTO struct {
-	Records    []CommentRecordDTO    `json:"records"`
+	Records    []CommentResponseDTO  `json:"records"`
 	Pagination *CommentPaginationDTO `json:"pagination"`
 }

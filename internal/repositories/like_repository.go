@@ -9,7 +9,7 @@ type LikeRepositoryInterface interface {
 	CreateLike(like *models.Like) error
 	DeleteLike(likeId string) error
 	FindLike(postId string, currentUsername string) (*models.Like, error)
-	CountLikes(postId string) int64
+	CountLikes(postId string) (int64, error)
 }
 
 type LikeRepository struct {
@@ -34,9 +34,9 @@ func (repo *LikeRepository) FindLike(postId string, currentUsername string) (*mo
 	return &like, err
 }
 
-func (repo *LikeRepository) CountLikes(postId string) int64 {
+func (repo *LikeRepository) CountLikes(postId string) (int64, error) {
 	var count int64
 	query := repo.DB.Model(&models.Like{}).Where("post_id = ?", postId)
-	query.Count(&count)
-	return count
+	err := query.Count(&count).Error
+	return count, err
 }

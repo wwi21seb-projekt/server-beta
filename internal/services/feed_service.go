@@ -17,14 +17,15 @@ type FeedServiceInterface interface {
 }
 
 type FeedService struct {
-	postRepo repositories.PostRepositoryInterface
-	userRepo repositories.UserRepositoryInterface
-	likeRepo repositories.LikeRepositoryInterface
+	postRepo    repositories.PostRepositoryInterface
+	userRepo    repositories.UserRepositoryInterface
+	likeRepo    repositories.LikeRepositoryInterface
+	commentRepo repositories.CommentRepositoryInterface
 }
 
 // NewFeedService can be used as a constructor to create a FeedService "object"
-func NewFeedService(postRepo repositories.PostRepositoryInterface, userRepo repositories.UserRepositoryInterface, likeRepo repositories.LikeRepositoryInterface) *FeedService {
-	return &FeedService{postRepo: postRepo, userRepo: userRepo, likeRepo: likeRepo}
+func NewFeedService(postRepo repositories.PostRepositoryInterface, userRepo repositories.UserRepositoryInterface, likeRepo repositories.LikeRepositoryInterface, commentRepo repositories.CommentRepositoryInterface) *FeedService {
+	return &FeedService{postRepo: postRepo, userRepo: userRepo, likeRepo: likeRepo, commentRepo: commentRepo}
 }
 
 // GetPostsByUsername returns a pagination object with the posts of a user using pagination parameters
@@ -46,11 +47,11 @@ func (service *FeedService) GetPostsByUsername(username string, offset, limit in
 	}
 
 	// Create response dto and return
-	postDtos := []models.UserFeedRecordDTO{} // not using empty slice declaration (suggested by Goland) because it would be nil when marshalled to json instead of []
+	postDtos := []models.UserFeedRecordDTO{} // no empty slice declaration using array literal (suggested by Goland) because it would be nil when marshalled to json instead of []
 	for _, post := range posts {
 		var locationDTO *models.LocationDTO
 
-		likedByCurrentUser, likeCount, err := service.getLikeInformationByPost(post, currentUsername)
+		likedByCurrentUser, likeCount, commentCount, err := service.getLikeAndCommentInformationByPost(post, currentUsername)
 		if err != nil {
 			return nil, customerrors.DatabaseError, http.StatusInternalServerError
 		}
@@ -75,6 +76,7 @@ func (service *FeedService) GetPostsByUsername(username string, offset, limit in
 			PostId:       post.Id.String(),
 			CreationDate: post.CreatedAt,
 			Content:      post.Content,
+			Comments:     commentCount,
 			Likes:        likeCount,
 			Liked:        likedByCurrentUser,
 			Location:     locationDTO,
@@ -252,7 +254,7 @@ func (service *FeedService) generatePostFeedWithAuthor(posts []models.Post, tota
 	}
 	for _, post := range posts {
 
-		likedByCurrentUser, likeCount, err := service.getLikeInformationByPost(post, currentUsername)
+		likedByCurrentUser, likeCount, commentCount, err := service.getLikeAndCommentInformationByPost(post, currentUsername)
 		if err != nil {
 			return nil, err
 		}
@@ -284,6 +286,7 @@ func (service *FeedService) generatePostFeedWithAuthor(posts []models.Post, tota
 			Author:       &authorDto,
 			CreationDate: post.CreatedAt,
 			Content:      post.Content,
+			Comments:     commentCount,
 			Likes:        likeCount,
 			Liked:        likedByCurrentUser,
 			Location:     locationDTO,
@@ -294,19 +297,27 @@ func (service *FeedService) generatePostFeedWithAuthor(posts []models.Post, tota
 	return &feed, nil
 }
 
-// getLikeInformationByPost returns whether the post is liked by the current user and the like count
-func (service *FeedService) getLikeInformationByPost(post models.Post, currentUsername string) (bool, int64, error) {
+// getLikeAndCommentInformationByPost returns whether the post is liked by the current user and the like count
+func (service *FeedService) getLikeAndCommentInformationByPost(post models.Post, currentUsername string) (bool, int64, int64, error) {
 	var likedByCurrentUser = false
 	var likeCount int64
+	var commentCount int64
 	_, err := service.likeRepo.FindLike(post.Id.String(), currentUsername)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		return false, 0, err
+		return false, 0, 0, err
 	}
 	if err == nil {
 		likedByCurrentUser = true
 	}
-	likeCount = service.likeRepo.CountLikes(post.Id.String())
-	return likedByCurrentUser, likeCount, nil
+	likeCount, err = service.likeRepo.CountLikes(post.Id.String())
+	if err != nil {
+		return false, 0, 0, err
+	}
+	commentCount, err = service.commentRepo.CountComments(post.Id.String())
+	if err != nil {
+		return false, 0, 0, err
+	}
+	return likedByCurrentUser, likeCount, commentCount, nil
 }
 
 func (service *FeedService) getRepostResponseDto(post models.Post, currentUsername string) (*models.PostResponseDTO, error) {
@@ -334,7 +345,7 @@ func (service *FeedService) getRepostResponseDto(post models.Post, currentUserna
 	}
 
 	// Get like information
-	likedByCurrentUser, likeCount, err := service.getLikeInformationByPost(repost, currentUsername)
+	likedByCurrentUser, likeCount, commentCount, err := service.getLikeAndCommentInformationByPost(repost, currentUsername)
 	if err != nil {
 		return nil, err
 	}
@@ -360,6 +371,7 @@ func (service *FeedService) getRepostResponseDto(post models.Post, currentUserna
 		Author:       &authorDto,
 		CreationDate: repost.CreatedAt,
 		Content:      repost.Content,
+		Comments:     commentCount,
 		Likes:        likeCount,
 		Liked:        likedByCurrentUser,
 		Location:     locationDTO,

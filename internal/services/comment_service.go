@@ -14,23 +14,24 @@ import (
 )
 
 type CommentServiceInterface interface {
-	CreateComment(req *models.CommentCreateRequestDTO, postId, currentUsername string) (*models.CommentCreateResponseDTO, *customerrors.CustomError, int)
+	CreateComment(req *models.CommentCreateRequestDTO, postId, currentUsername string) (*models.CommentResponseDTO, *customerrors.CustomError, int)
 	GetCommentsByPostId(postId string, offset, limit int) (*models.CommentFeedResponseDTO, *customerrors.CustomError, int)
 }
 
 type CommentService struct {
 	commentRepo repositories.CommentRepositoryInterface
 	postRepo    repositories.PostRepositoryInterface
+	userRepo    repositories.UserRepositoryInterface
 	policy      *bluemonday.Policy
 }
 
 // NewCommentService can be used as a constructor to create a CommentService "object"
-func NewCommentService(commentRepo repositories.CommentRepositoryInterface, postRepo repositories.PostRepositoryInterface) *CommentService {
-	return &CommentService{commentRepo: commentRepo, postRepo: postRepo, policy: bluemonday.UGCPolicy()}
+func NewCommentService(commentRepo repositories.CommentRepositoryInterface, postRepo repositories.PostRepositoryInterface, userRepo repositories.UserRepositoryInterface) *CommentService {
+	return &CommentService{commentRepo: commentRepo, postRepo: postRepo, userRepo: userRepo, policy: bluemonday.UGCPolicy()}
 }
 
 // CreateComment creates a new comment for a given post id using the provided request data
-func (service *CommentService) CreateComment(req *models.CommentCreateRequestDTO, postId, currentUsername string) (*models.CommentCreateResponseDTO, *customerrors.CustomError, int) {
+func (service *CommentService) CreateComment(req *models.CommentCreateRequestDTO, postId, currentUsername string) (*models.CommentResponseDTO, *customerrors.CustomError, int) {
 	// Sanitize content because it is a free text field
 	req.Content = strings.Trim(req.Content, " ") // remove leading and trailing whitespaces
 	req.Content = service.policy.Sanitize(req.Content)
@@ -55,6 +56,15 @@ func (service *CommentService) CreateComment(req *models.CommentCreateRequestDTO
 		return nil, customerrors.DatabaseError, http.StatusInternalServerError
 	}
 
+	// Get user by username
+	user, err := service.userRepo.FindUserByUsername(currentUsername)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, customerrors.UserUnauthorized, http.StatusUnauthorized // not reachable, because of JWT middleware
+		}
+		return nil, customerrors.DatabaseError, http.StatusInternalServerError
+	}
+
 	// Create comment
 	comment := &models.Comment{
 		Id:        uuid.New(),
@@ -70,9 +80,14 @@ func (service *CommentService) CreateComment(req *models.CommentCreateRequestDTO
 	}
 
 	// Prepare response
-	responseDto := &models.CommentCreateResponseDTO{
-		CommentId:    comment.Id,
-		Content:      comment.Content,
+	responseDto := &models.CommentResponseDTO{
+		CommentId: comment.Id,
+		Content:   comment.Content,
+		Author: &models.AuthorDTO{
+			Username:          user.Username,
+			Nickname:          user.Nickname,
+			ProfilePictureUrl: user.ProfilePictureUrl,
+		},
 		CreationDate: comment.CreatedAt,
 	}
 
@@ -98,9 +113,9 @@ func (service *CommentService) GetCommentsByPostId(postId string, offset, limit 
 	}
 
 	// Prepare response
-	var commentRecords []models.CommentRecordDTO
+	var commentRecords []models.CommentResponseDTO
 	for _, comment := range comments {
-		commentRecords = append(commentRecords, models.CommentRecordDTO{
+		commentRecords = append(commentRecords, models.CommentResponseDTO{
 			CommentId: comment.Id,
 			Content:   comment.Content,
 			Author: &models.AuthorDTO{

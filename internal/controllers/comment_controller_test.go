@@ -26,14 +26,21 @@ func TestCreateCommentSuccess(t *testing.T) {
 	// Arrange
 	mockPostRepository := new(repositories.MockPostRepository)
 	mockCommentRepository := new(repositories.MockCommentRepository)
+	mockUserRepository := new(repositories.MockUserRepository)
 
-	commentService := services.NewCommentService(mockCommentRepository, mockPostRepository)
+	commentService := services.NewCommentService(mockCommentRepository, mockPostRepository, mockUserRepository)
 	commentController := NewCommentController(commentService)
 
 	testUsername := "testuser"
 	authenticationToken, err := utils.GenerateAccessToken(testUsername)
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	user := models.User{
+		Username:          testUsername,
+		Nickname:          "test user",
+		ProfilePictureUrl: "https://example.com/profile.jpg",
 	}
 
 	post := models.Post{
@@ -50,6 +57,7 @@ func TestCreateCommentSuccess(t *testing.T) {
 		Run(func(args mock.Arguments) {
 			capturedComment = args.Get(0).(*models.Comment)
 		}).Return(nil)
+	mockUserRepository.On("FindUserByUsername", testUsername).Return(&user, nil)
 
 	// Setup HTTP request
 	requestBody, err := json.Marshal(commentCreateRequest)
@@ -71,7 +79,7 @@ func TestCreateCommentSuccess(t *testing.T) {
 	// Assert
 	assert.Equal(t, http.StatusCreated, w.Code) // Expect 201 Created
 
-	var responseComment models.CommentCreateResponseDTO
+	var responseComment models.CommentResponseDTO
 	err = json.Unmarshal(w.Body.Bytes(), &responseComment)
 	assert.NoError(t, err)
 
@@ -84,9 +92,13 @@ func TestCreateCommentSuccess(t *testing.T) {
 	assert.Equal(t, capturedComment.Id, responseComment.CommentId)
 	assert.Equal(t, commentCreateRequest.Content, responseComment.Content)
 	assert.True(t, capturedComment.CreatedAt.Equal(responseComment.CreationDate))
+	assert.Equal(t, user.Username, responseComment.Author.Username)
+	assert.Equal(t, user.Nickname, responseComment.Author.Nickname)
+	assert.Equal(t, user.ProfilePictureUrl, responseComment.Author.ProfilePictureUrl)
 
 	mockCommentRepository.AssertExpectations(t)
 	mockPostRepository.AssertExpectations(t)
+	mockUserRepository.AssertExpectations(t)
 }
 
 // TestCreateCommentBadRequest tests the CreateComment function if it returns 400 Bad Request when the request body is invalid
@@ -102,8 +114,9 @@ func TestCreateCommentBadRequest(t *testing.T) {
 		// Arrange
 		mockPostRepository := new(repositories.MockPostRepository)
 		mockCommentRepository := new(repositories.MockCommentRepository)
+		mockUserRepository := new(repositories.MockUserRepository)
 
-		commentService := services.NewCommentService(mockCommentRepository, mockPostRepository)
+		commentService := services.NewCommentService(mockCommentRepository, mockPostRepository, mockUserRepository)
 		commentController := NewCommentController(commentService)
 
 		testUsername := "testuser"
@@ -141,6 +154,7 @@ func TestCreateCommentBadRequest(t *testing.T) {
 
 		mockCommentRepository.AssertExpectations(t)
 		mockPostRepository.AssertExpectations(t)
+		mockUserRepository.AssertExpectations(t)
 	}
 }
 
@@ -149,8 +163,9 @@ func TestCreateCommentUnauthorized(t *testing.T) {
 	// Arrange
 	mockPostRepository := new(repositories.MockPostRepository)
 	mockCommentRepository := new(repositories.MockCommentRepository)
+	mockUserRepository := new(repositories.MockUserRepository)
 
-	commentService := services.NewCommentService(mockCommentRepository, mockPostRepository)
+	commentService := services.NewCommentService(mockCommentRepository, mockPostRepository, mockUserRepository)
 	commentController := NewCommentController(commentService)
 
 	post := models.Post{
@@ -181,6 +196,7 @@ func TestCreateCommentUnauthorized(t *testing.T) {
 
 	mockCommentRepository.AssertExpectations(t)
 	mockPostRepository.AssertExpectations(t)
+	mockUserRepository.AssertExpectations(t)
 }
 
 // TestCreateCommentPostNotFound tests the CreateComment function if it returns 404 Not Found when the post does not exist
@@ -188,8 +204,9 @@ func TestCreateCommentPostNotFound(t *testing.T) {
 	// Arrange
 	mockPostRepository := new(repositories.MockPostRepository)
 	mockCommentRepository := new(repositories.MockCommentRepository)
+	mockUserRepository := new(repositories.MockUserRepository)
 
-	commentService := services.NewCommentService(mockCommentRepository, mockPostRepository)
+	commentService := services.NewCommentService(mockCommentRepository, mockPostRepository, mockUserRepository)
 	commentController := NewCommentController(commentService)
 
 	testUsername := "testuser"
@@ -237,6 +254,7 @@ func TestCreateCommentPostNotFound(t *testing.T) {
 
 	mockCommentRepository.AssertExpectations(t)
 	mockPostRepository.AssertExpectations(t)
+	mockUserRepository.AssertExpectations(t)
 }
 
 // TestGetCommentsByPostIdSuccess tests the GetCommentsByPostId function if it returns 200 OK after successfully retrieving comments
@@ -244,8 +262,9 @@ func TestGetCommentsByPostIdSuccess(t *testing.T) {
 	// Arrange
 	mockPostRepository := new(repositories.MockPostRepository)
 	mockCommentRepository := new(repositories.MockCommentRepository)
+	mockUserRepository := new(repositories.MockUserRepository)
 
-	commentService := services.NewCommentService(mockCommentRepository, mockPostRepository)
+	commentService := services.NewCommentService(mockCommentRepository, mockPostRepository, mockUserRepository)
 	commentController := NewCommentController(commentService)
 
 	authenticationToken, err := utils.GenerateAccessToken("myuser")
@@ -326,6 +345,7 @@ func TestGetCommentsByPostIdSuccess(t *testing.T) {
 
 	mockCommentRepository.AssertExpectations(t)
 	mockPostRepository.AssertExpectations(t)
+	mockUserRepository.AssertExpectations(t)
 }
 
 // TestGetCommentsByPostIdUnauthorized tests the GetCommentsByPostId function if it returns 401 Unauthorized when the user is not authenticated
@@ -333,8 +353,9 @@ func TestGetCommentsByPostIdUnauthorized(t *testing.T) {
 	// Arrange
 	mockPostRepository := new(repositories.MockPostRepository)
 	mockCommentRepository := new(repositories.MockCommentRepository)
+	mockUserRepository := new(repositories.MockUserRepository)
 
-	commentService := services.NewCommentService(mockCommentRepository, mockPostRepository)
+	commentService := services.NewCommentService(mockCommentRepository, mockPostRepository, mockUserRepository)
 	commentController := NewCommentController(commentService)
 
 	post := models.Post{
@@ -365,6 +386,7 @@ func TestGetCommentsByPostIdUnauthorized(t *testing.T) {
 
 	mockCommentRepository.AssertExpectations(t)
 	mockPostRepository.AssertExpectations(t)
+	mockUserRepository.AssertExpectations(t)
 }
 
 // TestGetCommentsByPostIdPostNotFound tests the GetCommentsByPostId function if it returns 404 Not Found when the post does not exist
@@ -372,8 +394,9 @@ func TestGetCommentsByPostIdPostNotFound(t *testing.T) {
 	// Arrange
 	mockPostRepository := new(repositories.MockPostRepository)
 	mockCommentRepository := new(repositories.MockCommentRepository)
+	mockUserRepository := new(repositories.MockUserRepository)
 
-	commentService := services.NewCommentService(mockCommentRepository, mockPostRepository)
+	commentService := services.NewCommentService(mockCommentRepository, mockPostRepository, mockUserRepository)
 	commentController := NewCommentController(commentService)
 
 	authenticationToken, err := utils.GenerateAccessToken("myuser")
@@ -413,4 +436,5 @@ func TestGetCommentsByPostIdPostNotFound(t *testing.T) {
 
 	mockCommentRepository.AssertExpectations(t)
 	mockPostRepository.AssertExpectations(t)
+	mockUserRepository.AssertExpectations(t)
 }

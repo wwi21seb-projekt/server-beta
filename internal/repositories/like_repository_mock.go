@@ -24,7 +24,7 @@ func (m *MockLikeRepository) FindLike(postId string, currentUsername string) (*m
 	return args.Get(0).(*models.Like), args.Error(1)
 }
 
-func (m *MockLikeRepository) CountLikes(postId string) int64 {
+func (m *MockLikeRepository) CountLikes(postId string) (int64, error) {
 	args := m.Called(postId)
-	return args.Get(0).(int64)
+	return args.Get(0).(int64), args.Error(1)
 }

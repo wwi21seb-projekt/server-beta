@@ -8,6 +8,7 @@ import (
 type CommentRepositoryInterface interface {
 	CreateComment(comment *models.Comment) error
 	GetCommentsByPostId(postId string, offset, limit int) ([]models.Comment, int64, error)
+	CountComments(postId string) (int64, error)
 }
 
 type CommentRepository struct {
@@ -43,4 +44,11 @@ func (repo *CommentRepository) GetCommentsByPostId(postId string, offset, limit 
 	}
 
 	return comments, count, nil
+}
+
+func (repo *CommentRepository) CountComments(postId string) (int64, error) {
+	var count int64
+	query := repo.DB.Model(&models.Comment{}).Where("post_id = ?", postId)
+	err := query.Count(&count).Error
+	return count, err
 }
