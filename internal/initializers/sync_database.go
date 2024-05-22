@@ -28,6 +28,8 @@ func SyncDatabase() {
 		//&models.Subscription{},
 		&models.Notification{},
 		&models.PushSubscription{},
+		&models.Chat{},
+		&models.Message{},
 	}
 
 	for _, model := range modelsToMigrate {
