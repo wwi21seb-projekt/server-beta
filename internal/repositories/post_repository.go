@@ -137,7 +137,14 @@ func (repo *PostRepository) DeletePostById(postId string) error {
 			return result.Error
 		}
 
-		// Delete likes
+		// Delete comments
+		if err := tx.Where("post_id = ?", post.Id).Delete(&models.Comment{}).Error; err != nil {
+      if !errors.Is(err, gorm.ErrRecordNotFound) {
+				return err
+			}
+		}
+
+    // Delete likes
 		if err := tx.Where("post_id = ?", postId).Delete(&models.Like{}).Error; err != nil {
 			if !errors.Is(err, gorm.ErrRecordNotFound) {
 				return err
