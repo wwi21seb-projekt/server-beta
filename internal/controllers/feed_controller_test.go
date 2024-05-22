@@ -27,11 +27,13 @@ func TestGetPostsByUsernameSuccess(t *testing.T) {
 	mockUserRepository := new(repositories.MockUserRepository)
 	mockPostRepository := new(repositories.MockPostRepository)
 	mockLikeRepository := new(repositories.MockLikeRepository)
+	mockCommentRepository := new(repositories.MockCommentRepository)
 
 	feedService := services.NewFeedService(
 		mockPostRepository,
 		mockUserRepository,
 		mockLikeRepository,
+		mockCommentRepository,
 	)
 	feedController := controllers.NewFeedController(feedService)
 
@@ -86,6 +88,11 @@ func TestGetPostsByUsernameSuccess(t *testing.T) {
 	mockLikeRepository.On("FindLike", posts[0].Id.String(), currentUsername).Return(&models.Like{}, gorm.ErrRecordNotFound) // First post not liked by current user
 	mockLikeRepository.On("FindLike", posts[1].Id.String(), currentUsername).Return(&models.Like{}, nil)                    // Second post liked by current user
 
+	firstPostComments := int64(0)
+	secondPostComments := int64(5)
+	mockCommentRepository.On("CountComments", posts[0].Id.String()).Return(firstPostComments, nil)
+	mockCommentRepository.On("CountComments", posts[1].Id.String()).Return(secondPostComments, nil)
+
 	// Setup HTTP request
 	url := "/users/" + user.Username + "/feed?offset=" + fmt.Sprint(offset) + "&limit=" + fmt.Sprint(limit)
 	req, _ := http.NewRequest("GET", url, nil)
@@ -109,6 +116,7 @@ func TestGetPostsByUsernameSuccess(t *testing.T) {
 	assert.Equal(t, posts[0].Id.String(), response.Records[0].PostId)
 	assert.Equal(t, posts[0].Content, response.Records[0].Content)
 	assert.True(t, posts[0].CreatedAt.Equal(response.Records[0].CreationDate))
+	assert.Equal(t, firstPostComments, response.Records[0].Comments)
 	assert.Equal(t, firstPostLikes, response.Records[0].Likes)
 	assert.Equal(t, false, response.Records[0].Liked)
 	assert.NotNil(t, response.Records[0].Location)
@@ -119,6 +127,7 @@ func TestGetPostsByUsernameSuccess(t *testing.T) {
 	assert.Equal(t, posts[1].Id.String(), response.Records[1].PostId)
 	assert.Equal(t, posts[1].Content, response.Records[1].Content)
 	assert.True(t, posts[1].CreatedAt.Equal(response.Records[1].CreationDate))
+	assert.Equal(t, secondPostComments, response.Records[1].Comments)
 	assert.Equal(t, secondPostLikes, response.Records[1].Likes)
 	assert.Equal(t, true, response.Records[1].Liked)
 	assert.Nil(t, response.Records[1].Location)
@@ -130,6 +139,8 @@ func TestGetPostsByUsernameSuccess(t *testing.T) {
 	// Validate Mock Expectations
 	mockUserRepository.AssertExpectations(t)
 	mockPostRepository.AssertExpectations(t)
+	mockLikeRepository.AssertExpectations(t)
+	mockCommentRepository.AssertExpectations(t)
 }
 
 // TestGetPostsByUsernameUnauthorized tests if the GetPostsByUserUsername function returns a 401 unauthorized if the user is not authenticated
@@ -147,6 +158,7 @@ func TestGetPostsByUsernameUnauthorized(t *testing.T) {
 		feedService := services.NewFeedService(
 			mockPostRepository,
 			mockUserRepository,
+			nil,
 			nil,
 		)
 		feedController := controllers.NewFeedController(feedService)
@@ -186,6 +198,7 @@ func TestGetPostsByUsernameUserNotFound(t *testing.T) {
 	feedService := services.NewFeedService(
 		mockPostRepository,
 		mockUserRepository,
+		nil,
 		nil,
 	)
 	feedController := controllers.NewFeedController(feedService)
@@ -242,11 +255,13 @@ func TestGetGlobalPostFeedSuccess(t *testing.T) {
 		mockUserRepository := new(repositories.MockUserRepository)
 		mockPostRepository := new(repositories.MockPostRepository)
 		mockLikeRepository := new(repositories.MockLikeRepository)
+		mockCommentRepository := new(repositories.MockCommentRepository)
 
 		feedService := services.NewFeedService(
 			mockPostRepository,
 			mockUserRepository,
 			mockLikeRepository,
+			mockCommentRepository,
 		)
 		feedController := controllers.NewFeedController(feedService)
 
@@ -308,6 +323,11 @@ func TestGetGlobalPostFeedSuccess(t *testing.T) {
 		mockLikeRepository.On("CountLikes", nextPosts[0].Id.String()).Return(firstPostLikes, nil)
 		mockLikeRepository.On("CountLikes", nextPosts[1].Id.String()).Return(secondPostLikes, nil)
 
+		firstCommentCount := int64(0)
+		secondCommentCount := int64(5)
+		mockCommentRepository.On("CountComments", nextPosts[0].Id.String()).Return(firstCommentCount, nil)
+		mockCommentRepository.On("CountComments", nextPosts[1].Id.String()).Return(secondCommentCount, nil)
+
 		mockLikeRepository.On("FindLike", nextPosts[0].Id.String(), mock.AnythingOfType("string")).Return(&models.Like{}, gorm.ErrRecordNotFound) // First post not liked by current user
 		mockLikeRepository.On("FindLike", nextPosts[1].Id.String(), mock.AnythingOfType("string")).Return(&models.Like{}, gorm.ErrRecordNotFound) // Second post not liked by current user
 
@@ -347,6 +367,7 @@ func TestGetGlobalPostFeedSuccess(t *testing.T) {
 		assert.Equal(t, nextPosts[0].Content, responsePostFeed.Records[0].Content)
 		assert.True(t, nextPosts[0].CreatedAt.Equal(responsePostFeed.Records[0].CreationDate))
 		assert.NotNil(t, responsePostFeed.Records[0].Location)
+		assert.Equal(t, firstCommentCount, responsePostFeed.Records[0].Comments)
 		assert.Equal(t, firstPostLikes, responsePostFeed.Records[0].Likes)
 		assert.Equal(t, false, responsePostFeed.Records[0].Liked)
 		assert.Equal(t, nextPosts[0].Location.Latitude, *responsePostFeed.Records[0].Location.Latitude)
@@ -357,6 +378,7 @@ func TestGetGlobalPostFeedSuccess(t *testing.T) {
 		assert.Equal(t, nextPosts[1].Username, responsePostFeed.Records[1].Author.Username)
 		assert.Equal(t, nextPosts[1].Content, responsePostFeed.Records[1].Content)
 		assert.True(t, nextPosts[1].CreatedAt.Equal(responsePostFeed.Records[1].CreationDate))
+		assert.Equal(t, secondCommentCount, responsePostFeed.Records[1].Comments)
 		assert.Equal(t, secondPostLikes, responsePostFeed.Records[1].Likes)
 		assert.Equal(t, false, responsePostFeed.Records[1].Liked)
 		assert.Nil(t, responsePostFeed.Records[1].Location)
@@ -366,6 +388,9 @@ func TestGetGlobalPostFeedSuccess(t *testing.T) {
 		assert.Equal(t, responsePostFeed.Records[1].PostId.String(), responsePostFeed.Pagination.LastPostId)
 
 		mockPostRepository.AssertExpectations(t)
+		mockUserRepository.AssertExpectations(t)
+		mockLikeRepository.AssertExpectations(t)
+		mockCommentRepository.AssertExpectations(t)
 	}
 }
 
@@ -378,6 +403,7 @@ func TestGetGlobalPostFeedDefaultParameters(t *testing.T) {
 	feedService := services.NewFeedService(
 		mockPostRepository,
 		mockUserRepository,
+		nil,
 		nil,
 	)
 	feedController := controllers.NewFeedController(feedService)
@@ -419,11 +445,13 @@ func TestGetPersonalPostFeedSuccess(t *testing.T) {
 	mockUserRepository := new(repositories.MockUserRepository)
 	mockPostRepository := new(repositories.MockPostRepository)
 	mockLikeRepository := new(repositories.MockLikeRepository)
+	mockCommentRepository := new(repositories.MockCommentRepository)
 
 	feedService := services.NewFeedService(
 		mockPostRepository,
 		mockUserRepository,
 		mockLikeRepository,
+		mockCommentRepository,
 	)
 	feedController := controllers.NewFeedController(feedService)
 
@@ -491,6 +519,11 @@ func TestGetPersonalPostFeedSuccess(t *testing.T) {
 	mockLikeRepository.On("CountLikes", nextPosts[0].Id.String()).Return(firstPostLikes, nil)
 	mockLikeRepository.On("CountLikes", nextPosts[1].Id.String()).Return(secondPostLikes, nil)
 
+	firstPostComments := int64(0)
+	secondPostComments := int64(5)
+	mockCommentRepository.On("CountComments", nextPosts[0].Id.String()).Return(firstPostComments, nil)
+	mockCommentRepository.On("CountComments", nextPosts[1].Id.String()).Return(secondPostComments, nil)
+
 	mockLikeRepository.On("FindLike", nextPosts[0].Id.String(), currentUsername).Return(&models.Like{}, gorm.ErrRecordNotFound) // First post not liked by current user
 	mockLikeRepository.On("FindLike", nextPosts[1].Id.String(), currentUsername).Return(&models.Like{}, nil)                    // Second post liked by current user
 
@@ -524,6 +557,7 @@ func TestGetPersonalPostFeedSuccess(t *testing.T) {
 	assert.Equal(t, nextPosts[0].Username, responsePostFeed.Records[0].Author.Username)
 	assert.Equal(t, nextPosts[0].Content, responsePostFeed.Records[0].Content)
 	assert.True(t, nextPosts[0].CreatedAt.Equal(responsePostFeed.Records[0].CreationDate))
+	assert.Equal(t, firstPostComments, responsePostFeed.Records[0].Comments)
 	assert.Equal(t, firstPostLikes, responsePostFeed.Records[0].Likes)
 	assert.Equal(t, false, responsePostFeed.Records[0].Liked)
 	assert.NotNil(t, responsePostFeed.Records[0].Location)
@@ -535,6 +569,7 @@ func TestGetPersonalPostFeedSuccess(t *testing.T) {
 	assert.Equal(t, nextPosts[1].Username, responsePostFeed.Records[1].Author.Username)
 	assert.Equal(t, nextPosts[1].Content, responsePostFeed.Records[1].Content)
 	assert.True(t, nextPosts[1].CreatedAt.Equal(responsePostFeed.Records[1].CreationDate))
+	assert.Equal(t, secondPostComments, responsePostFeed.Records[1].Comments)
 	assert.Equal(t, secondPostLikes, responsePostFeed.Records[1].Likes)
 	assert.Equal(t, true, responsePostFeed.Records[1].Liked)
 	assert.Nil(t, responsePostFeed.Records[1].Location)
@@ -544,6 +579,9 @@ func TestGetPersonalPostFeedSuccess(t *testing.T) {
 	assert.Equal(t, responsePostFeed.Records[1].PostId.String(), responsePostFeed.Pagination.LastPostId)
 
 	mockPostRepository.AssertExpectations(t)
+	mockUserRepository.AssertExpectations(t)
+	mockLikeRepository.AssertExpectations(t)
+	mockCommentRepository.AssertExpectations(t)
 }
 
 // TestGetPersonalPostFeedDefaultParameters tests if the GetPostFeed function returns a 200 OK and an empty list when last post is not found and default parameters are used
@@ -555,6 +593,7 @@ func TestGetPersonalPostFeeDefaultParameters(t *testing.T) {
 	feedService := services.NewFeedService(
 		mockPostRepository,
 		mockUserRepository,
+		nil,
 		nil,
 	)
 	feedController := controllers.NewFeedController(feedService)
@@ -613,6 +652,7 @@ func TestGetPersonalPostFeedUnauthorized(t *testing.T) {
 			mockPostRepository,
 			mockUserRepository,
 			nil,
+			nil,
 		)
 		feedController := controllers.NewFeedController(feedService)
 
@@ -649,11 +689,13 @@ func TestGetPostsByHashtagSuccess(t *testing.T) {
 	// Arrange
 	mockPostRepository := new(repositories.MockPostRepository)
 	mockLikeRepository := new(repositories.MockLikeRepository)
+	mockCommentRepository := new(repositories.MockCommentRepository)
 
 	feedService := services.NewFeedService(
 		mockPostRepository,
 		nil,
 		mockLikeRepository,
+		mockCommentRepository,
 	)
 	feedController := controllers.NewFeedController(feedService)
 
@@ -719,6 +761,11 @@ func TestGetPostsByHashtagSuccess(t *testing.T) {
 	mockLikeRepository.On("CountLikes", posts[0].Id.String()).Return(firstPostLikes, nil)
 	mockLikeRepository.On("CountLikes", posts[1].Id.String()).Return(secondPostLikes, nil)
 
+	firstPostComments := int64(0)
+	secondPostComments := int64(5)
+	mockCommentRepository.On("CountComments", posts[0].Id.String()).Return(firstPostComments, nil)
+	mockCommentRepository.On("CountComments", posts[1].Id.String()).Return(secondPostComments, nil)
+
 	mockLikeRepository.On("FindLike", posts[0].Id.String(), currentUsername).Return(&models.Like{}, gorm.ErrRecordNotFound) // First post not liked by current user
 	mockLikeRepository.On("FindLike", posts[1].Id.String(), currentUsername).Return(&models.Like{}, nil)                    // Second post liked by current user
 
@@ -755,6 +802,7 @@ func TestGetPostsByHashtagSuccess(t *testing.T) {
 	assert.Equal(t, posts[0].User.ProfilePictureUrl, responsePostFeed.Records[0].Author.ProfilePictureUrl)
 	assert.Equal(t, posts[0].Content, responsePostFeed.Records[0].Content)
 	assert.True(t, posts[0].CreatedAt.Equal(responsePostFeed.Records[0].CreationDate))
+	assert.Equal(t, firstPostComments, responsePostFeed.Records[0].Comments)
 	assert.Equal(t, firstPostLikes, responsePostFeed.Records[0].Likes)
 	assert.Equal(t, false, responsePostFeed.Records[0].Liked)
 	assert.NotNil(t, responsePostFeed.Records[0].Location)
@@ -768,6 +816,7 @@ func TestGetPostsByHashtagSuccess(t *testing.T) {
 	assert.Equal(t, posts[1].User.ProfilePictureUrl, responsePostFeed.Records[1].Author.ProfilePictureUrl)
 	assert.Equal(t, posts[1].Content, responsePostFeed.Records[1].Content)
 	assert.True(t, posts[1].CreatedAt.Equal(responsePostFeed.Records[1].CreationDate))
+	assert.Equal(t, secondPostComments, responsePostFeed.Records[1].Comments)
 	assert.Equal(t, secondPostLikes, responsePostFeed.Records[1].Likes)
 	assert.Equal(t, true, responsePostFeed.Records[1].Liked)
 	assert.Nil(t, responsePostFeed.Records[1].Location)
@@ -777,6 +826,8 @@ func TestGetPostsByHashtagSuccess(t *testing.T) {
 	assert.Equal(t, responsePostFeed.Records[1].PostId.String(), responsePostFeed.Pagination.LastPostId)
 
 	mockPostRepository.AssertExpectations(t)
+	mockLikeRepository.AssertExpectations(t)
+	mockCommentRepository.AssertExpectations(t)
 }
 
 // TestGetPostsByHashtagUnauthorized tests if the GetPostsByHashtag function returns a 401 unauthorized if the user is not authenticated
@@ -792,6 +843,7 @@ func TestGetPostsByHashtagUnauthorized(t *testing.T) {
 
 		feedService := services.NewFeedService(
 			mockPostRepository,
+			nil,
 			nil,
 			nil,
 		)

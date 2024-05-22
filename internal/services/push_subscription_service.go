@@ -112,35 +112,39 @@ func (service *PushSubscriptionService) SendPushMessages(notificationObject inte
 
 	// Send push messages
 	for _, pushSubscription := range pushSubscriptions {
-		sub := &webpush.Subscription{
-			Endpoint: pushSubscription.Endpoint,
-			Keys: webpush.Keys{
-				P256dh: pushSubscription.P256dh,
-				Auth:   pushSubscription.Auth,
-			},
-		}
+		go service.sendPushToClient(&pushSubscription, notificationString) // send push message in background
+	}
+}
 
-		resp, err := webpush.SendNotification([]byte(notificationString), sub, &webpush.Options{
-			Subscriber:      service.serverMail,
-			VAPIDPublicKey:  service.vapidPublicKey,
-			VAPIDPrivateKey: service.vapidPrivateKey,
-			TTL:             30,
-		})
+func (service *PushSubscriptionService) sendPushToClient(pushSubscription *models.PushSubscription, notificationString string) {
+	sub := &webpush.Subscription{
+		Endpoint: pushSubscription.Endpoint,
+		Keys: webpush.Keys{
+			P256dh: pushSubscription.P256dh,
+			Auth:   pushSubscription.Auth,
+		},
+	}
 
-		if err != nil {
-			fmt.Println(err, ", error sending notification to", pushSubscription.Username)
-			continue
-		}
+	resp, err := webpush.SendNotification([]byte(notificationString), sub, &webpush.Options{
+		Subscriber:      service.serverMail,
+		VAPIDPublicKey:  service.vapidPublicKey,
+		VAPIDPrivateKey: service.vapidPrivateKey,
+		TTL:             30,
+	})
 
-		fmt.Println("Notification sent to", pushSubscription.Username)
-		fmt.Println("Status:", resp.Status)
-		bodyBytes, _ := io.ReadAll(resp.Body)
-		fmt.Println("Response Body:", string(bodyBytes))
+	if err != nil {
+		fmt.Println(err, ", error sending notification to", pushSubscription.Username)
+		return
+	}
 
-		// If the subscription is deactivated or expired, delete it
-		if resp.StatusCode == http.StatusGone {
-			_ = service.pushSubscriptionRepo.DeletePushSubscriptionById(pushSubscription.Id.String())
-			continue
-		}
+	fmt.Println("Notification sent to", pushSubscription.Username)
+	fmt.Println("Status:", resp.Status)
+	bodyBytes, _ := io.ReadAll(resp.Body)
+	fmt.Println("Response Body:", string(bodyBytes))
+
+	// If the subscription is deactivated or expired, delete it
+	if resp.StatusCode == http.StatusGone {
+		_ = service.pushSubscriptionRepo.DeletePushSubscriptionById(pushSubscription.Id.String())
+		return
 	}
 }

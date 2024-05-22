@@ -29,6 +29,7 @@ type PostResponseDTO struct {
 	Author       *AuthorDTO       `json:"author"`
 	CreationDate time.Time        `json:"creationDate"`
 	Content      string           `json:"content"`
+	Comments     int64            `json:"comments"`
 	Likes        int64            `json:"likes"`
 	Liked        bool             `json:"liked"`
 	Location     *LocationDTO     `json:"location"`
@@ -50,6 +51,7 @@ type UserFeedRecordDTO struct { // Post response dto without author for user fee
 	PostId       string           `json:"postId"`
 	CreationDate time.Time        `json:"creationDate"`
 	Content      string           `json:"content"`
+	Comments     int64            `json:"comments"`
 	Likes        int64            `json:"likes"`
 	Liked        bool             `json:"liked"`
 	Location     *LocationDTO     `json:"location"`

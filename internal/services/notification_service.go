@@ -52,7 +52,7 @@ func (service *NotificationService) CreateNotification(notificationType string, 
 			ProfilePictureUrl: newNotification.FromUser.ProfilePictureUrl,
 		},
 	}
-	go service.PushSubscriptionService.SendPushMessages(notificationDto, forUsername) // send push message in background
+	service.PushSubscriptionService.SendPushMessages(notificationDto, forUsername) // send push message in background
 
 	return err
 }

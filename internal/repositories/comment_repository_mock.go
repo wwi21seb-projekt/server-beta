@@ -18,3 +18,8 @@ func (m *MockCommentRepository) GetCommentsByPostId(postId string, offset, limit
 	args := m.Called(postId, offset, limit)
 	return args.Get(0).([]models.Comment), args.Get(1).(int64), args.Error(2)
 }
+
+func (m *MockCommentRepository) CountComments(postId string) (int64, error) {
+	args := m.Called(postId)
+	return args.Get(0).(int64), args.Error(1)
+}

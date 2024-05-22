@@ -29,6 +29,7 @@ type PostService struct {
 	validator           utils.ValidatorInterface
 	locationRepo        repositories.LocationRepositoryInterface
 	likeRepo            repositories.LikeRepositoryInterface
+	commentRepo         repositories.CommentRepositoryInterface
 	policy              *bluemonday.Policy
 	notificationService NotificationServiceInterface
 }
@@ -41,8 +42,9 @@ func NewPostService(postRepo repositories.PostRepositoryInterface,
 	validator utils.ValidatorInterface,
 	locationRepo repositories.LocationRepositoryInterface,
 	likeRepo repositories.LikeRepositoryInterface,
+	commentRepo repositories.CommentRepositoryInterface,
 	notificationService NotificationServiceInterface) *PostService {
-	return &PostService{postRepo: postRepo, userRepo: userRepo, hashtagRepo: hashtagRepo, imageService: imageService, validator: validator, locationRepo: locationRepo, likeRepo: likeRepo, policy: bluemonday.UGCPolicy(), notificationService: notificationService}
+	return &PostService{postRepo: postRepo, userRepo: userRepo, hashtagRepo: hashtagRepo, imageService: imageService, validator: validator, locationRepo: locationRepo, likeRepo: likeRepo, commentRepo: commentRepo, policy: bluemonday.UGCPolicy(), notificationService: notificationService}
 }
 
 func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *multipart.FileHeader, username string) (*models.PostResponseDTO, *customerrors.CustomError, int) {
@@ -69,9 +71,10 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *m
 			return nil, customerrors.BadRequest, http.StatusBadRequest // repost of a repost is not allowed
 		}
 
-		// Get like information of repost
+		// Get like and comments information of repost
 		var repostLikeCount int64 = 0
 		var repostLikedByCurrentUser = false
+		var repostCommentsCount int64 = 0
 		_, err = service.likeRepo.FindLike(repost.Id.String(), username)
 		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, customerrors.DatabaseError, http.StatusInternalServerError
@@ -79,10 +82,17 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *m
 		if err == nil {
 			repostLikedByCurrentUser = true
 		}
-		repostLikeCount = service.likeRepo.CountLikes(repost.Id.String())
+		repostLikeCount, err = service.likeRepo.CountLikes(repost.Id.String())
+		if err != nil {
+			return nil, customerrors.DatabaseError, http.StatusInternalServerError
+		}
+		repostCommentsCount, err = service.commentRepo.CountComments(repost.Id.String())
+		if err != nil {
+			return nil, customerrors.DatabaseError, http.StatusInternalServerError
+		}
 
 		// Create dto
-		repostDto = createPostResponseFromPostObject(&repost, &repost.User, &repost.Location, nil, repostLikeCount, repostLikedByCurrentUser)
+		repostDto = createPostResponseFromPostObject(&repost, &repost.User, &repost.Location, nil, repostCommentsCount, repostLikeCount, repostLikedByCurrentUser)
 
 	}
 
@@ -107,7 +117,7 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *m
 	user, err := service.userRepo.FindUserByUsername(username)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, customerrors.UserUnauthorized, http.StatusUnauthorized
+			return nil, customerrors.UserUnauthorized, http.StatusUnauthorized // not reachable, because of JWT middleware
 		}
 		return nil, customerrors.DatabaseError, http.StatusInternalServerError
 	}
@@ -167,7 +177,7 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *m
 	}
 
 	// Create response dto and return
-	postDto := createPostResponseFromPostObject(&post, user, location, repostDto, 0, false) // no likes yet
+	postDto := createPostResponseFromPostObject(&post, user, location, repostDto, 0, 0, false) // no likes and comments yet
 
 	// Create notification for owner of original post
 	if repostId != nil {
@@ -180,6 +190,7 @@ func createPostResponseFromPostObject(
 	post *models.Post, user *models.User,
 	location *models.Location,
 	repostDto *models.PostResponseDTO,
+	commentsCount int64,
 	likesCount int64,
 	likedByCurrentUser bool) *models.PostResponseDTO {
 	var locationDTO *models.LocationDTO
@@ -200,6 +211,7 @@ func createPostResponseFromPostObject(
 		},
 		CreationDate: post.CreatedAt,
 		Content:      post.Content,
+		Comments:     commentsCount,
 		Likes:        likesCount,
 		Liked:        likedByCurrentUser,
 		Location:     locationDTO,
