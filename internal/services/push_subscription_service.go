@@ -86,7 +86,7 @@ func (service *PushSubscriptionService) CreatePushSubscription(req *models.PushS
 			return nil, customerrors.BadRequest, http.StatusBadRequest
 		}
 
-		req.SubscriptionInfo = models.SubscriptionInfo{} // subscription info is not required for expo push notifications
+		req.SubscriptionInfo = &models.SubscriptionInfo{} // subscription info is not required for expo push notifications
 	}
 
 	// Create a new push subscription

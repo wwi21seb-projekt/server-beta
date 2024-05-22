@@ -28,9 +28,9 @@ type SubscriptionInfo struct {
 }
 
 type PushSubscriptionRequestDTO struct {
-	Type             string           `json:"type" binding:"required"`
-	SubscriptionInfo SubscriptionInfo `json:"subscription"` // subscription info for web push notifications
-	Token            string           `json:"token"`        // token for expo push notifications
+	Type             string            `json:"type" binding:"required"`
+	SubscriptionInfo *SubscriptionInfo `json:"subscription"` // subscription info for web push notifications
+	Token            string            `json:"token"`        // token for expo push notifications
 }
 
 type PushSubscriptionResponseDTO struct {

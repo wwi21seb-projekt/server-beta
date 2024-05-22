@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
 	"github.com/wwi21seb-projekt/server-beta/internal/models"
@@ -61,6 +62,7 @@ func (controller *PushSubscriptionController) CreatePushSubscription(c *gin.Cont
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": customerrors.BadRequest,
 		})
+		fmt.Println("Error while binding JSON")
 		return
 	}
 
