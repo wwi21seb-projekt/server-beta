@@ -3,14 +3,14 @@ package models
 import "github.com/google/uuid"
 
 type PushSubscription struct {
-	Id       uuid.UUID `gorm:"column:id;primary_key"`
-	Username string    `gorm:"column:username_fk;type:varchar(20)"`
-	User     User      `gorm:"foreignKey:username_fk;references:username"`
-	Type     string    `gorm:"column:type;type:varchar(4)"` // either "web" or "expo"
-	Endpoint string    `gorm:"column:endpoint;type:text"`   // for web only
-	P256dh   string    `gorm:"column:p256dh;type:text"`     // for web only
-	Auth     string    `gorm:"column:auth;type:text"`       // for web only
-	Token    string    `gorm:"column:token;type:text"`      // for expo only
+	Id        uuid.UUID `gorm:"column:id;primary_key"`
+	Username  string    `gorm:"column:username_fk;type:varchar(20)"`
+	User      User      `gorm:"foreignKey:username_fk;references:username"`
+	Type      string    `gorm:"column:type;type:varchar(4)"` // either "web" or "expo"
+	Endpoint  string    `gorm:"column:endpoint;type:text"`   // for web only
+	P256dh    string    `gorm:"column:p256dh;type:text"`     // for web only
+	Auth      string    `gorm:"column:auth;type:text"`       // for web only
+	ExpoToken string    `gorm:"column:expo_token;type:text"` // for expo only
 }
 
 type VapidKeyResponseDTO struct {

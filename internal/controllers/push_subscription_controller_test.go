@@ -142,7 +142,7 @@ func TestCreatePushSubscriptionWebSuccess(t *testing.T) {
 	assert.Equal(t, capturedPushSubscription.Endpoint, pushSubscriptionCreateRequest.SubscriptionInfo.Endpoint)
 	assert.Equal(t, capturedPushSubscription.P256dh, pushSubscriptionCreateRequest.SubscriptionInfo.SubscriptionKeys.P256dh)
 	assert.Equal(t, capturedPushSubscription.Auth, pushSubscriptionCreateRequest.SubscriptionInfo.SubscriptionKeys.Auth)
-	assert.Equal(t, capturedPushSubscription.Token, "")
+	assert.Equal(t, capturedPushSubscription.ExpoToken, "")
 
 	mockPushSubscriptionRepo.AssertExpectations(t)
 }
@@ -205,7 +205,7 @@ func TestCreatePushSubscriptionExpoSuccess(t *testing.T) {
 	assert.Equal(t, capturedPushSubscription.Endpoint, "")
 	assert.Equal(t, capturedPushSubscription.P256dh, "")
 	assert.Equal(t, capturedPushSubscription.Auth, "")
-	assert.Equal(t, capturedPushSubscription.Token, pushSubscriptionCreateRequest.Token)
+	assert.Equal(t, capturedPushSubscription.ExpoToken, pushSubscriptionCreateRequest.Token)
 
 	mockPushSubscriptionRepo.AssertExpectations(t)
 }

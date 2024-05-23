@@ -91,13 +91,13 @@ func (service *PushSubscriptionService) CreatePushSubscription(req *models.PushS
 
 	// Create a new push subscription
 	newPushSubscription := models.PushSubscription{
-		Id:       uuid.New(),
-		Username: currentUsername,
-		Type:     req.Type,
-		Endpoint: req.SubscriptionInfo.Endpoint,
-		P256dh:   req.SubscriptionInfo.SubscriptionKeys.P256dh,
-		Auth:     req.SubscriptionInfo.SubscriptionKeys.Auth,
-		Token:    req.Token,
+		Id:        uuid.New(),
+		Username:  currentUsername,
+		Type:      req.Type,
+		Endpoint:  req.SubscriptionInfo.Endpoint,
+		P256dh:    req.SubscriptionInfo.SubscriptionKeys.P256dh,
+		Auth:      req.SubscriptionInfo.SubscriptionKeys.Auth,
+		ExpoToken: req.Token,
 	}
 
 	err := service.pushSubscriptionRepo.CreatePushSubscription(&newPushSubscription)
@@ -183,7 +183,7 @@ func (service *PushSubscriptionService) sendExpoPushNotification(pushSubscriptio
 	expoApiUrl := "https://exp.host/--/api/v2/push/send"
 
 	data := map[string]interface{}{
-		"to":    "ExponentPushToken[" + pushSubscription.Token + "]",
+		"to":    "ExponentPushToken[" + pushSubscription.ExpoToken + "]",
 		"title": "Notification from Server Beta",
 		"body":  notificationString,
 	}
