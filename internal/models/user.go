@@ -13,6 +13,7 @@ type User struct {
 	Activated         bool      `gorm:"column:activated;not_null"`
 	ProfilePictureUrl string    `gorm:"column:profile_picture_url;type:varchar(128);null"`
 	Status            string    `gorm:"column:status;type:varchar(128)"`
+	Chats             []Chat    `gorm:"many2many:chat_users;"` // gorm handles the join table
 }
 
 type UserCreateRequestDTO struct {
