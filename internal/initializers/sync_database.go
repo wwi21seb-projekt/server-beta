@@ -25,7 +25,7 @@ func SyncDatabase() {
 		&models.Comment{},
 		&models.Like{},
 		&models.Hashtag{},
-		//&models.Subscription{},
+		&models.Subscription{},
 		&models.Notification{},
 		&models.PushSubscription{},
 		&models.Chat{},
