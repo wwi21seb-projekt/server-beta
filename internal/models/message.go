@@ -1,9 +1,12 @@
 package models
 
-import "time"
+import (
+	"github.com/google/uuid"
+	"time"
+)
 
 type Message struct {
-	Id        string    `gorm:"column:id;primary_key"`
+	Id        uuid.UUID `gorm:"column:id;primary_key"`
 	ChatId    string    `gorm:"column:chat_id"`
 	Chat      Chat      `gorm:"foreignKey:chat_id;references:id"`
 	Username  string    `gorm:"column:username_fk;type:varchar(20)"`
