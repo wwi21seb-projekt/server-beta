@@ -1,6 +1,7 @@
 package services
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -54,35 +55,52 @@ func (service *PushSubscriptionService) CreatePushSubscription(req *models.PushS
 	if req.Type != "web" && req.Type != "expo" {
 		return nil, customerrors.BadRequest, http.StatusBadRequest
 	}
-	// endpoint needs to be a valid URL
-	_, err := url.ParseRequestURI(req.SubscriptionInfo.Endpoint)
-	if err != nil || len(req.SubscriptionInfo.Endpoint) <= 0 {
-		return nil, customerrors.BadRequest, http.StatusBadRequest
+
+	// For web push notifications endpoint, p256dh and auth keys are required
+	if req.Type == "web" {
+		// endpoint needs to be a valid URL
+		_, err := url.ParseRequestURI(req.SubscriptionInfo.Endpoint)
+		if err != nil || len(req.SubscriptionInfo.Endpoint) <= 0 {
+			return nil, customerrors.BadRequest, http.StatusBadRequest
+		}
+		// keys cannot be empty and need to be base64-URL encoded
+		if len(req.SubscriptionInfo.SubscriptionKeys.P256dh) <= 0 || len(req.SubscriptionInfo.SubscriptionKeys.Auth) <= 0 {
+			return nil, customerrors.BadRequest, http.StatusBadRequest
+		}
+		_, err = base64.RawURLEncoding.DecodeString(req.SubscriptionInfo.SubscriptionKeys.P256dh)
+		if err != nil {
+			return nil, customerrors.BadRequest, http.StatusBadRequest
+		}
+		_, err = base64.RawURLEncoding.DecodeString(req.SubscriptionInfo.SubscriptionKeys.Auth)
+		if err != nil {
+			return nil, customerrors.BadRequest, http.StatusBadRequest
+		}
+
+		req.Token = "" // token is not required for web push notifications
 	}
-	// keys cannot be empty and need to be base64-URL encoded
-	if len(req.SubscriptionInfo.SubscriptionKeys.P256dh) <= 0 || len(req.SubscriptionInfo.SubscriptionKeys.Auth) <= 0 {
-		return nil, customerrors.BadRequest, http.StatusBadRequest
-	}
-	_, err = base64.RawURLEncoding.DecodeString(req.SubscriptionInfo.SubscriptionKeys.P256dh)
-	if err != nil {
-		return nil, customerrors.BadRequest, http.StatusBadRequest
-	}
-	_, err = base64.RawURLEncoding.DecodeString(req.SubscriptionInfo.SubscriptionKeys.Auth)
-	if err != nil {
-		return nil, customerrors.BadRequest, http.StatusBadRequest
+
+	// For expo push notifications only token is required
+	if req.Type == "expo" {
+		// token needs to be a valid string
+		if len(req.Token) <= 0 {
+			return nil, customerrors.BadRequest, http.StatusBadRequest
+		}
+
+		req.SubscriptionInfo = &models.SubscriptionInfo{} // subscription info is not required for expo push notifications
 	}
 
 	// Create a new push subscription
 	newPushSubscription := models.PushSubscription{
-		Id:       uuid.New(),
-		Username: currentUsername,
-		Type:     req.Type,
-		Endpoint: req.SubscriptionInfo.Endpoint,
-		P256dh:   req.SubscriptionInfo.SubscriptionKeys.P256dh,
-		Auth:     req.SubscriptionInfo.SubscriptionKeys.Auth,
+		Id:        uuid.New(),
+		Username:  currentUsername,
+		Type:      req.Type,
+		Endpoint:  req.SubscriptionInfo.Endpoint,
+		P256dh:    req.SubscriptionInfo.SubscriptionKeys.P256dh,
+		Auth:      req.SubscriptionInfo.SubscriptionKeys.Auth,
+		ExpoToken: req.Token,
 	}
 
-	err = service.pushSubscriptionRepo.CreatePushSubscription(&newPushSubscription)
+	err := service.pushSubscriptionRepo.CreatePushSubscription(&newPushSubscription)
 	if err != nil {
 		return nil, customerrors.DatabaseError, http.StatusInternalServerError
 	}
@@ -112,11 +130,20 @@ func (service *PushSubscriptionService) SendPushMessages(notificationObject inte
 
 	// Send push messages
 	for _, pushSubscription := range pushSubscriptions {
-		go service.sendPushToClient(&pushSubscription, notificationString) // send push message in background
+		if pushSubscription.Type == "web" {
+			go service.sendWebPushNotification(&pushSubscription, notificationString) // send push message in background
+			continue
+		}
+		if pushSubscription.Type == "expo" {
+			go service.sendExpoPushNotification(&pushSubscription, notificationString) // send push message in background
+			continue
+		}
 	}
 }
 
-func (service *PushSubscriptionService) sendPushToClient(pushSubscription *models.PushSubscription, notificationString string) {
+// sendWebPushNotification sends a push notification to a web client using the webpush-go library and provided keys
+func (service *PushSubscriptionService) sendWebPushNotification(pushSubscription *models.PushSubscription, notificationString string) {
+	// send notification to web client
 	sub := &webpush.Subscription{
 		Endpoint: pushSubscription.Endpoint,
 		Keys: webpush.Keys{
@@ -137,13 +164,74 @@ func (service *PushSubscriptionService) sendPushToClient(pushSubscription *model
 		return
 	}
 
-	fmt.Println("Notification sent to", pushSubscription.Username)
+	// Print response information
+	fmt.Println("Notification sent to", pushSubscription.Username, "with type web")
 	fmt.Println("Status:", resp.Status)
 	bodyBytes, _ := io.ReadAll(resp.Body)
 	fmt.Println("Response Body:", string(bodyBytes))
 
 	// If the subscription is deactivated or expired, delete it
 	if resp.StatusCode == http.StatusGone {
+		_ = service.pushSubscriptionRepo.DeletePushSubscriptionById(pushSubscription.Id.String())
+		return
+	}
+}
+
+// sendExpoPushNotification sends a push notification to an expo client using the expo API
+func (service *PushSubscriptionService) sendExpoPushNotification(pushSubscription *models.PushSubscription, notificationString string) {
+	// Create request
+	expoApiUrl := "https://exp.host/--/api/v2/push/send"
+
+	data := map[string]interface{}{
+		"to":    "ExponentPushToken[" + pushSubscription.ExpoToken + "]",
+		"title": "Notification from Server Beta",
+		"body":  notificationString,
+	}
+
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return
+	}
+
+	// Send request to expo API
+	req, err := http.NewRequest("POST", expoApiUrl, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Println(err, ", error sending notification to", pushSubscription.Username)
+		return
+	}
+
+	// Print response information
+	fmt.Println("Notification sent to", pushSubscription.Username, "with type expo")
+	fmt.Println("Status:", resp.Status)
+	bodyBytes, _ := io.ReadAll(resp.Body)
+	fmt.Println("Response Body:", string(bodyBytes))
+
+	type Response struct {
+		Data struct {
+			Status  string `json:"status"`
+			Message string `json:"message,omitempty"`
+			Details struct {
+				Error string `json:"error,omitempty"`
+			} `json:"details,omitempty"`
+		} `json:"data"`
+	}
+
+	var response Response
+	err = json.Unmarshal(bodyBytes, &response)
+	if err != nil {
+		fmt.Println("Error response JSON:", err)
+		return
+	}
+
+	// If the notification could not be sent, delete the subscription
+	if response.Data.Details.Error == "DeviceNotRegistered" {
 		_ = service.pushSubscriptionRepo.DeletePushSubscriptionById(pushSubscription.Id.String())
 		return
 	}

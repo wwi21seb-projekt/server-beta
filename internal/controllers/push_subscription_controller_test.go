@@ -78,8 +78,8 @@ func TestGetVapidKeyUnauthorized(t *testing.T) {
 
 }
 
-// TestCreatePushSubscriptionSuccess tests if the function CreatePushSubscription saves a new push subscription key to the database if user is authorized and req body is correct
-func TestCreatePushSubscriptionSuccess(t *testing.T) {
+// TestCreatePushSubscriptionWebSuccess tests if the function CreatePushSubscription saves a new web push subscription key to the database if user is authorized and req body is correct
+func TestCreatePushSubscriptionWebSuccess(t *testing.T) {
 	// Arrange
 	mockPushSubscriptionRepo := new(repositories.MockPushSubscriptionRepository)
 
@@ -94,7 +94,7 @@ func TestCreatePushSubscriptionSuccess(t *testing.T) {
 
 	pushSubscriptionCreateRequest := models.PushSubscriptionRequestDTO{
 		Type: "web",
-		SubscriptionInfo: models.SubscriptionInfo{
+		SubscriptionInfo: &models.SubscriptionInfo{
 			Endpoint: "https://example.com",
 			SubscriptionKeys: models.SubscriptionKeys{
 				P256dh: "dGVzdA",
@@ -142,6 +142,70 @@ func TestCreatePushSubscriptionSuccess(t *testing.T) {
 	assert.Equal(t, capturedPushSubscription.Endpoint, pushSubscriptionCreateRequest.SubscriptionInfo.Endpoint)
 	assert.Equal(t, capturedPushSubscription.P256dh, pushSubscriptionCreateRequest.SubscriptionInfo.SubscriptionKeys.P256dh)
 	assert.Equal(t, capturedPushSubscription.Auth, pushSubscriptionCreateRequest.SubscriptionInfo.SubscriptionKeys.Auth)
+	assert.Equal(t, capturedPushSubscription.ExpoToken, "")
+
+	mockPushSubscriptionRepo.AssertExpectations(t)
+}
+
+// TestCreatePushSubscriptionExpoSuccess tests if the function CreatePushSubscription saves a new expo push subscription key to the database if user is authorized and req body is correct
+func TestCreatePushSubscriptionExpoSuccess(t *testing.T) {
+	// Arrange
+	mockPushSubscriptionRepo := new(repositories.MockPushSubscriptionRepository)
+
+	pushSubscriptionService := services.NewPushSubscriptionService(mockPushSubscriptionRepo)
+	pushSubscriptionController := controllers.NewPushSubscriptionController(pushSubscriptionService)
+
+	testUsername := "testUser"
+	authorizationToken, err := utils.GenerateAccessToken(testUsername)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pushSubscriptionCreateRequest := models.PushSubscriptionRequestDTO{
+		Type:  "expo",
+		Token: "1234567890",
+	}
+
+	// Mock expectations
+	var capturedPushSubscription models.PushSubscription
+	mockPushSubscriptionRepo.On("CreatePushSubscription", mock.AnythingOfType("*models.PushSubscription")).
+		Run(func(args mock.Arguments) {
+			capturedPushSubscription = *args.Get(0).(*models.PushSubscription)
+		}).Return(nil)
+
+	// Setup HTTP request and recorder
+	requestBody, err := json.Marshal(pushSubscriptionCreateRequest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req, _ := http.NewRequest(http.MethodPost, "/push/register", bytes.NewBuffer(requestBody))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+authorizationToken)
+	w := httptest.NewRecorder()
+
+	// Act
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+	router.POST("/push/register", middleware.AuthorizeUser, pushSubscriptionController.CreatePushSubscription)
+	router.ServeHTTP(w, req)
+
+	// Assert
+	assert.Equal(t, http.StatusCreated, w.Code) // Expect HTTP 201 Created
+
+	var responseObject models.PushSubscriptionResponseDTO
+	err = json.Unmarshal(w.Body.Bytes(), &responseObject)
+	assert.NoError(t, err)
+
+	assert.NotEqual(t, responseObject.SubscriptionId, "")
+	assert.NotNil(t, responseObject.SubscriptionId)
+
+	assert.Equal(t, responseObject.SubscriptionId, capturedPushSubscription.Id.String())
+	assert.Equal(t, capturedPushSubscription.Username, testUsername)
+	assert.Equal(t, capturedPushSubscription.Type, pushSubscriptionCreateRequest.Type)
+	assert.Equal(t, capturedPushSubscription.Endpoint, "")
+	assert.Equal(t, capturedPushSubscription.P256dh, "")
+	assert.Equal(t, capturedPushSubscription.Auth, "")
+	assert.Equal(t, capturedPushSubscription.ExpoToken, pushSubscriptionCreateRequest.Token)
 
 	mockPushSubscriptionRepo.AssertExpectations(t)
 }
@@ -183,6 +247,11 @@ func TestCreatePushSubscriptionBadRequest(t *testing.T) {
 		`{type: "web", "subscription": {"endpoint": "no url", "keys":{"pd256dh": "dGVzdA", "auth": "dGVzdA"}}}`,                // invalid endpoint
 		`{type: "web", "subscription": {"endpoint": "https://www.example.com", "keys":{"pd256dh": "t", "auth": "dGVzdA"}}}`,    // no base64 encoded pd256dh
 		`{type: "web", "subscription": {"endpoint": "https://www.example.com", "keys":{"pd256dh": "dGVzdA", "auth": "t"}}}`,    // no base64 encoded auth
+		`{type: "web", "token": "1234"}`, // subscription info missing for web
+		`{type: "web"}`,                  // subscription info missing for web
+		`{type: "expo"}`,                 // token missing for expo
+		`{type: "expo", "subscription": {"endpoint": "https://www.example.com", "keys":{"pd256dh": "dGVzd, "auth": "d"}}}`, // invalid token
+
 	}
 
 	for _, body := range invalidBodies {
