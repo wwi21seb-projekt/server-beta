@@ -35,7 +35,7 @@ func (controller *PasswordResetController) PasswordReset(c *gin.Context) {
 	}
 
 	// Initiate password reset
-	serviceErr, httpStatus := controller.passwordResetService.PasswordReset(passwordResetRequestDTO.Username)
+	response, serviceErr, httpStatus := controller.passwordResetService.PasswordReset(passwordResetRequestDTO.Username)
 	if serviceErr != nil {
 		c.JSON(httpStatus, gin.H{
 			"error": serviceErr,
@@ -43,7 +43,7 @@ func (controller *PasswordResetController) PasswordReset(c *gin.Context) {
 		return
 	}
 
-	c.JSON(httpStatus, gin.H{})
+	c.JSON(httpStatus, response)
 }
 
 // SetNewPassword sets a new password using the provided token
@@ -58,8 +58,11 @@ func (controller *PasswordResetController) SetNewPassword(c *gin.Context) {
 		return
 	}
 
+	// Read username from URL
+	username := c.Param("username")
+
 	// Set new password
-	serviceErr, httpStatus := controller.passwordResetService.SetNewPassword(setNewPasswordDTO.Token, setNewPasswordDTO.NewPassword)
+	serviceErr, httpStatus := controller.passwordResetService.SetNewPassword(username, setNewPasswordDTO.Token, setNewPasswordDTO.NewPassword)
 	if serviceErr != nil {
 		c.JSON(httpStatus, gin.H{
 			"error": serviceErr,

@@ -10,12 +10,13 @@ import (
 	"gorm.io/gorm"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 )
 
 type PasswordResetServiceInterface interface {
-	PasswordReset(username string) (*customerrors.CustomError, int)
-	SetNewPassword(token string, newPassword string) (*customerrors.CustomError, int)
+	PasswordReset(username string) (*models.PasswordResetResponseDTO, *customerrors.CustomError, int)
+	SetNewPassword(username string, token string, newPassword string) (*customerrors.CustomError, int)
 }
 
 type PasswordResetService struct {
@@ -40,20 +41,20 @@ func NewPasswordResetService(
 }
 
 // PasswordReset initiates a password reset process by generating a token and sending it via email
-func (service *PasswordResetService) PasswordReset(username string) (*customerrors.CustomError, int) {
+func (service *PasswordResetService) PasswordReset(username string) (*models.PasswordResetResponseDTO, *customerrors.CustomError, int) {
 	// Find user by username
 	user, err := service.userRepo.FindUserByUsername(username)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return customerrors.UserNotFound, http.StatusNotFound
+			return nil, customerrors.UserNotFound, http.StatusNotFound
 		}
-		return customerrors.DatabaseError, http.StatusInternalServerError
+		return nil, customerrors.DatabaseError, http.StatusInternalServerError
 	}
 
 	// Generate token
 	digits, err := utils.GenerateSixDigitCode()
 	if err != nil {
-		return customerrors.InternalServerError, http.StatusInternalServerError
+		return nil, customerrors.InternalServerError, http.StatusInternalServerError
 	}
 
 	resetToken := models.PasswordResetToken{
@@ -65,7 +66,7 @@ func (service *PasswordResetService) PasswordReset(username string) (*customerro
 
 	// Save token to database
 	if err := service.passwordResetRepo.CreatePasswordResetToken(&resetToken); err != nil {
-		return customerrors.DatabaseError, http.StatusInternalServerError
+		return nil, customerrors.DatabaseError, http.StatusInternalServerError
 	}
 
 	// Send email with token
@@ -73,17 +74,45 @@ func (service *PasswordResetService) PasswordReset(username string) (*customerro
 	body := "Your password reset code is:\n\n\t" + resetToken.Token + "\n\nUse this to reset your password."
 	err = service.mailService.SendMail(user.Email, subject, body)
 	if err != nil {
-		return customerrors.EmailNotSent, http.StatusInternalServerError
+		return nil, customerrors.EmailNotSent, http.StatusInternalServerError
 	}
 
-	return nil, http.StatusNoContent
+	// Create response with censored email
+	censoredEmail := censorEmail(user.Email)
+	response := models.PasswordResetResponseDTO{
+		CensoredEmail: censoredEmail,
+	}
+
+	return &response, nil, http.StatusOK
+}
+
+// censorEmail censors the email address for the response
+func censorEmail(email string) string {
+	parts := strings.Split(email, "@")
+	if len(parts) != 2 {
+		return email
+	}
+	name := parts[0]
+	if len(name) > 3 {
+		name = name[:3] + strings.Repeat("*", len(name)-3)
+	}
+	return name + "@" + parts[1]
 }
 
 // SetNewPassword sets a new password for the user if the provided token is valid
-func (service *PasswordResetService) SetNewPassword(token string, newPassword string) (*customerrors.CustomError, int) {
+func (service *PasswordResetService) SetNewPassword(username string, token string, newPassword string) (*customerrors.CustomError, int) {
 	// Validate new password
 	if !service.validator.ValidatePassword(newPassword) {
 		return customerrors.BadRequest, http.StatusBadRequest
+	}
+
+	// Find user by username
+	user, err := service.userRepo.FindUserByUsername(username)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return customerrors.UserNotFound, http.StatusNotFound
+		}
+		return customerrors.DatabaseError, http.StatusInternalServerError
 	}
 
 	// Find token in database
@@ -100,10 +129,9 @@ func (service *PasswordResetService) SetNewPassword(token string, newPassword st
 		return customerrors.ActivationTokenExpired, http.StatusUnauthorized
 	}
 
-	// Find user by username
-	user, err := service.userRepo.FindUserByUsername(resetToken.Username)
-	if err != nil {
-		return customerrors.DatabaseError, http.StatusInternalServerError
+	// Validate username from URL with the username in the token
+	if resetToken.Username != username {
+		return customerrors.UserUnauthorized, http.StatusUnauthorized
 	}
 
 	// Hash new password
@@ -119,7 +147,7 @@ func (service *PasswordResetService) SetNewPassword(token string, newPassword st
 	}
 
 	// Delete token
-	if err := service.passwordResetRepo.DeletePasswordResetToken(token); err != nil {
+	if err := service.passwordResetRepo.DeletePasswordResetToken(resetToken.Id.String()); err != nil {
 		return customerrors.DatabaseError, http.StatusInternalServerError
 	}
 

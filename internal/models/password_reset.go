@@ -5,8 +5,8 @@ import (
 	"time"
 )
 
-type PasswordResetRequestDTO struct {
-	Username string `json:"username" binding:"required"`
+type PasswordResetResponseDTO struct {
+	CensoredEmail string `json:"censoredEmail"`
 }
 
 type SetNewPasswordDTO struct {
@@ -14,9 +14,14 @@ type SetNewPasswordDTO struct {
 	NewPassword string `json:"newPassword" binding:"required"`
 }
 
+type PasswordResetRequestDTO struct {
+	Username string `json:"username" binding:"required"`
+}
+
 type PasswordResetToken struct {
 	Id             uuid.UUID `gorm:"type:uuid;primary_key;"`
 	Username       string    `gorm:"column:username;type:varchar(20);not_null"`
+	User           User      `gorm:"foreignKey:username_fk;references:username"`
 	Token          string    `gorm:"column:token;type:varchar(6);not_null"`
 	ExpirationTime time.Time `gorm:"column:expiration_time;not_null"`
 }
