@@ -7,7 +7,7 @@ import (
 
 type PasswordResetRepositoryInterface interface {
 	CreatePasswordResetToken(token *models.PasswordResetToken) error
-	FindPasswordResetToken(token string) (*models.PasswordResetToken, error)
+	FindPasswordResetToken(username string, token string) (*models.PasswordResetToken, error)
 	DeletePasswordResetToken(id string) error
 }
 
@@ -24,9 +24,9 @@ func (repo *PasswordResetRepository) CreatePasswordResetToken(token *models.Pass
 	return repo.DB.Create(token).Error
 }
 
-func (repo *PasswordResetRepository) FindPasswordResetToken(token string) (*models.PasswordResetToken, error) {
+func (repo *PasswordResetRepository) FindPasswordResetToken(username string, token string) (*models.PasswordResetToken, error) {
 	var resetToken models.PasswordResetToken
-	err := repo.DB.Where("token = ?", token).First(&resetToken).Error
+	err := repo.DB.Where("username = ? AND token = ?", username, token).First(&resetToken).Error
 	return &resetToken, err
 }
 

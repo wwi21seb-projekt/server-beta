@@ -14,10 +14,6 @@ type SetNewPasswordDTO struct {
 	NewPassword string `json:"newPassword" binding:"required"`
 }
 
-type PasswordResetRequestDTO struct {
-	Username string `json:"username" binding:"required"`
-}
-
 type PasswordResetToken struct {
 	Id             uuid.UUID `gorm:"type:uuid;primary_key;"`
 	Username       string    `gorm:"column:username;type:varchar(20);not_null"`

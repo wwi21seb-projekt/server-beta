@@ -16,7 +16,7 @@ import (
 
 type PasswordResetServiceInterface interface {
 	PasswordReset(username string) (*models.PasswordResetResponseDTO, *customerrors.CustomError, int)
-	SetNewPassword(username string, token string, newPassword string) (*customerrors.CustomError, int)
+	SetNewPassword(username string, dto models.SetNewPasswordDTO) (*customerrors.CustomError, int)
 }
 
 type PasswordResetService struct {
@@ -27,11 +27,7 @@ type PasswordResetService struct {
 }
 
 // NewPasswordResetService can be used as a constructor to generate a new PasswordResetService "object"
-func NewPasswordResetService(
-	userRepo repositories.UserRepositoryInterface,
-	passwordResetRepo repositories.PasswordResetRepositoryInterface,
-	mailService MailServiceInterface,
-	validator utils.ValidatorInterface) *PasswordResetService {
+func NewPasswordResetService(userRepo repositories.UserRepositoryInterface, passwordResetRepo *repositories.MockPasswordResetRepository, mailService MailServiceInterface, validator utils.ValidatorInterface) *PasswordResetService {
 	return &PasswordResetService{
 		userRepo:          userRepo,
 		passwordResetRepo: passwordResetRepo,
@@ -100,9 +96,9 @@ func censorEmail(email string) string {
 }
 
 // SetNewPassword sets a new password for the user if the provided token is valid
-func (service *PasswordResetService) SetNewPassword(username string, token string, newPassword string) (*customerrors.CustomError, int) {
+func (service *PasswordResetService) SetNewPassword(username string, dto models.SetNewPasswordDTO) (*customerrors.CustomError, int) {
 	// Validate new password
-	if !service.validator.ValidatePassword(newPassword) {
+	if !service.validator.ValidatePassword(dto.NewPassword) {
 		return customerrors.BadRequest, http.StatusBadRequest
 	}
 
@@ -116,26 +112,13 @@ func (service *PasswordResetService) SetNewPassword(username string, token strin
 	}
 
 	// Find token in database
-	resetToken, err := service.passwordResetRepo.FindPasswordResetToken(token)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return customerrors.InvalidToken, http.StatusNotFound
-		}
-		return customerrors.DatabaseError, http.StatusInternalServerError
-	}
-
-	// Check if token is expired
-	if resetToken.ExpirationTime.Before(time.Now()) {
-		return customerrors.ActivationTokenExpired, http.StatusUnauthorized
-	}
-
-	// Validate username from URL with the username in the token
-	if resetToken.Username != username {
-		return customerrors.UserUnauthorized, http.StatusUnauthorized
+	resetToken, err := service.passwordResetRepo.FindPasswordResetToken(username, dto.Token)
+	if err != nil || resetToken.ExpirationTime.Before(time.Now()) {
+		return customerrors.PasswordResetTokenInvalid, http.StatusForbidden
 	}
 
 	// Hash new password
-	newPasswordHashed, err := utils.HashPassword(newPassword)
+	newPasswordHashed, err := utils.HashPassword(dto.NewPassword)
 	if err != nil {
 		return customerrors.InternalServerError, http.StatusInternalServerError
 	}

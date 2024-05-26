@@ -24,18 +24,11 @@ func NewPasswordResetController(passwordResetService services.PasswordResetServi
 
 // PasswordReset triggers a password reset process for the user
 func (controller *PasswordResetController) PasswordReset(c *gin.Context) {
-	// Read body
-	var passwordResetRequestDTO models.PasswordResetRequestDTO
-
-	if c.ShouldBindJSON(&passwordResetRequestDTO) != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": customerrors.BadRequest,
-		})
-		return
-	}
+	// Read username from URL
+	username := c.Param("username")
 
 	// Initiate password reset
-	response, serviceErr, httpStatus := controller.passwordResetService.PasswordReset(passwordResetRequestDTO.Username)
+	response, serviceErr, httpStatus := controller.passwordResetService.PasswordReset(username)
 	if serviceErr != nil {
 		c.JSON(httpStatus, gin.H{
 			"error": serviceErr,
@@ -62,7 +55,7 @@ func (controller *PasswordResetController) SetNewPassword(c *gin.Context) {
 	username := c.Param("username")
 
 	// Set new password
-	serviceErr, httpStatus := controller.passwordResetService.SetNewPassword(username, setNewPasswordDTO.Token, setNewPasswordDTO.NewPassword)
+	serviceErr, httpStatus := controller.passwordResetService.SetNewPassword(username, setNewPasswordDTO)
 	if serviceErr != nil {
 		c.JSON(httpStatus, gin.H{
 			"error": serviceErr,
