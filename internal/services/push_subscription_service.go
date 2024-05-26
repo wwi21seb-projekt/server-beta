@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 )
 
 type PushSubscriptionServiceInterface interface {
@@ -81,8 +82,9 @@ func (service *PushSubscriptionService) CreatePushSubscription(req *models.PushS
 
 	// For expo push notifications only token is required
 	if req.Type == "expo" {
-		// token needs to be a valid string
-		if len(req.Token) <= 0 {
+		// token needs to be in the format ExponentPushToken[...]
+		tokenRegex := `ExponentPushToken\[[a-zA-Z0-9-_]+\]`
+		if match, _ := regexp.MatchString(tokenRegex, req.Token); !match {
 			return nil, customerrors.BadRequest, http.StatusBadRequest
 		}
 
@@ -183,7 +185,7 @@ func (service *PushSubscriptionService) sendExpoPushNotification(pushSubscriptio
 	expoApiUrl := "https://exp.host/--/api/v2/push/send"
 
 	data := map[string]interface{}{
-		"to":    "ExponentPushToken[" + pushSubscription.ExpoToken + "]",
+		"to":    pushSubscription.ExpoToken, // token is sent in ExponentPushToken[...] format
 		"title": "Notification from Server Beta",
 		"body":  notificationString,
 	}
