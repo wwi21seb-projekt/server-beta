@@ -27,7 +27,7 @@ type PasswordResetService struct {
 }
 
 // NewPasswordResetService can be used as a constructor to generate a new PasswordResetService "object"
-func NewPasswordResetService(userRepo repositories.UserRepositoryInterface, passwordResetRepo *repositories.MockPasswordResetRepository, mailService MailServiceInterface, validator utils.ValidatorInterface) *PasswordResetService {
+func NewPasswordResetService(userRepo repositories.UserRepositoryInterface, passwordResetRepo *repositories.PasswordResetRepository, mailService MailServiceInterface, validator utils.ValidatorInterface) *PasswordResetService {
 	return &PasswordResetService{
 		userRepo:          userRepo,
 		passwordResetRepo: passwordResetRepo,
