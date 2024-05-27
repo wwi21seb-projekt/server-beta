@@ -1,4 +1,4 @@
-package controllers
+package controllers_test
 
 import (
 	"encoding/json"
@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/wwi21seb-projekt/server-beta/internal/controllers"
 	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
 	"github.com/wwi21seb-projekt/server-beta/internal/models"
 	"github.com/wwi21seb-projekt/server-beta/internal/repositories"
@@ -28,7 +29,7 @@ func TestInitiatePasswordResetSuccess(t *testing.T) {
 	mockValidator := new(utils.MockValidator)
 
 	passwordResetService := services.NewPasswordResetService(mockUserRepo, mockPasswordResetRepo, mockMailService, mockValidator)
-	passwordResetController := NewPasswordResetController(passwordResetService)
+	passwordResetController := controllers.NewPasswordResetController(passwordResetService)
 
 	username := "testUser"
 	email := "test@example.com"
@@ -59,7 +60,7 @@ func TestInitiatePasswordResetSuccess(t *testing.T) {
 		}).Return(nil)
 
 	// Setup HTTP request
-	url := "/users/" + username + "/password-reset/"
+	url := "/users/" + username + "/reset-password"
 
 	req, _ := http.NewRequest("POST", url, nil)
 	req.Header.Set("Content-Type", "application/json")
@@ -102,7 +103,7 @@ func TestInitiatePasswordResetUserNotFound(t *testing.T) {
 	mockValidator := new(utils.MockValidator)
 
 	passwordResetService := services.NewPasswordResetService(mockUserRepo, mockPasswordResetRepo, mockMailService, mockValidator)
-	passwordResetController := NewPasswordResetController(passwordResetService)
+	passwordResetController := controllers.NewPasswordResetController(passwordResetService)
 
 	username := "testUser"
 
@@ -110,7 +111,7 @@ func TestInitiatePasswordResetUserNotFound(t *testing.T) {
 	mockUserRepo.On("FindUserByUsername", username).Return(&models.User{}, gorm.ErrRecordNotFound)
 
 	// Setup HTTP request
-	url := "/users/" + username + "/password-reset/"
+	url := "/users/" + username + "/reset-password"
 
 	req, _ := http.NewRequest("POST", url, nil)
 	req.Header.Set("Content-Type", "application/json")
@@ -146,7 +147,7 @@ func TestInitiatePasswordResetMailNotSent(t *testing.T) {
 	mockValidator := new(utils.MockValidator)
 
 	passwordResetService := services.NewPasswordResetService(mockUserRepo, mockPasswordResetRepo, mockMailService, mockValidator)
-	passwordResetController := NewPasswordResetController(passwordResetService)
+	passwordResetController := controllers.NewPasswordResetController(passwordResetService)
 
 	username := "testUser"
 	email := "test@example.com"
@@ -163,7 +164,7 @@ func TestInitiatePasswordResetMailNotSent(t *testing.T) {
 	mockMailService.On("SendMail", email, "Password Reset Token", mock.AnythingOfType("string")).Return(customerrors.EmailNotSent)
 
 	// Setup HTTP request
-	url := "/users/" + username + "/password-reset/"
+	url := "/users/" + username + "/reset-password"
 
 	req, _ := http.NewRequest("POST", url, nil)
 	req.Header.Set("Content-Type", "application/json")
@@ -199,7 +200,7 @@ func TestResetPasswordSuccess(t *testing.T) {
 	validator := new(utils.Validator)
 
 	passwordResetService := services.NewPasswordResetService(mockUserRepo, mockPasswordResetRepo, mockMailService, validator)
-	passwordResetController := NewPasswordResetController(passwordResetService)
+	passwordResetController := controllers.NewPasswordResetController(passwordResetService)
 
 	username := "testUser"
 	newPassword := "newPassword123!"
@@ -250,6 +251,52 @@ func TestResetPasswordSuccess(t *testing.T) {
 	assert.True(t, check)
 }
 
+// TestResetPasswordBadRequest tests the ResetPassword function if it returns 400 Bad Request if the body or password does not meet specifications
+func TestResetPasswordBadRequest(t *testing.T) {
+	invalidBodies := []string{
+		`{}`,                   // Empty body
+		`{"token"": "123456"}`, // Not complete
+		`{"token":"", "newPassword":"ValidPassword123!"}`,
+		`{"token": "1234562", "newPassword":"InvalidPassword123"}`, // New password does not match password policy
+	}
+
+	for _, body := range invalidBodies {
+
+		// Arrange
+		mockUserRepo := new(repositories.MockUserRepository)
+		mockPasswordResetRepo := new(repositories.MockPasswordResetRepository)
+		mockMailService := new(services.MockMailService)
+		validator := new(utils.Validator)
+
+		passwordResetService := services.NewPasswordResetService(mockUserRepo, mockPasswordResetRepo, mockMailService, validator)
+		passwordResetController := controllers.NewPasswordResetController(passwordResetService)
+
+		username := "testUser"
+
+		// Setup HTTP request
+		url := "/users/" + username + "/reset-password"
+		req, _ := http.NewRequest("PATCH", url, strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		// Act
+		gin.SetMode(gin.TestMode)
+		router := gin.Default()
+		router.PATCH("/users/:username/reset-password", passwordResetController.ResetPassword)
+		router.ServeHTTP(w, req)
+
+		// Assert
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+		var errorResponse customerrors.ErrorResponse
+		err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
+		assert.NoError(t, err)
+
+		expectedCustomError := customerrors.BadRequest
+		assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
+		assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
+	}
+}
+
 // TestResetPasswordInvalidToken tests the ResetPassword function if it returns 403 Forbidden if the token cannot be found
 func TestResetPasswordInvalidToken(t *testing.T) {
 	// Arrange
@@ -259,7 +306,7 @@ func TestResetPasswordInvalidToken(t *testing.T) {
 	mockValidator := new(utils.MockValidator)
 
 	passwordResetService := services.NewPasswordResetService(mockUserRepo, mockPasswordResetRepo, mockMailService, mockValidator)
-	passwordResetController := NewPasswordResetController(passwordResetService)
+	passwordResetController := controllers.NewPasswordResetController(passwordResetService)
 
 	username := "testUser"
 	token := "123456"
@@ -309,10 +356,10 @@ func TestResetPasswordExpiredToken(t *testing.T) {
 	mockValidator := new(utils.MockValidator)
 
 	passwordResetService := services.NewPasswordResetService(mockUserRepo, mockPasswordResetRepo, mockMailService, mockValidator)
-	passwordResetController := NewPasswordResetController(passwordResetService)
+	passwordResetController := controllers.NewPasswordResetController(passwordResetService)
 
 	username := "testUser"
-	newPassword := "newPassword123"
+	newPassword := "newPassword123!"
 	token := "123456"
 
 	resetToken := models.PasswordResetToken{
@@ -357,52 +404,6 @@ func TestResetPasswordExpiredToken(t *testing.T) {
 	mockPasswordResetRepo.AssertExpectations(t)
 }
 
-// TestResetPasswordBadRequest tests the ResetPassword function if it returns 400 Bad Request if the body or password does not meet specifications
-func TestResetPasswordBadRequest(t *testing.T) {
-	invalidBodies := []string{
-		`{}`,                   // Empty body
-		`{"token"": "123456"}`, // Not complete
-		`{"token":"", "newPassword":"ValidPassword123!"}`,
-		`{"token": "1234562", "newPassword":"InvalidPassword123"}`, // New password does not match password policy
-	}
-
-	for _, body := range invalidBodies {
-
-		// Arrange
-		mockUserRepo := new(repositories.MockUserRepository)
-		mockPasswordResetRepo := new(repositories.MockPasswordResetRepository)
-		mockMailService := new(services.MockMailService)
-		validator := new(utils.Validator)
-
-		passwordResetService := services.NewPasswordResetService(mockUserRepo, mockPasswordResetRepo, mockMailService, validator)
-		passwordResetController := NewPasswordResetController(passwordResetService)
-
-		username := "testUser"
-
-		// Setup HTTP request
-		url := "/users/" + username + "/reset-password"
-		req, _ := http.NewRequest("PATCH", url, strings.NewReader(body))
-		req.Header.Set("Content-Type", "application/json")
-		w := httptest.NewRecorder()
-
-		// Act
-		gin.SetMode(gin.TestMode)
-		router := gin.Default()
-		router.PATCH("/users/:username/reset-password", passwordResetController.ResetPassword)
-		router.ServeHTTP(w, req)
-
-		// Assert
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-		var errorResponse customerrors.ErrorResponse
-		err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
-		assert.NoError(t, err)
-
-		expectedCustomError := customerrors.BadRequest
-		assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
-		assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
-	}
-}
-
 // TestResetPasswordUserNotFound tests the ResetPassword function if it returns 404 Not Found if the user to the given username cannot be found
 func TestResetPasswordUserNotFound(t *testing.T) {
 	// Arrange
@@ -412,10 +413,10 @@ func TestResetPasswordUserNotFound(t *testing.T) {
 	mockValidator := new(utils.MockValidator)
 
 	passwordResetService := services.NewPasswordResetService(mockUserRepo, mockPasswordResetRepo, mockMailService, mockValidator)
-	passwordResetController := NewPasswordResetController(passwordResetService)
+	passwordResetController := controllers.NewPasswordResetController(passwordResetService)
 
 	username := "testUser"
-	newPassword := "newPassword123"
+	newPassword := "newPassword123!"
 	token := "123456"
 
 	// Mock expectations

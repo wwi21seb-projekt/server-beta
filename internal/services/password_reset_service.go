@@ -87,7 +87,7 @@ func (service *PasswordResetService) InitiatePasswordReset(username string) (*mo
 	return &response, nil, http.StatusOK
 }
 
-// ResetPassword sets a new password for the user if the provided token is valid
+// ResetPassword sets a new password for the user if the provided token is valid and the password meets policy requirements
 func (service *PasswordResetService) ResetPassword(username string, req *models.ResetPasswordRequestDTO) (*customerrors.CustomError, int) {
 	// Validate new password
 	if !service.validator.ValidatePassword(req.NewPassword) {
@@ -105,8 +105,14 @@ func (service *PasswordResetService) ResetPassword(username string, req *models.
 
 	// Find token in database
 	resetToken, err := service.passwordResetRepo.FindPasswordResetToken(username, req.Token)
-	if err != nil || resetToken.ExpirationTime.Before(time.Now()) {
-		return customerrors.PasswordResetTokenInvalid, http.StatusForbidden
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return customerrors.PasswordResetTokenInvalid, http.StatusForbidden // send 403 if token cannot be found
+		}
+		return customerrors.DatabaseError, http.StatusInternalServerError
+	}
+	if resetToken.ExpirationTime.Before(time.Now()) {
+		return customerrors.PasswordResetTokenInvalid, http.StatusForbidden // send 403 if token is expired
 	}
 
 	// Hash new password

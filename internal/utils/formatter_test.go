@@ -12,7 +12,7 @@ func TestCensorEmail(t *testing.T) {
 		expected string
 	}{
 		{"testmail@gmail.com", "tes*****@gmail.com"},
-		{"short@mail.com", "sho***@mail.com"},
+		{"short@mail.com", "sho**@mail.com"},
 		{"a@b.com", "a@b.com"},
 		{"ab@c.com", "ab@c.com"},
 		{"abc@def.com", "abc@def.com"},
