@@ -71,7 +71,7 @@ func (service *PasswordResetService) InitiatePasswordReset(username string) (*mo
 	}
 
 	// Send email with token
-	subject := "Password Reset Token"
+	subject := "Reset your password"
 	body := utils.GetPasswordResetEmailBody(username, resetToken.Token)
 	err = service.mailService.SendMail(user.Email, subject, body)
 	if err != nil {

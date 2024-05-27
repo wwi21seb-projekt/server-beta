@@ -5,6 +5,7 @@ import (
 	"time"
 )
 
+// GetActivationEmailBody returns the HTML body for an activation email sending the activation code
 func GetActivationEmailBody(token string) string {
 	currentYear := time.Now().Year()
 	return fmt.Sprintf(`
@@ -31,18 +32,19 @@ func GetActivationEmailBody(token string) string {
 				<p>Hallo!</p>
 				<p>Bitte verwenden Sie den folgenden Code, um die Registrierung Ihres Accounts bei Server Beta abzuschließen:</p>
 				<div class="code">%s</div>
-				<p>Dieser Code ist 24 Stunden gültig. Geben Sie diesen Code auf der entsprechenden Seite Ihrer Account-Einstellungen ein.</p>
+				<p>Dieser Code ist 2 Stunden gültig. Geben Sie diesen Code auf der entsprechenden Seite zu Ihrer Registrierung ein.</p>
 			</div>
 			<div class="footer">
 				© %d Server Beta - Alle Rechte vorbehalten.
 				<br>
-				Besuchen Sie unsere <a href="https://serverbeta.com/privacy">Datenschutzrichtlinie</a>
+				Mehr Informationen finden Sie in unserem <a href="https://server-beta.de/api/imprint">Impressum</a>.
 			</div>
 		</div>
 	</body>
 	</html>`, token, currentYear)
 }
 
+// GetWelcomeEmailBody returns the HTML body for a welcome email
 func GetWelcomeEmailBody(username string) string {
 	currentYear := time.Now().Year()
 	return fmt.Sprintf(`
@@ -73,13 +75,14 @@ func GetWelcomeEmailBody(username string) string {
 			<div class="footer">
 				© %d Server Beta - Alle Rechte vorbehalten.
 				<br>
-				Besuchen Sie unsere <a href="https://serverbeta.com/privacy">Datenschutzrichtlinie</a>
+				Mehr Informationen finden Sie in unserem <a href="https://server-beta.de/api/imprint">Impressum</a>.
 			</div>
 		</div>
 	</body>
 	</html>`, username, currentYear)
 }
 
+// GetPasswordResetEmailBody returns the HTML body for a password reset email
 func GetPasswordResetEmailBody(username string, resetToken string) string {
 	currentYear := time.Now().Year()
 	return fmt.Sprintf(`
@@ -111,7 +114,7 @@ func GetPasswordResetEmailBody(username string, resetToken string) string {
 			<div class="footer">
 				© %d Server Beta - Alle Rechte vorbehalten.
 				<br>
-				Besuchen Sie unsere <a href="https://serverbeta.com/privacy">Datenschutzrichtlinie</a>
+				Mehr Informationen finden Sie in unserem <a href="https://server-beta.de/api/imprint">Impressum</a>.
 			</div>
 		</div>
 	</body>

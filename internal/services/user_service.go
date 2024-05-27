@@ -59,7 +59,7 @@ func NewUserService(
 
 // sendActivationToken deletes old activation tokens, generates a new six-digit code and sends it to user via mail
 func (service *UserService) sendActivationToken(email string, tokenObject *models.ActivationToken) *customerrors.CustomError {
-	subject := "Verification Token"
+	subject := "Verify your account"
 	body := utils.GetActivationEmailBody(tokenObject.Token)
 	err := service.mailService.SendMail(email, subject, body)
 	if err != nil {
