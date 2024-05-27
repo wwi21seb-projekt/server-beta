@@ -10,13 +10,12 @@ import (
 	"gorm.io/gorm"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 )
 
 type PasswordResetServiceInterface interface {
-	PasswordReset(username string) (*models.PasswordResetResponseDTO, *customerrors.CustomError, int)
-	SetNewPassword(username string, dto models.SetNewPasswordDTO) (*customerrors.CustomError, int)
+	InitiatePasswordReset(username string) (*models.InitiatePasswordResetResponseDTO, *customerrors.CustomError, int)
+	ResetPassword(username string, req *models.ResetPasswordRequestDTO) (*customerrors.CustomError, int)
 }
 
 type PasswordResetService struct {
@@ -27,7 +26,7 @@ type PasswordResetService struct {
 }
 
 // NewPasswordResetService can be used as a constructor to generate a new PasswordResetService "object"
-func NewPasswordResetService(userRepo repositories.UserRepositoryInterface, passwordResetRepo *repositories.MockPasswordResetRepository, mailService MailServiceInterface, validator utils.ValidatorInterface) *PasswordResetService {
+func NewPasswordResetService(userRepo repositories.UserRepositoryInterface, passwordResetRepo repositories.PasswordResetRepositoryInterface, mailService MailServiceInterface, validator utils.ValidatorInterface) *PasswordResetService {
 	return &PasswordResetService{
 		userRepo:          userRepo,
 		passwordResetRepo: passwordResetRepo,
@@ -36,8 +35,8 @@ func NewPasswordResetService(userRepo repositories.UserRepositoryInterface, pass
 	}
 }
 
-// PasswordReset initiates a password reset process by generating a token and sending it via email
-func (service *PasswordResetService) PasswordReset(username string) (*models.PasswordResetResponseDTO, *customerrors.CustomError, int) {
+// InitiatePasswordReset initiates a password reset process by generating a token and sending it via email
+func (service *PasswordResetService) InitiatePasswordReset(username string) (*models.InitiatePasswordResetResponseDTO, *customerrors.CustomError, int) {
 	// Find user by username
 	user, err := service.userRepo.FindUserByUsername(username)
 	if err != nil {
@@ -53,6 +52,13 @@ func (service *PasswordResetService) PasswordReset(username string) (*models.Pas
 		return nil, customerrors.InternalServerError, http.StatusInternalServerError
 	}
 
+	// Reset old tokens of user from database
+	err = service.passwordResetRepo.DeletePasswordResetTokensByUsername(username)
+	if err != nil {
+		return nil, customerrors.DatabaseError, http.StatusInternalServerError
+	}
+
+	// Create new token and save it to database
 	resetToken := models.PasswordResetToken{
 		Id:             uuid.New(),
 		Username:       user.Username,
@@ -60,7 +66,6 @@ func (service *PasswordResetService) PasswordReset(username string) (*models.Pas
 		ExpirationTime: time.Now().Add(2 * time.Hour),
 	}
 
-	// Save token to database
 	if err := service.passwordResetRepo.CreatePasswordResetToken(&resetToken); err != nil {
 		return nil, customerrors.DatabaseError, http.StatusInternalServerError
 	}
@@ -74,31 +79,18 @@ func (service *PasswordResetService) PasswordReset(username string) (*models.Pas
 	}
 
 	// Create response with censored email
-	censoredEmail := censorEmail(user.Email)
-	response := models.PasswordResetResponseDTO{
-		CensoredEmail: censoredEmail,
+	censoredEmail := utils.CensorEmail(user.Email)
+	response := models.InitiatePasswordResetResponseDTO{
+		Email: censoredEmail,
 	}
 
 	return &response, nil, http.StatusOK
 }
 
-// censorEmail censors the email address for the response
-func censorEmail(email string) string {
-	parts := strings.Split(email, "@")
-	if len(parts) != 2 {
-		return email
-	}
-	name := parts[0]
-	if len(name) > 3 {
-		name = name[:3] + strings.Repeat("*", len(name)-3)
-	}
-	return name + "@" + parts[1]
-}
-
-// SetNewPassword sets a new password for the user if the provided token is valid
-func (service *PasswordResetService) SetNewPassword(username string, dto models.SetNewPasswordDTO) (*customerrors.CustomError, int) {
+// ResetPassword sets a new password for the user if the provided token is valid
+func (service *PasswordResetService) ResetPassword(username string, req *models.ResetPasswordRequestDTO) (*customerrors.CustomError, int) {
 	// Validate new password
-	if !service.validator.ValidatePassword(dto.NewPassword) {
+	if !service.validator.ValidatePassword(req.NewPassword) {
 		return customerrors.BadRequest, http.StatusBadRequest
 	}
 
@@ -112,13 +104,13 @@ func (service *PasswordResetService) SetNewPassword(username string, dto models.
 	}
 
 	// Find token in database
-	resetToken, err := service.passwordResetRepo.FindPasswordResetToken(username, dto.Token)
+	resetToken, err := service.passwordResetRepo.FindPasswordResetToken(username, req.Token)
 	if err != nil || resetToken.ExpirationTime.Before(time.Now()) {
 		return customerrors.PasswordResetTokenInvalid, http.StatusForbidden
 	}
 
 	// Hash new password
-	newPasswordHashed, err := utils.HashPassword(dto.NewPassword)
+	newPasswordHashed, err := utils.HashPassword(req.NewPassword)
 	if err != nil {
 		return customerrors.InternalServerError, http.StatusInternalServerError
 	}
@@ -130,7 +122,7 @@ func (service *PasswordResetService) SetNewPassword(username string, dto models.
 	}
 
 	// Delete token
-	if err := service.passwordResetRepo.DeletePasswordResetToken(resetToken.Id.String()); err != nil {
+	if err := service.passwordResetRepo.DeletePasswordResetTokenById(resetToken.Id.String()); err != nil {
 		return customerrors.DatabaseError, http.StatusInternalServerError
 	}
 

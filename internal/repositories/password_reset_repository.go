@@ -8,7 +8,8 @@ import (
 type PasswordResetRepositoryInterface interface {
 	CreatePasswordResetToken(token *models.PasswordResetToken) error
 	FindPasswordResetToken(username string, token string) (*models.PasswordResetToken, error)
-	DeletePasswordResetToken(id string) error
+	DeletePasswordResetTokenById(id string) error
+	DeletePasswordResetTokensByUsername(username string) error
 }
 
 type PasswordResetRepository struct {
@@ -26,10 +27,14 @@ func (repo *PasswordResetRepository) CreatePasswordResetToken(token *models.Pass
 
 func (repo *PasswordResetRepository) FindPasswordResetToken(username string, token string) (*models.PasswordResetToken, error) {
 	var resetToken models.PasswordResetToken
-	err := repo.DB.Where("username = ? AND token = ?", username, token).First(&resetToken).Error
+	err := repo.DB.Where("username_fk = ? AND token = ?", username, token).First(&resetToken).Error
 	return &resetToken, err
 }
 
-func (repo *PasswordResetRepository) DeletePasswordResetToken(id string) error {
+func (repo *PasswordResetRepository) DeletePasswordResetTokenById(id string) error {
 	return repo.DB.Where("id = ?", id).Delete(&models.PasswordResetToken{}).Error
+}
+
+func (repo *PasswordResetRepository) DeletePasswordResetTokensByUsername(username string) error {
+	return repo.DB.Where("username_fk = ?", username).Delete(&models.PasswordResetToken{}).Error
 }

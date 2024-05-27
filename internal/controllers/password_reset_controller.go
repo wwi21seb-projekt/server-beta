@@ -9,8 +9,8 @@ import (
 )
 
 type PasswordResetControllerInterface interface {
-	PasswordReset(c *gin.Context)
-	SetNewPassword(c *gin.Context)
+	InitiatePasswordReset(c *gin.Context)
+	ResetPassword(c *gin.Context)
 }
 
 type PasswordResetController struct {
@@ -22,13 +22,13 @@ func NewPasswordResetController(passwordResetService services.PasswordResetServi
 	return &PasswordResetController{passwordResetService: passwordResetService}
 }
 
-// PasswordReset triggers a password reset process for the user
-func (controller *PasswordResetController) PasswordReset(c *gin.Context) {
+// InitiatePasswordReset triggers a password reset process for the user
+func (controller *PasswordResetController) InitiatePasswordReset(c *gin.Context) {
 	// Read username from URL
 	username := c.Param("username")
 
 	// Initiate password reset
-	response, serviceErr, httpStatus := controller.passwordResetService.PasswordReset(username)
+	response, serviceErr, httpStatus := controller.passwordResetService.InitiatePasswordReset(username)
 	if serviceErr != nil {
 		c.JSON(httpStatus, gin.H{
 			"error": serviceErr,
@@ -39,10 +39,10 @@ func (controller *PasswordResetController) PasswordReset(c *gin.Context) {
 	c.JSON(httpStatus, response)
 }
 
-// SetNewPassword sets a new password using the provided token
-func (controller *PasswordResetController) SetNewPassword(c *gin.Context) {
+// ResetPassword sets a new password using the provided token
+func (controller *PasswordResetController) ResetPassword(c *gin.Context) {
 	// Read body
-	var setNewPasswordDTO models.SetNewPasswordDTO
+	var setNewPasswordDTO models.ResetPasswordRequestDTO
 
 	if c.ShouldBindJSON(&setNewPasswordDTO) != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -55,7 +55,7 @@ func (controller *PasswordResetController) SetNewPassword(c *gin.Context) {
 	username := c.Param("username")
 
 	// Set new password
-	serviceErr, httpStatus := controller.passwordResetService.SetNewPassword(username, setNewPasswordDTO)
+	serviceErr, httpStatus := controller.passwordResetService.ResetPassword(username, &setNewPasswordDTO)
 	if serviceErr != nil {
 		c.JSON(httpStatus, gin.H{
 			"error": serviceErr,

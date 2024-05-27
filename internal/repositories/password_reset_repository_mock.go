@@ -22,7 +22,12 @@ func (m *MockPasswordResetRepository) FindPasswordResetToken(username string, to
 	return nil, args.Error(1)
 }
 
-func (m *MockPasswordResetRepository) DeletePasswordResetToken(id string) error {
+func (m *MockPasswordResetRepository) DeletePasswordResetTokenById(id string) error {
 	args := m.Called(id)
+	return args.Error(0)
+}
+
+func (m *MockPasswordResetRepository) DeletePasswordResetTokensByUsername(username string) error {
+	args := m.Called(username)
 	return args.Error(0)
 }

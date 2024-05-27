@@ -19,7 +19,8 @@ import (
 	"time"
 )
 
-func TestPasswordResetSuccess(t *testing.T) {
+// TestInitiatePasswordResetSuccess tests if the InitiatePasswordReset function returns 200-OK and censored email when successful
+func TestInitiatePasswordResetSuccess(t *testing.T) {
 	// Arrange
 	mockUserRepo := new(repositories.MockUserRepository)
 	mockPasswordResetRepo := new(repositories.MockPasswordResetRepository)
@@ -32,6 +33,8 @@ func TestPasswordResetSuccess(t *testing.T) {
 	username := "testUser"
 	email := "test@example.com"
 
+	censoredMail := "tes*@example.com"
+
 	user := models.User{
 		Username: username,
 		Email:    email,
@@ -39,6 +42,7 @@ func TestPasswordResetSuccess(t *testing.T) {
 
 	// Mock expectations
 	mockUserRepo.On("FindUserByUsername", username).Return(&user, nil)
+	mockPasswordResetRepo.On("DeletePasswordResetTokensByUsername", username).Return(nil)
 
 	var capturedToken *models.PasswordResetToken
 	mockPasswordResetRepo.On("CreatePasswordResetToken", mock.AnythingOfType("*models.PasswordResetToken")).
@@ -55,7 +59,7 @@ func TestPasswordResetSuccess(t *testing.T) {
 		}).Return(nil)
 
 	// Setup HTTP request
-	url := "/password-reset/" + username
+	url := "/users/" + username + "/password-reset/"
 
 	req, _ := http.NewRequest("POST", url, nil)
 	req.Header.Set("Content-Type", "application/json")
@@ -64,7 +68,7 @@ func TestPasswordResetSuccess(t *testing.T) {
 	// Act
 	gin.SetMode(gin.TestMode)
 	router := gin.Default()
-	router.POST("/password-reset/:username", passwordResetController.PasswordReset)
+	router.POST("/users/:username/reset-password", passwordResetController.InitiatePasswordReset)
 	router.ServeHTTP(w, req)
 
 	// Assert
@@ -73,18 +77,24 @@ func TestPasswordResetSuccess(t *testing.T) {
 	mockPasswordResetRepo.AssertExpectations(t)
 	mockMailService.AssertExpectations(t)
 
-	// Additional assertions
 	assert.NotNil(t, capturedToken)
+	assert.NotEmpty(t, capturedToken.Id)
 	assert.Equal(t, username, capturedToken.Username)
 	assert.NotEmpty(t, capturedToken.Token)
 	assert.WithinDuration(t, time.Now().Add(2*time.Hour), capturedToken.ExpirationTime, time.Minute)
+
+	var responseBody models.InitiatePasswordResetResponseDTO
+	err := json.Unmarshal(w.Body.Bytes(), &responseBody)
+	assert.NoError(t, err)
+	assert.Equal(t, censoredMail, responseBody.Email)
 
 	assert.Equal(t, email, capturedEmail)
 	assert.Equal(t, "Password Reset Token", capturedSubject)
 	assert.Contains(t, capturedBody, capturedToken.Token)
 }
 
-func TestPasswordResetUserNotFound(t *testing.T) {
+// TestInitiatePasswordResetUserNotFound tests if the TestInitiatePassword function returns 400 Bad Request when the user to the given username cannot be found
+func TestInitiatePasswordResetUserNotFound(t *testing.T) {
 	// Arrange
 	mockUserRepo := new(repositories.MockUserRepository)
 	mockPasswordResetRepo := new(repositories.MockPasswordResetRepository)
@@ -97,10 +107,10 @@ func TestPasswordResetUserNotFound(t *testing.T) {
 	username := "testUser"
 
 	// Mock expectations
-	mockUserRepo.On("FindUserByUsername", username).Return(nil, gorm.ErrRecordNotFound)
+	mockUserRepo.On("FindUserByUsername", username).Return(&models.User{}, gorm.ErrRecordNotFound)
 
 	// Setup HTTP request
-	url := "/password-reset/" + username
+	url := "/users/" + username + "/password-reset/"
 
 	req, _ := http.NewRequest("POST", url, nil)
 	req.Header.Set("Content-Type", "application/json")
@@ -109,7 +119,7 @@ func TestPasswordResetUserNotFound(t *testing.T) {
 	// Act
 	gin.SetMode(gin.TestMode)
 	router := gin.Default()
-	router.POST("/password-reset/:username", passwordResetController.PasswordReset)
+	router.POST("/users/:username/reset-password", passwordResetController.InitiatePasswordReset)
 	router.ServeHTTP(w, req)
 
 	// Assert
@@ -127,7 +137,8 @@ func TestPasswordResetUserNotFound(t *testing.T) {
 	mockMailService.AssertExpectations(t)
 }
 
-func TestPasswordResetMailNotSent(t *testing.T) {
+// TestInitiatePasswordResetMailNotSent tests if the TestInitiatePassword function returns 500 Internal Server Error when the mail could not be sent
+func TestInitiatePasswordResetMailNotSent(t *testing.T) {
 	// Arrange
 	mockUserRepo := new(repositories.MockUserRepository)
 	mockPasswordResetRepo := new(repositories.MockPasswordResetRepository)
@@ -147,11 +158,12 @@ func TestPasswordResetMailNotSent(t *testing.T) {
 
 	// Mock expectations
 	mockUserRepo.On("FindUserByUsername", username).Return(&user, nil)
+	mockPasswordResetRepo.On("DeletePasswordResetTokensByUsername", username).Return(nil)
 	mockPasswordResetRepo.On("CreatePasswordResetToken", mock.AnythingOfType("*models.PasswordResetToken")).Return(nil)
 	mockMailService.On("SendMail", email, "Password Reset Token", mock.AnythingOfType("string")).Return(customerrors.EmailNotSent)
 
 	// Setup HTTP request
-	url := "/password-reset/" + username
+	url := "/users/" + username + "/password-reset/"
 
 	req, _ := http.NewRequest("POST", url, nil)
 	req.Header.Set("Content-Type", "application/json")
@@ -160,7 +172,7 @@ func TestPasswordResetMailNotSent(t *testing.T) {
 	// Act
 	gin.SetMode(gin.TestMode)
 	router := gin.Default()
-	router.POST("/password-reset/:username", passwordResetController.PasswordReset)
+	router.POST("/users/:username/reset-password", passwordResetController.InitiatePasswordReset)
 	router.ServeHTTP(w, req)
 
 	// Assert
@@ -178,18 +190,19 @@ func TestPasswordResetMailNotSent(t *testing.T) {
 	mockMailService.AssertExpectations(t)
 }
 
-func TestSetNewPasswordSuccess(t *testing.T) {
+// TestResetPasswordSuccess tests the ResetPassword function if it returns 200 OK if a correct token and strong password is given
+func TestResetPasswordSuccess(t *testing.T) {
 	// Arrange
 	mockUserRepo := new(repositories.MockUserRepository)
 	mockPasswordResetRepo := new(repositories.MockPasswordResetRepository)
 	mockMailService := new(services.MockMailService)
-	mockValidator := new(utils.MockValidator)
+	validator := new(utils.Validator)
 
-	passwordResetService := services.NewPasswordResetService(mockUserRepo, mockPasswordResetRepo, mockMailService, mockValidator)
+	passwordResetService := services.NewPasswordResetService(mockUserRepo, mockPasswordResetRepo, mockMailService, validator)
 	passwordResetController := NewPasswordResetController(passwordResetService)
 
 	username := "testUser"
-	newPassword := "newPassword123"
+	newPassword := "newPassword123!"
 	token := "123456"
 
 	user := models.User{
@@ -204,14 +217,18 @@ func TestSetNewPasswordSuccess(t *testing.T) {
 	}
 
 	// Mock expectations
-	mockValidator.On("ValidatePassword", newPassword).Return(true)
 	mockPasswordResetRepo.On("FindPasswordResetToken", username, token).Return(&resetToken, nil)
 	mockUserRepo.On("FindUserByUsername", username).Return(&user, nil)
-	mockUserRepo.On("UpdateUser", mock.AnythingOfType("*models.User")).Return(nil)
-	mockPasswordResetRepo.On("DeletePasswordResetToken", resetToken.Id.String()).Return(nil)
+
+	var capturedUpdatedUser *models.User
+	mockUserRepo.On("UpdateUser", mock.AnythingOfType("*models.User")).
+		Run(func(args mock.Arguments) {
+			capturedUpdatedUser = args.Get(0).(*models.User)
+		}).Return(nil)
+	mockPasswordResetRepo.On("DeletePasswordResetTokenById", resetToken.Id.String()).Return(nil)
 
 	// Setup HTTP request
-	url := "/users/" + username + "/set-new-password"
+	url := "/users/" + username + "/reset-password"
 	body := `{"token": "` + token + `", "newPassword": "` + newPassword + `"}`
 
 	req, _ := http.NewRequest("PATCH", url, strings.NewReader(body))
@@ -221,17 +238,20 @@ func TestSetNewPasswordSuccess(t *testing.T) {
 	// Act
 	gin.SetMode(gin.TestMode)
 	router := gin.Default()
-	router.PATCH("/users/:username/set-new-password", passwordResetController.SetNewPassword)
+	router.PATCH("/users/:username/reset-password", passwordResetController.ResetPassword)
 	router.ServeHTTP(w, req)
 
 	// Assert
 	assert.Equal(t, http.StatusNoContent, w.Code)
-	mockValidator.AssertExpectations(t)
 	mockPasswordResetRepo.AssertExpectations(t)
 	mockUserRepo.AssertExpectations(t)
+
+	check := utils.CheckPassword(newPassword, capturedUpdatedUser.PasswordHash)
+	assert.True(t, check)
 }
 
-func TestSetNewPasswordInvalidToken(t *testing.T) {
+// TestResetPasswordInvalidToken tests the ResetPassword function if it returns 403 Forbidden if the token cannot be found
+func TestResetPasswordInvalidToken(t *testing.T) {
 	// Arrange
 	mockUserRepo := new(repositories.MockUserRepository)
 	mockPasswordResetRepo := new(repositories.MockPasswordResetRepository)
@@ -243,13 +263,18 @@ func TestSetNewPasswordInvalidToken(t *testing.T) {
 
 	username := "testUser"
 	token := "123456"
-	newPassword := "newPassword123"
+	newPassword := "newPassword123!"
+
+	user := models.User{
+		Username: username,
+	}
 
 	// Mock expectations
-	mockPasswordResetRepo.On("FindPasswordResetToken", username, token).Return(nil, gorm.ErrRecordNotFound)
+	mockUserRepo.On("FindUserByUsername", username).Return(&user, nil)
+	mockPasswordResetRepo.On("FindPasswordResetToken", username, token).Return(&models.PasswordResetToken{}, gorm.ErrRecordNotFound)
 
 	// Setup HTTP request
-	url := "/users/" + username + "/set-new-password"
+	url := "/users/" + username + "/reset-password"
 	body := `{"token": "` + token + `", "newPassword": "` + newPassword + `"}`
 
 	req, _ := http.NewRequest("PATCH", url, strings.NewReader(body))
@@ -259,7 +284,7 @@ func TestSetNewPasswordInvalidToken(t *testing.T) {
 	// Act
 	gin.SetMode(gin.TestMode)
 	router := gin.Default()
-	router.PATCH("/users/:username/set-new-password", passwordResetController.SetNewPassword)
+	router.PATCH("/users/:username/reset-password", passwordResetController.ResetPassword)
 	router.ServeHTTP(w, req)
 
 	// Assert
@@ -275,7 +300,8 @@ func TestSetNewPasswordInvalidToken(t *testing.T) {
 	mockPasswordResetRepo.AssertExpectations(t)
 }
 
-func TestSetNewPasswordExpiredToken(t *testing.T) {
+// TestResetPasswordExpiredToken tests the ResetPassword function if it returns 403 Forbidden if the token is expired
+func TestResetPasswordExpiredToken(t *testing.T) {
 	// Arrange
 	mockUserRepo := new(repositories.MockUserRepository)
 	mockPasswordResetRepo := new(repositories.MockPasswordResetRepository)
@@ -293,14 +319,19 @@ func TestSetNewPasswordExpiredToken(t *testing.T) {
 		Id:             uuid.New(),
 		Token:          token,
 		Username:       username,
-		ExpirationTime: time.Now().Add(-1 * time.Hour), // expired token
+		ExpirationTime: time.Now().Add(-24 * time.Hour), // expired token
+	}
+
+	user := models.User{
+		Username: username,
 	}
 
 	// Mock expectations
+	mockUserRepo.On("FindUserByUsername", username).Return(&user, nil)
 	mockPasswordResetRepo.On("FindPasswordResetToken", username, token).Return(&resetToken, nil)
 
 	// Setup HTTP request
-	url := "/users/" + username + "/set-new-password"
+	url := "/users/" + username + "/reset-password"
 	body := `{"token": "` + token + `", "newPassword": "` + newPassword + `"}`
 
 	req, _ := http.NewRequest("PATCH", url, strings.NewReader(body))
@@ -310,7 +341,7 @@ func TestSetNewPasswordExpiredToken(t *testing.T) {
 	// Act
 	gin.SetMode(gin.TestMode)
 	router := gin.Default()
-	router.PATCH("/users/:username/set-new-password", passwordResetController.SetNewPassword)
+	router.PATCH("/users/:username/reset-password", passwordResetController.ResetPassword)
 	router.ServeHTTP(w, req)
 
 	// Assert
@@ -326,7 +357,54 @@ func TestSetNewPasswordExpiredToken(t *testing.T) {
 	mockPasswordResetRepo.AssertExpectations(t)
 }
 
-func TestSetNewPasswordInvalidPassword(t *testing.T) {
+// TestResetPasswordBadRequest tests the ResetPassword function if it returns 400 Bad Request if the body or password does not meet specifications
+func TestResetPasswordBadRequest(t *testing.T) {
+	invalidBodies := []string{
+		`{}`,                   // Empty body
+		`{"token"": "123456"}`, // Not complete
+		`{"token":"", "newPassword":"ValidPassword123!"}`,
+		`{"token": "1234562", "newPassword":"InvalidPassword123"}`, // New password does not match password policy
+	}
+
+	for _, body := range invalidBodies {
+
+		// Arrange
+		mockUserRepo := new(repositories.MockUserRepository)
+		mockPasswordResetRepo := new(repositories.MockPasswordResetRepository)
+		mockMailService := new(services.MockMailService)
+		validator := new(utils.Validator)
+
+		passwordResetService := services.NewPasswordResetService(mockUserRepo, mockPasswordResetRepo, mockMailService, validator)
+		passwordResetController := NewPasswordResetController(passwordResetService)
+
+		username := "testUser"
+
+		// Setup HTTP request
+		url := "/users/" + username + "/reset-password"
+		req, _ := http.NewRequest("PATCH", url, strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		// Act
+		gin.SetMode(gin.TestMode)
+		router := gin.Default()
+		router.PATCH("/users/:username/reset-password", passwordResetController.ResetPassword)
+		router.ServeHTTP(w, req)
+
+		// Assert
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+		var errorResponse customerrors.ErrorResponse
+		err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
+		assert.NoError(t, err)
+
+		expectedCustomError := customerrors.BadRequest
+		assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
+		assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
+	}
+}
+
+// TestResetPasswordUserNotFound tests the ResetPassword function if it returns 404 Not Found if the user to the given username cannot be found
+func TestResetPasswordUserNotFound(t *testing.T) {
 	// Arrange
 	mockUserRepo := new(repositories.MockUserRepository)
 	mockPasswordResetRepo := new(repositories.MockPasswordResetRepository)
@@ -337,14 +415,14 @@ func TestSetNewPasswordInvalidPassword(t *testing.T) {
 	passwordResetController := NewPasswordResetController(passwordResetService)
 
 	username := "testUser"
+	newPassword := "newPassword123"
 	token := "123456"
-	newPassword := "short"
 
 	// Mock expectations
-	mockValidator.On("ValidatePassword", newPassword).Return(false)
+	mockUserRepo.On("FindUserByUsername", username).Return(&models.User{}, gorm.ErrRecordNotFound)
 
 	// Setup HTTP request
-	url := "/users/" + username + "/set-new-password"
+	url := "/users/" + username + "/reset-password"
 	body := `{"token": "` + token + `", "newPassword": "` + newPassword + `"}`
 
 	req, _ := http.NewRequest("PATCH", url, strings.NewReader(body))
@@ -354,18 +432,18 @@ func TestSetNewPasswordInvalidPassword(t *testing.T) {
 	// Act
 	gin.SetMode(gin.TestMode)
 	router := gin.Default()
-	router.PATCH("/users/:username/set-new-password", passwordResetController.SetNewPassword)
+	router.PATCH("/users/:username/reset-password", passwordResetController.ResetPassword)
 	router.ServeHTTP(w, req)
 
 	// Assert
-	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Equal(t, http.StatusNotFound, w.Code)
 	var errorResponse customerrors.ErrorResponse
 	err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
 
-	expectedCustomError := customerrors.BadRequest
+	expectedCustomError := customerrors.UserNotFound
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
-	mockValidator.AssertExpectations(t)
+	mockPasswordResetRepo.AssertExpectations(t)
 }

@@ -130,8 +130,8 @@ func SetupRouter() *gin.Engine {
 	api.POST("/push/register", middleware.AuthorizeUser, pushSubscriptionController.CreatePushSubscription)
 
 	// Reset Password
-	api.POST("/users/:username/reset-password", passwordResetController.PasswordReset)
-	api.PATCH("/users/:username/reset-password", passwordResetController.SetNewPassword)
+	api.POST("/users/:username/reset-password", passwordResetController.InitiatePasswordReset)
+	api.PATCH("/users/:username/reset-password", passwordResetController.ResetPassword)
 
 	return r
 }
