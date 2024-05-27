@@ -29,7 +29,7 @@ func TestGetActivationEmailBody(t *testing.T) {
 		"<meta charset=\"UTF-8\">",
 		"Verifizierungscode",
 		"Bitte verwenden Sie den folgenden Code, um die Registrierung Ihres Accounts bei Server Beta abzuschließen:",
-		"Dieser Code ist 24 Stunden gültig.",
+		"Dieser Code ist 2 Stunden gültig.",
 		"© " + strconv.Itoa(currentYear) + " Server Beta - Alle Rechte vorbehalten.",
 	}
 
