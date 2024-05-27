@@ -53,6 +53,7 @@ func SetupRouter() *gin.Engine {
 	likeRepo := repositories.NewLikeRepository(initializers.DB)
 	notificationRepo := repositories.NewNotificationRepository(initializers.DB)
 	pushSubscriptionRepo := repositories.NewPushSubscriptionRepository(initializers.DB)
+	passwordResetRepo := repositories.NewPasswordResetRepository(initializers.DB)
 
 	validator := utils.NewValidator()
 	mailService := services.NewMailService()
@@ -65,6 +66,7 @@ func SetupRouter() *gin.Engine {
 	subscriptionService := services.NewSubscriptionService(subscriptionRepo, userRepo, notificationService)
 	commentService := services.NewCommentService(commentRepo, postRepo, userRepo)
 	postService := services.NewPostService(postRepo, userRepo, hashtagRepo, imageService, validator, locationRepo, likeRepo, commentRepo, notificationService)
+	passwordResetService := services.NewPasswordResetService(userRepo, passwordResetRepo, mailService, validator)
 
 	imprintController := controllers.NewImprintController()
 	userController := controllers.NewUserController(userService)
@@ -72,6 +74,7 @@ func SetupRouter() *gin.Engine {
 	feedController := controllers.NewFeedController(feedService)
 	imageController := controllers.NewImageController(imageService)
 	likeController := controllers.NewLikeController(likeService)
+	passwordResetController := controllers.NewPasswordResetController(passwordResetService)
 
 	notificationController := controllers.NewNotificationController(notificationService)
 	pushSubscriptionController := controllers.NewPushSubscriptionController(pushSubscriptionService)
@@ -125,6 +128,10 @@ func SetupRouter() *gin.Engine {
 	// Push subscription (for web or mobile push notifications)
 	api.GET("/push/vapid", middleware.AuthorizeUser, pushSubscriptionController.GetVapidKey)
 	api.POST("/push/register", middleware.AuthorizeUser, pushSubscriptionController.CreatePushSubscription)
+
+	// Reset Password
+	api.POST("/users/:username/reset-password", passwordResetController.InitiatePasswordReset)
+	api.PATCH("/users/:username/reset-password", passwordResetController.ResetPassword)
 
 	return r
 }

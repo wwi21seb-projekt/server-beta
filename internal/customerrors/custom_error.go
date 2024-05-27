@@ -119,6 +119,12 @@ var (
 		Message: "You can only delete your own notifications.",
 		Code:    "ERR-024",
 	}
+
+	PasswordResetTokenInvalid = &CustomError{
+		Message: "The password reset token is invalid or has expired. Please request a new token and try again.",
+		Code:    "ERR-025",
+	}
+
 	FileNotFound = &CustomError{
 		Message: "",
 		Code:    "",
