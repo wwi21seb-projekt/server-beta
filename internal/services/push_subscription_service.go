@@ -20,7 +20,7 @@ import (
 type PushSubscriptionServiceInterface interface {
 	GetVapidKey() (*models.VapidKeyResponseDTO, *customerrors.CustomError, int)
 	CreatePushSubscription(req *models.PushSubscriptionRequestDTO, currentUsername string) (*models.PushSubscriptionResponseDTO, *customerrors.CustomError, int)
-	SendPushMessages(notificationObject interface{}, toUsername string)
+	SendPushMessages(notificationObject *models.NotificationRecordDTO, toUsername string)
 }
 
 type PushSubscriptionService struct {
@@ -116,13 +116,13 @@ func (service *PushSubscriptionService) CreatePushSubscription(req *models.PushS
 }
 
 // SendPushMessages sends push messages to all push subscriptions of a user
-func (service *PushSubscriptionService) SendPushMessages(notificationObject interface{}, toUsername string) {
+func (service *PushSubscriptionService) SendPushMessages(notificationObject *models.NotificationRecordDTO, toUsername string) {
 	// Create notification json string from object
 	notificationJson, err := json.Marshal(notificationObject)
 	if err != nil {
 		return
 	}
-	notificationString := string(notificationJson)
+	notificationDataString := string(notificationJson)
 
 	// Get all push subscriptions by username
 	pushSubscriptions, err := service.pushSubscriptionRepo.GetPushSubscriptionsByUsername(toUsername)
@@ -133,18 +133,28 @@ func (service *PushSubscriptionService) SendPushMessages(notificationObject inte
 	// Send push messages
 	for _, pushSubscription := range pushSubscriptions {
 		if pushSubscription.Type == "web" {
-			go service.sendWebPushNotification(&pushSubscription, notificationString) // send push message in background
+			go service.sendWebPushNotification(&pushSubscription, notificationDataString) // send push message in background
 			continue
 		}
 		if pushSubscription.Type == "expo" {
-			go service.sendExpoPushNotification(&pushSubscription, notificationString) // send push message in background
+			// Create notification text for body of expo push notification
+			var notificationText = ""
+			if notificationObject.NotificationType == "follow" {
+				notificationText = notificationObject.User.Username + " started following you"
+			} else if notificationObject.NotificationType == "repost" {
+				notificationText = notificationObject.User.Username + " reposted your post"
+			} else {
+				notificationText = "New notification"
+			}
+
+			go service.sendExpoPushNotification(&pushSubscription, notificationDataString, notificationText) // send push message in background
 			continue
 		}
 	}
 }
 
 // sendWebPushNotification sends a push notification to a web client using the webpush-go library and provided keys
-func (service *PushSubscriptionService) sendWebPushNotification(pushSubscription *models.PushSubscription, notificationString string) {
+func (service *PushSubscriptionService) sendWebPushNotification(pushSubscription *models.PushSubscription, notificationDataString string) {
 	// send notification to web client
 	sub := &webpush.Subscription{
 		Endpoint: pushSubscription.Endpoint,
@@ -154,7 +164,7 @@ func (service *PushSubscriptionService) sendWebPushNotification(pushSubscription
 		},
 	}
 
-	resp, err := webpush.SendNotification([]byte(notificationString), sub, &webpush.Options{
+	resp, err := webpush.SendNotification([]byte(notificationDataString), sub, &webpush.Options{
 		Subscriber:      service.serverMail,
 		VAPIDPublicKey:  service.vapidPublicKey,
 		VAPIDPrivateKey: service.vapidPrivateKey,
@@ -180,14 +190,16 @@ func (service *PushSubscriptionService) sendWebPushNotification(pushSubscription
 }
 
 // sendExpoPushNotification sends a push notification to an expo client using the expo API
-func (service *PushSubscriptionService) sendExpoPushNotification(pushSubscription *models.PushSubscription, notificationString string) {
+func (service *PushSubscriptionService) sendExpoPushNotification(pushSubscription *models.PushSubscription, notificationDataString string, notificationText string) {
 	// Create request
 	expoApiUrl := "https://exp.host/--/api/v2/push/send"
 
 	data := map[string]interface{}{
 		"to":    pushSubscription.ExpoToken, // token is sent in ExponentPushToken[...] format
 		"title": "Notification from Server Beta",
-		"body":  notificationString,
+		"body":  notificationText,
+		"data":  notificationDataString,
+		"sound": "default",
 	}
 
 	jsonData, err := json.Marshal(data)
