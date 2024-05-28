@@ -23,7 +23,7 @@ func (repo *ChatRepository) GetChatsByUsername(username string) ([]models.Chat, 
 	var chats []models.Chat
 	err := repo.DB.
 		Joins("JOIN chat_users ON chats.id = chat_users.chat_id").
-		Where("chat_users.username = ?", username).
+		Where("chat_users.user_username = ?", username).
 		Preload("Users").
 		Find(&chats).Error
 	return chats, err

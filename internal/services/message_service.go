@@ -2,6 +2,7 @@ package services
 
 import (
 	"errors"
+	"fmt"
 	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
 	"github.com/wwi21seb-projekt/server-beta/internal/models"
 	"github.com/wwi21seb-projekt/server-beta/internal/repositories"
@@ -49,6 +50,7 @@ func (service *MessageService) GetMessagesByChatId(chatId, currentUsername strin
 	// Get messages by chatId
 	messages, totalCount, err := service.messageRepo.GetMessagesByChatId(chatId, offset, limit)
 	if err != nil {
+		fmt.Println("error: ", err)
 		return nil, customerrors.DatabaseError, http.StatusInternalServerError
 	}
 

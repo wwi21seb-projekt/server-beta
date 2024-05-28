@@ -23,6 +23,7 @@ func (repo *MessageRepository) GetMessagesByChatId(chatId string, offset int, li
 	var count int64
 
 	baseQuery := repo.DB.
+		Model(&models.Message{}).
 		Where("chat_id = ?", chatId).
 		Order("created_at desc")
 
@@ -30,7 +31,7 @@ func (repo *MessageRepository) GetMessagesByChatId(chatId string, offset int, li
 	if err != nil {
 		return nil, 0, err
 	}
-	err = baseQuery.Offset(offset).Limit(limit).Find(&messages).Error
+	err = baseQuery.Offset(offset).Limit(limit).Preload("User").Find(&messages).Error
 	if err != nil {
 		return nil, 0, err
 	}
