@@ -59,8 +59,8 @@ func NewUserService(
 
 // sendActivationToken deletes old activation tokens, generates a new six-digit code and sends it to user via mail
 func (service *UserService) sendActivationToken(email string, tokenObject *models.ActivationToken) *customerrors.CustomError {
-	subject := "Verification Token"
-	body := "Your verification code is:\n\n\t" + tokenObject.Token + "\n\nVerify your account now!"
+	subject := "Verify your account"
+	body := utils.GetActivationEmailBody(tokenObject.Token)
 	err := service.mailService.SendMail(email, subject, body)
 	if err != nil {
 		return customerrors.EmailNotSent
@@ -282,7 +282,7 @@ func (service *UserService) ActivateUser(username string, token string) (*models
 
 	// Send welcome email
 	subject := "Welcome to Server Beta"
-	body := "Welcome to Server Beta!\n\nYour account was successfully verified. Now you can use our network!"
+	body := utils.GetWelcomeEmailBody(username)
 	if err := service.mailService.SendMail(user.Email, subject, body); err != nil {
 		return nil, customerrors.InternalServerError, http.StatusInternalServerError
 	}

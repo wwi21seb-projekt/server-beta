@@ -107,18 +107,27 @@ func (repo *UserRepository) GetUnactivatedUsers() ([]models.User, error) {
 }
 
 func (repo *UserRepository) DeleteUserByUsername(username string) error {
+	// This function deletes a user and related subscription and activation tokens
+	// It is only used for unactivated users that do not have any posts or comments, etc.
+	// If this function should also be used for activated users, additional deletions are required
 	return repo.DB.Transaction(func(tx *gorm.DB) error {
-		// Token löschen
-		if err := tx.Where("username = ?", username).Delete(&models.ActivationToken{}).Error; err != nil {
+		// Delete subscriptions (user can already be followed by others even when he is not activated yet)
+		if err := tx.Where("following = ? OR follower = ?", username, username).Delete(&models.Subscription{}).Error; err != nil {
 			if !errors.Is(err, gorm.ErrRecordNotFound) {
-				return err // Rückkehr bei einem Datenbankfehler, der kein RecordNotFound-Fehler ist
+				return err
 			}
 		}
-		// Nutzer löschen
+		// Delete token
+		if err := tx.Where("username = ?", username).Delete(&models.ActivationToken{}).Error; err != nil {
+			if !errors.Is(err, gorm.ErrRecordNotFound) {
+				return err
+			}
+		}
+		// Delete user
 		if err := tx.Where("username = ?", username).Delete(&models.User{}).Error; err != nil {
 			return err // Rückkehr bei einem Fehler
 		}
 
-		return nil // Kein Fehler, erfolgreicher Abschluss der Transaktion
+		return nil
 	})
 }

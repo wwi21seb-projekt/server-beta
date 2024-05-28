@@ -163,7 +163,7 @@ func TestCreatePushSubscriptionExpoSuccess(t *testing.T) {
 
 	pushSubscriptionCreateRequest := models.PushSubscriptionRequestDTO{
 		Type:  "expo",
-		Token: "1234567890",
+		Token: "ExponentPushToken[someToken]",
 	}
 
 	// Mock expectations

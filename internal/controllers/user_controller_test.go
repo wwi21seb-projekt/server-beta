@@ -59,8 +59,12 @@ func TestCreateUserSuccess(t *testing.T) {
 	mockUserRepository.On("CommitTx", mockTx).Return(nil)
 	mockUserRepository.On("CheckEmailExistsForUpdate", email, mockTx).Return(false, nil)       // Email does not exist
 	mockUserRepository.On("CheckUsernameExistsForUpdate", username, mockTx).Return(false, nil) // Username does not exist
-	mockMailService.On("SendMail", email, mock.Anything, mock.Anything).Return(nil)            // Send mail successfully
-	mockValidator.On("ValidateEmailExistance", email).Return(true)                             // Email exists
+	var capturedEmailBody string
+	mockMailService.On("SendMail", email, "Verify your account", mock.AnythingOfType("string")).
+		Run(func(args mock.Arguments) {
+			capturedEmailBody = args.String(2)
+		}).Return(nil) // Send mail successfully
+	mockValidator.On("ValidateEmailExistance", email).Return(true) // Email exists
 
 	type ArgumentCaptor struct {
 		User  *models.User
@@ -109,8 +113,9 @@ func TestCreateUserSuccess(t *testing.T) {
 	assert.False(t, captor.User.Activated) // Expect user to be not activated
 
 	// Assert token saved to database
-	assert.Equal(t, username, captor.Token.Username) // Expect username to be saved to database
-	assert.Equal(t, 6, len(captor.Token.Token))      // Expect token to be 6 digits long
+	assert.Equal(t, username, captor.Token.Username)          // Expect username to be saved to database
+	assert.Equal(t, 6, len(captor.Token.Token))               // Expect token to be 6 digits long
+	assert.Contains(t, capturedEmailBody, captor.Token.Token) // Expect token to be in email body
 
 	// Verify that all expectations are met
 	mockUserRepository.AssertExpectations(t)
@@ -211,7 +216,7 @@ func TestCreateUserUsernameExists(t *testing.T) {
 	mockUserRepository.On("RollbackTx", mockTx).Return(nil)
 	mockUserRepository.On("CheckEmailExistsForUpdate", email, mockTx).Return(false, nil)      // Email does not exist
 	mockUserRepository.On("CheckUsernameExistsForUpdate", username, mockTx).Return(true, nil) // Username does exist
-	mockMailService.On("SendMail", email, mock.Anything, mock.Anything).Return(nil)           // Send mail successfully
+	mockMailService.On("SendMail", email, "Verify your account", mock.Anything).Return(nil)   // Send mail successfully
 	mockValidator.On("ValidateEmailExistance", email).Return(true)                            // Email exists
 
 	// Setup HTTP request and recorder
