@@ -17,6 +17,22 @@ type ChatUserDTO struct {
 	ProfilePictureUrl string `json:"profilePictureUrl"`
 }
 
+type ChatCreateRequestDTO struct {
+	Content  string `json:"content" binding:"required"`
+	Username string `json:"username" binding:"required"`
+}
+
+type FirstMessageResponseDTO struct {
+	Content      string    `json:"content"`
+	Username     string    `json:"username"`
+	CreationDate time.Time `json:"creationDate"`
+}
+
+type ChatCreateResponseDTO struct {
+	ChatId  string                   `json:"chatId"`
+	Message *FirstMessageResponseDTO `json:"message"`
+}
+
 type ChatRecordDTO struct {
 	ChatId string       `json:"id"`
 	User   *ChatUserDTO `json:"user"`

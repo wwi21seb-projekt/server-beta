@@ -30,6 +30,7 @@ func SyncDatabase() {
 		&models.PushSubscription{},
 		&models.Chat{},
 		&models.Message{},
+		&models.PasswordResetToken{},
 	}
 
 	for _, model := range modelsToMigrate {

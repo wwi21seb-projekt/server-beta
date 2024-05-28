@@ -118,6 +118,14 @@ var (
 	DeleteNotificationForbidden = &CustomError{
 		Message: "You can only delete your own notifications.",
 		Code:    "ERR-024",
+  }
+	PasswordResetTokenInvalid = &CustomError{
+		Message: "The password reset token is invalid or has expired. Please request a new token and try again.",
+		Code:    "ERR-025",
+	}
+  ChatAlreadyExists = &CustomError{
+		Message: "The chat already exists. Please check the username and try again.",
+		Code:    "ERR-026",
 	}
 	ChatNotFound = &CustomError{
 		Message: "The chat was not found. Please check the chat ID and try again.",
