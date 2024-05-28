@@ -10,3 +10,19 @@ type Chat struct {
 	Users     []User    `gorm:"many2many:chat_users;"` // gorm handles the join table
 	CreatedAt time.Time `gorm:"column:created_at;not_null"`
 }
+
+type ChatCreateRequestDTO struct {
+	Content  string `json:"content" binding:"required"`
+	Username string `json:"username" binding:"required"`
+}
+
+type FirstMessageResponseDTO struct {
+	Content      string    `json:"content"`
+	Username     string    `json:"username"`
+	CreationDate time.Time `json:"creationDate"`
+}
+
+type ChatCreateResponseDTO struct {
+	ChatId  string                   `json:"chatId"`
+	Message *FirstMessageResponseDTO `json:"message"`
+}
