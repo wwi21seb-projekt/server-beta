@@ -1,10 +1,11 @@
-package controllers
+package controllers_test
 
 import (
 	"encoding/json"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/wwi21seb-projekt/server-beta/internal/controllers"
 	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
 	"github.com/wwi21seb-projekt/server-beta/internal/repositories"
 	"github.com/wwi21seb-projekt/server-beta/internal/services"
@@ -37,7 +38,7 @@ func TestGetImageSuccess(t *testing.T) {
 
 		// Arrange
 		imageService := services.NewImageService(mockFileSystem, mockValidator)
-		imageController := NewImageController(imageService)
+		imageController := controllers.NewImageController(imageService)
 
 		// Setup HTTP request
 		req, _ := http.NewRequest("GET", "/images/"+filename, nil)
@@ -107,7 +108,7 @@ func TestGetImageNotFound(t *testing.T) {
 
 	// Arrange
 	imageService := services.NewImageService(mockFileSystem, mockValidator)
-	imageController := NewImageController(imageService)
+	imageController := controllers.NewImageController(imageService)
 
 	// Setup HTTP request
 	req, _ := http.NewRequest("GET", "/images/test.jpeg", nil)

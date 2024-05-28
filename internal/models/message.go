@@ -7,7 +7,7 @@ import (
 
 type Message struct {
 	Id        uuid.UUID `gorm:"column:id;primary_key"`
-	ChatId    string    `gorm:"column:chat_id"`
+	ChatId    uuid.UUID `gorm:"column:chat_id"`
 	Chat      Chat      `gorm:"foreignKey:chat_id;references:id"`
 	Username  string    `gorm:"column:username_fk;type:varchar(20)"`
 	User      User      `gorm:"foreignKey:username_fk;references:username"`
@@ -16,11 +16,18 @@ type Message struct {
 }
 
 type MessageRecordDTO struct {
-	Id        uuid.UUID `json:"id"`
-	ChatId    string    `json:"chatId"`
-	Username  string    `json:"username"`
-	Content   string    `json:"content"`
-	CreatedAt time.Time `json:"createdAt"`
+	Content      string    `json:"content"`
+	Username     string    `json:"username"`
+	CreationDate time.Time `json:"creationDate"`
 }
 
-type MessagesResponseDTO struct
+type MessagePaginationDTO struct {
+	Offset  int   `json:"offset"`
+	Limit   int   `json:"limit"`
+	Records int64 `json:"records"`
+}
+
+type MessagesResponseDTO struct {
+	Records    []MessageRecordDTO    `json:"records"`
+	Pagination *MessagePaginationDTO `json:"pagination"`
+}

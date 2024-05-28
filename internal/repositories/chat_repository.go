@@ -1,48 +1,36 @@
 package repositories
 
 import (
-	"errors"
-	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
 	"github.com/wwi21seb-projekt/server-beta/internal/models"
 	"gorm.io/gorm"
 )
 
 type ChatRepositoryInterface interface {
-	GetChatMessages(chatId string, offset int, limit int) ([]models.Message, error)
-	GetAllChats(username string) ([]models.Chat, error)
+	GetChatsByUsername(username string) ([]models.Chat, error)
+	GetChatById(chatId string) (models.Chat, error)
 }
 
 type ChatRepository struct {
 	DB *gorm.DB
 }
 
+// NewChatRepository can be used as a constructor to create a ChatRepository "object"
 func NewChatRepository(db *gorm.DB) *ChatRepository {
 	return &ChatRepository{DB: db}
 }
 
-func (repo *ChatRepository) GetChatMessages(chatId string, offset int, limit int) ([]models.Message, error) {
-	var messages []models.Message
-	err := repo.DB.Where("chat_id = ?", chatId).Order("created_at desc").Offset(offset).Limit(limit).Find(&messages).Error
-	if err != nil {
-		if errors.Is(gorm.ErrRecordNotFound, err) {
-			return nil, customerrors.ChatNotFound
-		}
-		return nil, err
-	}
-	return messages, nil
-}
-
-func (repo *ChatRepository) GetAllChats(username string) ([]models.ChatDTO, error) {
-	var chats []models.ChatDTO
+func (repo *ChatRepository) GetChatsByUsername(username string) ([]models.Chat, error) {
+	var chats []models.Chat
 	err := repo.DB.
 		Joins("JOIN chat_users ON chats.id = chat_users.chat_id").
 		Where("chat_users.username = ?", username).
+		Preload("Users").
 		Find(&chats).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, customerrors.ChatNotFound
-		}
-		return nil, err
-	}
-	return chats, nil
+	return chats, err
+}
+
+func (repo *ChatRepository) GetChatById(chatId string) (models.Chat, error) {
+	var chat models.Chat
+	err := repo.DB.Where("id = ?", chatId).Preload("Users").First(&chat).Error
+	return chat, err
 }

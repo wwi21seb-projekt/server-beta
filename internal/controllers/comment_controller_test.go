@@ -1,4 +1,4 @@
-package controllers
+package controllers_test
 
 import (
 	"bytes"
@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/wwi21seb-projekt/server-beta/internal/controllers"
 	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
 	"github.com/wwi21seb-projekt/server-beta/internal/middleware"
 	"github.com/wwi21seb-projekt/server-beta/internal/models"
@@ -29,7 +30,7 @@ func TestCreateCommentSuccess(t *testing.T) {
 	mockUserRepository := new(repositories.MockUserRepository)
 
 	commentService := services.NewCommentService(mockCommentRepository, mockPostRepository, mockUserRepository)
-	commentController := NewCommentController(commentService)
+	commentController := controllers.NewCommentController(commentService)
 
 	testUsername := "testuser"
 	authenticationToken, err := utils.GenerateAccessToken(testUsername)
@@ -117,7 +118,7 @@ func TestCreateCommentBadRequest(t *testing.T) {
 		mockUserRepository := new(repositories.MockUserRepository)
 
 		commentService := services.NewCommentService(mockCommentRepository, mockPostRepository, mockUserRepository)
-		commentController := NewCommentController(commentService)
+		commentController := controllers.NewCommentController(commentService)
 
 		testUsername := "testuser"
 		authenticationToken, err := utils.GenerateAccessToken(testUsername)
@@ -166,7 +167,7 @@ func TestCreateCommentUnauthorized(t *testing.T) {
 	mockUserRepository := new(repositories.MockUserRepository)
 
 	commentService := services.NewCommentService(mockCommentRepository, mockPostRepository, mockUserRepository)
-	commentController := NewCommentController(commentService)
+	commentController := controllers.NewCommentController(commentService)
 
 	post := models.Post{
 		Id: uuid.New(),
@@ -207,7 +208,7 @@ func TestCreateCommentPostNotFound(t *testing.T) {
 	mockUserRepository := new(repositories.MockUserRepository)
 
 	commentService := services.NewCommentService(mockCommentRepository, mockPostRepository, mockUserRepository)
-	commentController := NewCommentController(commentService)
+	commentController := controllers.NewCommentController(commentService)
 
 	testUsername := "testuser"
 	authenticationToken, err := utils.GenerateAccessToken(testUsername)
@@ -265,7 +266,7 @@ func TestGetCommentsByPostIdSuccess(t *testing.T) {
 	mockUserRepository := new(repositories.MockUserRepository)
 
 	commentService := services.NewCommentService(mockCommentRepository, mockPostRepository, mockUserRepository)
-	commentController := NewCommentController(commentService)
+	commentController := controllers.NewCommentController(commentService)
 
 	authenticationToken, err := utils.GenerateAccessToken("myuser")
 	if err != nil {
@@ -356,7 +357,7 @@ func TestGetCommentsByPostIdUnauthorized(t *testing.T) {
 	mockUserRepository := new(repositories.MockUserRepository)
 
 	commentService := services.NewCommentService(mockCommentRepository, mockPostRepository, mockUserRepository)
-	commentController := NewCommentController(commentService)
+	commentController := controllers.NewCommentController(commentService)
 
 	post := models.Post{
 		Id: uuid.New(),
@@ -397,7 +398,7 @@ func TestGetCommentsByPostIdPostNotFound(t *testing.T) {
 	mockUserRepository := new(repositories.MockUserRepository)
 
 	commentService := services.NewCommentService(mockCommentRepository, mockPostRepository, mockUserRepository)
-	commentController := NewCommentController(commentService)
+	commentController := controllers.NewCommentController(commentService)
 
 	authenticationToken, err := utils.GenerateAccessToken("myuser")
 	if err != nil {

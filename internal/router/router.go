@@ -54,6 +54,7 @@ func SetupRouter() *gin.Engine {
 	notificationRepo := repositories.NewNotificationRepository(initializers.DB)
 	pushSubscriptionRepo := repositories.NewPushSubscriptionRepository(initializers.DB)
 	chatRepo := repositories.NewChatRepository(initializers.DB)
+	messageRepo := repositories.NewMessageRepository(initializers.DB)
 
 	validator := utils.NewValidator()
 	mailService := services.NewMailService()
@@ -67,6 +68,7 @@ func SetupRouter() *gin.Engine {
 	commentService := services.NewCommentService(commentRepo, postRepo, userRepo)
 	postService := services.NewPostService(postRepo, userRepo, hashtagRepo, imageService, validator, locationRepo, likeRepo, commentRepo, notificationService)
 	chatService := services.NewChatService(chatRepo)
+	messageService := services.NewMessageService(messageRepo, chatRepo)
 
 	imprintController := controllers.NewImprintController()
 	userController := controllers.NewUserController(userService)
@@ -75,6 +77,7 @@ func SetupRouter() *gin.Engine {
 	imageController := controllers.NewImageController(imageService)
 	likeController := controllers.NewLikeController(likeService)
 	chatController := controllers.NewChatController(chatService)
+	messageController := controllers.NewMessageController(messageService)
 
 	notificationController := controllers.NewNotificationController(notificationService)
 	pushSubscriptionController := controllers.NewPushSubscriptionController(pushSubscriptionService)
@@ -130,8 +133,8 @@ func SetupRouter() *gin.Engine {
 	api.POST("/push/register", middleware.AuthorizeUser, pushSubscriptionController.CreatePushSubscription)
 
 	// Chat
-	api.GET("/chats", middleware.AuthorizeUser, chatController.GetAllChats)
-	api.GET("/chats/:chatId", middleware.AuthorizeUser, chatController.GetChatMessages)
+	api.GET("/chats", middleware.AuthorizeUser, chatController.GetChats)
+	api.GET("/chats/:chatId", middleware.AuthorizeUser, messageController.GetMessagesByChatId)
 
 	return r
 }

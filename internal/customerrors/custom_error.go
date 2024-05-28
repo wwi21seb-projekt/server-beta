@@ -119,6 +119,14 @@ var (
 		Message: "You can only delete your own notifications.",
 		Code:    "ERR-024",
 	}
+	ChatNotFound = &CustomError{
+		Message: "The chat was not found. Please check the chat ID and try again.",
+		Code:    "to be defined",
+	}
+	NotChatParticipant = &CustomError{
+		Message: "You are not a participant of this chat.",
+		Code:    "to be defined",
+	}
 	FileNotFound = &CustomError{
 		Message: "",
 		Code:    "",
@@ -126,9 +134,5 @@ var (
 	FileTooLarge = &CustomError{
 		Message: "file too large: to be defined",
 		Code:    "",
-	}
-	ChatNotFound = &CustomError{
-		Message: "The chat was not found. Please check the chat ID and try again.",
-		Code:    "ERR-027",
 	}
 )

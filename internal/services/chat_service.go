@@ -1,7 +1,6 @@
 package services
 
 import (
-	"errors"
 	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
 	"github.com/wwi21seb-projekt/server-beta/internal/models"
 	"github.com/wwi21seb-projekt/server-beta/internal/repositories"
@@ -9,82 +8,54 @@ import (
 )
 
 type ChatServiceInterface interface {
-	GetChatMessages(chatId string, username string, offset int, limit int) ([]models.MessageRecordDTO, *customerrors.CustomError, int)
-	GetAllChats(username string) ([]models.ChatDTO, *customerrors.CustomError, int)
+	GetChatsByUsername(username string) (*models.ChatsResponseDTO, *customerrors.CustomError, int)
 }
 
 type ChatService struct {
 	chatRepository repositories.ChatRepositoryInterface
 }
 
+// NewChatService creates a new instance of the ChatService
 func NewChatService(chatRepository repositories.ChatRepositoryInterface) *ChatService {
 	return &ChatService{chatRepository: chatRepository}
 }
 
-func (s *ChatService) GetChatMessages(chatId string, username string, offset int, limit int) ([]models.MessageRecordDTO, *customerrors.CustomError, int) {
-	chat, err := s.chatRepository.GetChatMessages(chatId, offset, limit)
+// GetChatsByUsername retrieves all chats of a user by its username
+func (service *ChatService) GetChatsByUsername(username string) (*models.ChatsResponseDTO, *customerrors.CustomError, int) {
+	// Get Chats by username
+	chats, err := service.chatRepository.GetChatsByUsername(username)
 	if err != nil {
-		if errors.Is(err, customerrors.ChatNotFound) {
-			return nil, customerrors.ChatNotFound, http.StatusNotFound
-		}
 		return nil, customerrors.DatabaseError, http.StatusInternalServerError
 	}
 
-	isParticipant := false
-	for _, user := range chat {
-		if user.Username == username {
-			isParticipant = true
-			break
-		}
-	}
-	if !isParticipant {
-		return nil, customerrors.UserUnauthorized, http.StatusUnauthorized
-	}
-
-	messages, err := s.chatRepository.GetChatMessages(chatId, offset, limit)
-	if err != nil {
-		if errors.Is(err, customerrors.ChatNotFound) {
-			return nil, customerrors.ChatNotFound, http.StatusNotFound
-		}
-		return nil, customerrors.DatabaseError, http.StatusInternalServerError
-	}
-
-	var messageDTOs []models.MessageRecordDTO
-	for _, message := range messages {
-		messageDTO := models.MessageRecordDTO{
-			Id:        message.Id,
-			Content:   message.Content,
-			Username:  message.Username,
-			CreatedAt: message.CreatedAt,
-		}
-		messageDTOs = append(messageDTOs, messageDTO)
-	}
-
-	return messageDTOs, nil, http.StatusOK
-}
-
-func (s *ChatService) GetAllChats(username string) ([]models.ChatDTO, *customerrors.CustomError, int) {
-	chats, err := s.chatRepository.GetAllChats(username)
-	if err != nil {
-		if errors.Is(err, customerrors.ChatNotFound) {
-			return nil, customerrors.ChatNotFound, http.StatusNotFound
-		}
-		return nil, customerrors.DatabaseError, http.StatusInternalServerError
-	}
-
-	var chatDTOs []models.ChatDTO
+	// Create response
+	chatDTOs := make([]models.ChatRecordDTO, 0)
 	for _, chat := range chats {
-		var users []string
+
+		// Currently, we only have two users in a chat --> find the other user
+		var chatUserDto models.ChatUserDTO
 		for _, user := range chat.Users {
-			users = append(users, user.Username)
+			if user.Username != username {
+				chatUserDto = models.ChatUserDTO{
+					Username:          user.Username,
+					Nickname:          user.Nickname,
+					ProfilePictureUrl: user.ProfilePictureUrl,
+				}
+				break
+			}
 		}
-		chatDTO := models.ChatDTO{
-			Id:        chat.Id,
-			Users:     users,
-			CreatedAt: chat.CreatedAt,
+
+		chatDTO := models.ChatRecordDTO{
+			ChatId: chat.Id.String(),
+			User:   &chatUserDto,
 		}
+
 		chatDTOs = append(chatDTOs, chatDTO)
 	}
 
-	return chatDTOs, nil, http.StatusOK
+	response := models.ChatsResponseDTO{
+		Records: chatDTOs,
+	}
+
+	return &response, nil, http.StatusOK
 }
