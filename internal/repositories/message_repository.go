@@ -6,27 +6,35 @@ import (
 )
 
 type MessageRepositoryInterface interface {
-	CreateMessage(message *models.Message) error
-	DeleteMessage(messageId string) error
-	GetChatMessages(chatId string) ([]*models.Message, error)
+	GetMessagesByChatId(chatId string, offset int, limit int) ([]models.Message, int64, error)
 }
 
 type MessageRepository struct {
 	DB *gorm.DB
 }
 
-func NewMessageRepository(db *gorm.DB) *MessageRepository { return &MessageRepository{DB: db} }
-
-func (repo *MessageRepository) CreateMessage(message *models.Message) error {
-	return repo.DB.Create(message).Error
+// NewMessageRepository can be used as a constructor to create a MessageRepository "object"
+func NewMessageRepository(db *gorm.DB) *MessageRepository {
+	return &MessageRepository{DB: db}
 }
 
-func (repo *MessageRepository) DeleteMessage(messageId string) error {
-	return repo.DB.Delete(&models.Message{}, "id = ?", messageId).Error
-}
+func (repo *MessageRepository) GetMessagesByChatId(chatId string, offset int, limit int) ([]models.Message, int64, error) {
+	var messages []models.Message
+	var count int64
 
-func (repo *MessageRepository) GetChatMessages(chatId string) ([]*models.Message, error) {
-	var messages []*models.Message
-	query := repo.DB.Model(&models.Message{}).Where("chat_id = ?", chatId).Find(&messages)
-	return messages, query.Error
+	baseQuery := repo.DB.
+		Model(&models.Message{}).
+		Where("chat_id = ?", chatId).
+		Order("created_at desc")
+
+	err := baseQuery.Count(&count).Error
+	if err != nil {
+		return nil, 0, err
+	}
+	err = baseQuery.Offset(offset).Limit(limit).Preload("User").Find(&messages).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return messages, count, err
 }

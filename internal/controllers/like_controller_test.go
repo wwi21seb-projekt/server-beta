@@ -1,4 +1,4 @@
-package controllers
+package controllers_test
 
 import (
 	"encoding/json"
@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/wwi21seb-projekt/server-beta/internal/controllers"
 	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
 	"github.com/wwi21seb-projekt/server-beta/internal/middleware"
 	"github.com/wwi21seb-projekt/server-beta/internal/models"
@@ -25,7 +26,7 @@ func TestPostLikeSuccess(t *testing.T) {
 	mockLikeRepo := new(repositories.MockLikeRepository)
 
 	likeService := services.NewLikeService(mockLikeRepo, mockPostRepo)
-	likeController := NewLikeController(likeService)
+	likeController := controllers.NewLikeController(likeService)
 
 	currentUsername := "testUser"
 	authenticationToken, err := utils.GenerateAccessToken(currentUsername)
@@ -80,7 +81,7 @@ func TestPostLikeUnauthorized(t *testing.T) {
 	mockLikeRepo := new(repositories.MockLikeRepository)
 
 	likeService := services.NewLikeService(mockLikeRepo, mockPostRepo)
-	likeController := NewLikeController(likeService)
+	likeController := controllers.NewLikeController(likeService)
 
 	// Setup HTTP request
 	url := "/posts/1/likes"
@@ -115,7 +116,7 @@ func TestPostLikePostNotFound(t *testing.T) {
 	mockLikeRepo := new(repositories.MockLikeRepository)
 
 	likeService := services.NewLikeService(mockLikeRepo, mockPostRepo)
-	likeController := NewLikeController(likeService)
+	likeController := controllers.NewLikeController(likeService)
 
 	currentUsername := "testUser"
 	authenticationToken, err := utils.GenerateAccessToken(currentUsername)
@@ -162,7 +163,7 @@ func TestPostLikeAlreadyLiked(t *testing.T) {
 	mockLikeRepo := new(repositories.MockLikeRepository)
 
 	likeService := services.NewLikeService(mockLikeRepo, mockPostRepo)
-	likeController := NewLikeController(likeService)
+	likeController := controllers.NewLikeController(likeService)
 
 	currentUsername := "testUser"
 	authenticationToken, err := utils.GenerateAccessToken(currentUsername)
@@ -212,7 +213,7 @@ func TestDeleteLikeSuccess(t *testing.T) {
 	mockLikeRepo := new(repositories.MockLikeRepository)
 
 	likeService := services.NewLikeService(mockLikeRepo, mockPostRepo)
-	likeController := NewLikeController(likeService)
+	likeController := controllers.NewLikeController(likeService)
 
 	currentUsername := "testUser"
 	authenticationToken, err := utils.GenerateAccessToken(currentUsername)
@@ -262,7 +263,7 @@ func TestDeleteLikeUnauthorized(t *testing.T) {
 	mockLikeRepo := new(repositories.MockLikeRepository)
 
 	likeService := services.NewLikeService(mockLikeRepo, mockPostRepo)
-	likeController := NewLikeController(likeService)
+	likeController := controllers.NewLikeController(likeService)
 
 	// Setup HTTP request
 	url := "/posts/1/likes"
@@ -297,7 +298,7 @@ func TestDeleteLikePostNotFound(t *testing.T) {
 	mockLikeRepo := new(repositories.MockLikeRepository)
 
 	likeService := services.NewLikeService(mockLikeRepo, mockPostRepo)
-	likeController := NewLikeController(likeService)
+	likeController := controllers.NewLikeController(likeService)
 
 	currentUsername := "testUser"
 	authenticationToken, err := utils.GenerateAccessToken(currentUsername)
@@ -344,7 +345,7 @@ func TestDeleteLikeNotLiked(t *testing.T) {
 	mockLikeRepo := new(repositories.MockLikeRepository)
 
 	likeService := services.NewLikeService(mockLikeRepo, mockPostRepo)
-	likeController := NewLikeController(likeService)
+	likeController := controllers.NewLikeController(likeService)
 
 	currentUsername := "testUser"
 	authenticationToken, err := utils.GenerateAccessToken(currentUsername)

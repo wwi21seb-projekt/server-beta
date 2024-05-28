@@ -11,6 +11,12 @@ type Chat struct {
 	CreatedAt time.Time `gorm:"column:created_at;not_null"`
 }
 
+type ChatUserDTO struct {
+	Username          string `json:"username"`
+	Nickname          string `json:"nickname"`
+	ProfilePictureUrl string `json:"profilePictureUrl"`
+}
+
 type ChatCreateRequestDTO struct {
 	Content  string `json:"content" binding:"required"`
 	Username string `json:"username" binding:"required"`
@@ -25,4 +31,13 @@ type FirstMessageResponseDTO struct {
 type ChatCreateResponseDTO struct {
 	ChatId  string                   `json:"chatId"`
 	Message *FirstMessageResponseDTO `json:"message"`
+}
+
+type ChatRecordDTO struct {
+	ChatId string       `json:"id"`
+	User   *ChatUserDTO `json:"user"`
+}
+
+type ChatsResponseDTO struct {
+	Records []ChatRecordDTO `json:"records"`
 }

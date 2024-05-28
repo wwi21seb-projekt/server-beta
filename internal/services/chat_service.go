@@ -15,6 +15,7 @@ import (
 
 type ChatServiceInterface interface {
 	CreatePost(req *models.ChatCreateRequestDTO, currentUsername string) (*models.ChatCreateResponseDTO, *customerrors.CustomError, int)
+	GetChatsByUsername(username string) (*models.ChatsResponseDTO, *customerrors.CustomError, int)
 }
 
 type ChatService struct {
@@ -99,4 +100,44 @@ func (service *ChatService) CreatePost(req *models.ChatCreateRequestDTO, current
 	}
 
 	return response, nil, http.StatusCreated
+}
+
+// GetChatsByUsername retrieves all chats of a user by its username
+func (service *ChatService) GetChatsByUsername(username string) (*models.ChatsResponseDTO, *customerrors.CustomError, int) {
+	// Get Chats by username
+	chats, err := service.chatRepo.GetChatsByUsername(username)
+	if err != nil {
+		return nil, customerrors.DatabaseError, http.StatusInternalServerError
+	}
+
+	// Create response
+	chatDTOs := make([]models.ChatRecordDTO, 0)
+	for _, chat := range chats {
+
+		// Currently, we only have two users in a chat --> find the other user
+		var chatUserDto models.ChatUserDTO
+		for _, user := range chat.Users {
+			if user.Username != username {
+				chatUserDto = models.ChatUserDTO{
+					Username:          user.Username,
+					Nickname:          user.Nickname,
+					ProfilePictureUrl: user.ProfilePictureUrl,
+				}
+				break
+			}
+		}
+
+		chatDTO := models.ChatRecordDTO{
+			ChatId: chat.Id.String(),
+			User:   &chatUserDto,
+		}
+
+		chatDTOs = append(chatDTOs, chatDTO)
+	}
+
+	response := models.ChatsResponseDTO{
+		Records: chatDTOs,
+	}
+
+	return &response, nil, http.StatusOK
 }

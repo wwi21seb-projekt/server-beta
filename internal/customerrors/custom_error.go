@@ -127,6 +127,10 @@ var (
 		Message: "The chat already exists. Please check the username and try again.",
 		Code:    "ERR-026",
 	}
+	ChatNotFound = &CustomError{
+		Message: "The chat was not found. Please check the chat ID and try again.",
+		Code:    "ERR-027",
+	}
 	FileNotFound = &CustomError{
 		Message: "",
 		Code:    "",

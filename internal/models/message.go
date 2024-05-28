@@ -14,3 +14,20 @@ type Message struct {
 	Content   string    `gorm:"column:content;type:varchar(256);null"`
 	CreatedAt time.Time `gorm:"column:created_at;not_null"`
 }
+
+type MessageRecordDTO struct {
+	Content      string    `json:"content"`
+	Username     string    `json:"username"`
+	CreationDate time.Time `json:"creationDate"`
+}
+
+type MessagePaginationDTO struct {
+	Offset  int   `json:"offset"`
+	Limit   int   `json:"limit"`
+	Records int64 `json:"records"`
+}
+
+type MessagesResponseDTO struct {
+	Records    []MessageRecordDTO    `json:"records"`
+	Pagination *MessagePaginationDTO `json:"pagination"`
+}

@@ -10,6 +10,7 @@ import (
 
 type ChatControllerInterface interface {
 	CreateChat(c *gin.Context)
+	GetChats(c *gin.Context)
 }
 
 type ChatController struct {
@@ -51,5 +52,26 @@ func (controller *ChatController) CreateChat(c *gin.Context) {
 	}
 
 	// Return response
-	c.JSON(http.StatusCreated, response)
+	c.JSON(httpStatus, response)
+}
+
+// GetChats retrieves all chats of a user by its username
+func (controller *ChatController) GetChats(c *gin.Context) {
+	username, exists := c.Get("username")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": customerrors.UserUnauthorized,
+		})
+		return
+	}
+
+	chats, err, httpStatus := controller.chatService.GetChatsByUsername(username.(string))
+	if err != nil {
+		c.JSON(httpStatus, gin.H{
+			"error": err,
+		})
+		return
+	}
+
+	c.JSON(httpStatus, chats)
 }
