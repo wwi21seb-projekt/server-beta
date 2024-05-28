@@ -35,7 +35,7 @@ func (service *MailService) SendMail(receiver string, subject string, body strin
 	header += fmt.Sprintf("To: %s\r\n", receiver)
 	header += fmt.Sprintf("Subject: %s\r\n", subject)
 	header += "MIME-version: 1.0;\r\n"
-	header += "Content-Type: text/plain; charset=\"UTF-8\";\r\n"
+	header += "Content-Type: text/html; charset=\"UTF-8\";\r\n"
 	header += "\r\n" // Blank line to separate headers from body
 
 	message := []byte(header + body)

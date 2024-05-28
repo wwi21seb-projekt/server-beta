@@ -51,12 +51,10 @@ func TestInitiatePasswordResetSuccess(t *testing.T) {
 			capturedToken = args.Get(0).(*models.PasswordResetToken)
 		}).Return(nil)
 
-	var capturedEmail, capturedSubject, capturedBody string
-	mockMailService.On("SendMail", email, "Password Reset Token", mock.AnythingOfType("string")).
+	var capturedEmailBody string
+	mockMailService.On("SendMail", email, "Reset your password", mock.AnythingOfType("string")).
 		Run(func(args mock.Arguments) {
-			capturedEmail = args.String(0)
-			capturedSubject = args.String(1)
-			capturedBody = args.String(2)
+			capturedEmailBody = args.String(2)
 		}).Return(nil)
 
 	// Setup HTTP request
@@ -89,9 +87,7 @@ func TestInitiatePasswordResetSuccess(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, censoredMail, responseBody.Email)
 
-	assert.Equal(t, email, capturedEmail)
-	assert.Equal(t, "Password Reset Token", capturedSubject)
-	assert.Contains(t, capturedBody, capturedToken.Token)
+	assert.Contains(t, capturedEmailBody, capturedToken.Token)
 }
 
 // TestInitiatePasswordResetUserNotFound tests if the TestInitiatePassword function returns 400 Bad Request when the user to the given username cannot be found
@@ -161,7 +157,7 @@ func TestInitiatePasswordResetMailNotSent(t *testing.T) {
 	mockUserRepo.On("FindUserByUsername", username).Return(&user, nil)
 	mockPasswordResetRepo.On("DeletePasswordResetTokensByUsername", username).Return(nil)
 	mockPasswordResetRepo.On("CreatePasswordResetToken", mock.AnythingOfType("*models.PasswordResetToken")).Return(nil)
-	mockMailService.On("SendMail", email, "Password Reset Token", mock.AnythingOfType("string")).Return(customerrors.EmailNotSent)
+	mockMailService.On("SendMail", email, "Reset your password", mock.AnythingOfType("string")).Return(customerrors.EmailNotSent)
 
 	// Setup HTTP request
 	url := "/users/" + username + "/reset-password"
