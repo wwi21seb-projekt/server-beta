@@ -24,13 +24,13 @@ func TestGetActivationEmailBody(t *testing.T) {
 
 	expectedStrings := []string{
 		"<!DOCTYPE html>",
-		"<html lang=\"de\">",
+		"<html lang=\"en\">",
 		"<head>",
 		"<meta charset=\"UTF-8\">",
-		"Verifizierungscode",
-		"Bitte verwenden Sie den folgenden Code, um die Registrierung Ihres Accounts bei Server Beta abzuschließen:",
-		"Dieser Code ist 2 Stunden gültig.",
-		"© " + strconv.Itoa(currentYear) + " Server Beta - Alle Rechte vorbehalten.",
+		"Verification Code",
+		"Please use the following code to complete your account registration at Server Beta:",
+		"This code is valid for 2 hours.",
+		"© " + strconv.Itoa(currentYear) + " Server Beta - All rights reserved.",
 	}
 
 	for _, str := range expectedStrings {
@@ -56,13 +56,13 @@ func TestGetWelcomeEmailBody(t *testing.T) {
 
 	expectedStrings := []string{
 		"<!DOCTYPE html>",
-		"<html lang=\"de\">",
+		"<html lang=\"en\">",
 		"<head>",
 		"<meta charset=\"UTF-8\">",
-		"Willkommen bei Server Beta!",
-		"Hallo " + username + "!",
-		"Dein Account wurde erfolgreich verifiziert.",
-		"© " + strconv.Itoa(currentYear) + " Server Beta - Alle Rechte vorbehalten.",
+		"Welcome to Server Beta!",
+		"Hello " + username + "!",
+		"Your account has been successfully verified.",
+		"© " + strconv.Itoa(currentYear) + " Server Beta - All rights reserved.",
 	}
 
 	for _, str := range expectedStrings {
@@ -93,14 +93,14 @@ func TestGetPasswordResetEmailBody(t *testing.T) {
 
 	expectedStrings := []string{
 		"<!DOCTYPE html>",
-		"<html lang=\"de\">",
+		"<html lang=\"en\">",
 		"<head>",
 		"<meta charset=\"UTF-8\">",
-		"Passwort zurücksetzen",
-		"Hallo " + username + "!",
-		"Ihr Code lautet:",
-		"Verwenden Sie diesen Code, um Ihr Passwort zurückzusetzen.",
-		"© " + strconv.Itoa(currentYear) + " Server Beta - Alle Rechte vorbehalten.",
+		"Password Reset",
+		"Hello " + username + "!",
+		"Your code is:",
+		"Use this code to reset your password.",
+		"© " + strconv.Itoa(currentYear) + " Server Beta - All rights reserved.",
 	}
 
 	for _, str := range expectedStrings {
