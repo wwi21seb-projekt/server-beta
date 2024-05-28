@@ -9,14 +9,13 @@ import (
 )
 
 type ChatControllerInterface interface {
-  CreateChat(c *gin.Context)
+	CreateChat(c *gin.Context)
 	GetChats(c *gin.Context)
 }
 
 type ChatController struct {
 	chatService services.ChatServiceInterface
 }
-
 
 // NewChatController can be used as a constructor to create a ChatController "object"
 func NewChatController(chatService services.ChatServiceInterface) *ChatController {
@@ -27,23 +26,23 @@ func NewChatController(chatService services.ChatServiceInterface) *ChatControlle
 func (controller *ChatController) CreateChat(c *gin.Context) {
 	// Get current user from context
 	currentUsername, exists := c.Get("username")
-  if !exists {
+	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"error": customerrors.UserUnauthorized,
 		})
 		return
 	}
-  
-  // Bind request to DTO
+
+	// Bind request to DTO
 	var req models.ChatCreateRequestDTO
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": customerrors.BadRequest,
-    })
-    return
-  }
-  
-  // Call service
+		})
+		return
+	}
+
+	// Call service
 	response, customErr, httpStatus := controller.chatService.CreatePost(&req, currentUsername.(string))
 	if customErr != nil {
 		c.JSON(httpStatus, gin.H{
@@ -59,20 +58,20 @@ func (controller *ChatController) CreateChat(c *gin.Context) {
 // GetChats retrieves all chats of a user by its username
 func (controller *ChatController) GetChats(c *gin.Context) {
 	username, exists := c.Get("username")
-  if !exists {
+	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"error": customerrors.UserUnauthorized,
 		})
 		return
 	}
-  
-  chats, err, status := controller.chatService.GetChatsByUsername(username.(string))
+
+	chats, err, httpStatus := controller.chatService.GetChatsByUsername(username.(string))
 	if err != nil {
-		c.JSON(status, gin.H{
+		c.JSON(httpStatus, gin.H{
 			"error": err,
-    })
-    return
-  }
-  
-  c.JSON(httpStatus, chats)
+		})
+		return
+	}
+
+	c.JSON(httpStatus, chats)
 }

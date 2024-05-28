@@ -15,7 +15,7 @@ import (
 
 type ChatServiceInterface interface {
 	CreatePost(req *models.ChatCreateRequestDTO, currentUsername string) (*models.ChatCreateResponseDTO, *customerrors.CustomError, int)
-  GetChatsByUsername(username string) (*models.ChatsResponseDTO, *customerrors.CustomError, int)
+	GetChatsByUsername(username string) (*models.ChatsResponseDTO, *customerrors.CustomError, int)
 }
 
 type ChatService struct {
@@ -105,7 +105,7 @@ func (service *ChatService) CreatePost(req *models.ChatCreateRequestDTO, current
 // GetChatsByUsername retrieves all chats of a user by its username
 func (service *ChatService) GetChatsByUsername(username string) (*models.ChatsResponseDTO, *customerrors.CustomError, int) {
 	// Get Chats by username
-	chats, err := service.chatRepository.GetChatsByUsername(username)
+	chats, err := service.chatRepo.GetChatsByUsername(username)
 	if err != nil {
 		return nil, customerrors.DatabaseError, http.StatusInternalServerError
 	}

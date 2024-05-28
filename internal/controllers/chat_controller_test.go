@@ -1,12 +1,11 @@
 package controllers_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
-	"bytes"
-	"encoding/json"
 	"github.com/stretchr/testify/mock"
 	"github.com/wwi21seb-projekt/server-beta/internal/controllers"
 	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
@@ -15,8 +14,10 @@ import (
 	"github.com/wwi21seb-projekt/server-beta/internal/repositories"
 	"github.com/wwi21seb-projekt/server-beta/internal/services"
 	"github.com/wwi21seb-projekt/server-beta/internal/utils"
+	"gorm.io/gorm"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 )
@@ -307,7 +308,8 @@ func TestCreateChatChatAlreadyExists(t *testing.T) {
 func TestGetChatsSuccess(t *testing.T) {
 	// Arrange
 	mockChatRepository := new(repositories.MockChatRepository)
-	chatService := services.NewChatService(mockChatRepository)
+	mockUserRepository := new(repositories.MockUserRepository)
+	chatService := services.NewChatService(mockChatRepository, mockUserRepository)
 	chatController := controllers.NewChatController(chatService)
 
 	currentUsername := "myUser"
@@ -320,14 +322,14 @@ func TestGetChatsSuccess(t *testing.T) {
 		{
 			Id: uuid.New(),
 			Users: []models.User{
-				{Username: "testuser2", Nickname: "Test User 2", ProfilePictureUrl: "https://example.com/testuser2.jpg"},
+				{Username: "testUser2", Nickname: "Test User 2", ProfilePictureUrl: "https://example.com/testuser2.jpg"},
 			},
 			CreatedAt: time.Now(),
 		},
 		{
 			Id: uuid.New(),
 			Users: []models.User{
-				{Username: "testuser3", Nickname: "Test User 3", ProfilePictureUrl: "https://example.com/testuser3.jpg"},
+				{Username: "testUser3", Nickname: "Test User 3", ProfilePictureUrl: "https://example.com/testuser3.jpg"},
 			},
 			CreatedAt: time.Now(),
 		},
@@ -365,13 +367,15 @@ func TestGetChatsSuccess(t *testing.T) {
 	}
 
 	mockChatRepository.AssertExpectations(t)
+	mockUserRepository.AssertExpectations(t)
 }
 
 // TestGetChatsUnauthorized tests the GetChats function if it returns 401 Unauthorized when the user is not authenticated
 func TestGetChatsUnauthorized(t *testing.T) {
 	// Arrange
 	mockChatRepository := new(repositories.MockChatRepository)
-	chatService := services.NewChatService(mockChatRepository)
+	mockUserRepository := new(repositories.MockUserRepository)
+	chatService := services.NewChatService(mockChatRepository, mockUserRepository)
 	chatController := controllers.NewChatController(chatService)
 
 	// Setup HTTP request
@@ -397,4 +401,5 @@ func TestGetChatsUnauthorized(t *testing.T) {
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
 	mockChatRepository.AssertExpectations(t)
+	mockUserRepository.AssertExpectations(t)
 }

@@ -53,7 +53,7 @@ func SetupRouter() *gin.Engine {
 	likeRepo := repositories.NewLikeRepository(initializers.DB)
 	notificationRepo := repositories.NewNotificationRepository(initializers.DB)
 	pushSubscriptionRepo := repositories.NewPushSubscriptionRepository(initializers.DB)
-  passwordResetRepo := repositories.NewPasswordResetRepository(initializers.DB)
+	passwordResetRepo := repositories.NewPasswordResetRepository(initializers.DB)
 	chatRepo := repositories.NewChatRepository(initializers.DB)
 	messageRepo := repositories.NewMessageRepository(initializers.DB)
 
@@ -69,7 +69,7 @@ func SetupRouter() *gin.Engine {
 	commentService := services.NewCommentService(commentRepo, postRepo, userRepo)
 	postService := services.NewPostService(postRepo, userRepo, hashtagRepo, imageService, validator, locationRepo, likeRepo, commentRepo, notificationService)
 	passwordResetService := services.NewPasswordResetService(userRepo, passwordResetRepo, mailService, validator)
-	chatService := services.NewChatService(chatRepo)
+	chatService := services.NewChatService(chatRepo, userRepo)
 	messageService := services.NewMessageService(messageRepo, chatRepo)
 
 	imprintController := controllers.NewImprintController()
@@ -85,7 +85,6 @@ func SetupRouter() *gin.Engine {
 	pushSubscriptionController := controllers.NewPushSubscriptionController(pushSubscriptionService)
 	commentController := controllers.NewCommentController(commentService)
 	subscriptionController := controllers.NewSubscriptionController(subscriptionService)
-	chatController := controllers.NewChatController(chatService)
 
 	// API Routes
 	api := r.Group("/api")
@@ -136,14 +135,14 @@ func SetupRouter() *gin.Engine {
 	api.POST("/push/register", middleware.AuthorizeUser, pushSubscriptionController.CreatePushSubscription)
 
 	// Chat
-  api.POST("/chats", middleware.AuthorizeUser, chatController.CreateChat)
+	api.POST("/chats", middleware.AuthorizeUser, chatController.CreateChat)
 	api.GET("/chats", middleware.AuthorizeUser, chatController.GetChats)
-	api.GET("/chats/:chatId", middleware.AuthorizeUser, messageController.GetMessagesByChatId)	
+	api.GET("/chats/:chatId", middleware.AuthorizeUser, messageController.GetMessagesByChatId)
 
 	// Reset Password
 	api.POST("/users/:username/reset-password", passwordResetController.InitiatePasswordReset)
 	api.PATCH("/users/:username/reset-password", passwordResetController.ResetPassword)
-  
+
 	return r
 }
 
