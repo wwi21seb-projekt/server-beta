@@ -44,7 +44,7 @@ func (service *MessageService) GetMessagesByChatId(chatId, currentUsername strin
 		}
 	}
 	if !isParticipant {
-		return nil, customerrors.NotChatParticipant, http.StatusForbidden
+		return nil, customerrors.ChatNotFound, http.StatusNotFound // if user is not a participant of the chat, send 404
 	}
 
 	// Get messages by chatId

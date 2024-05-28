@@ -123,10 +123,6 @@ var (
 		Message: "The chat was not found. Please check the chat ID and try again.",
 		Code:    "ERR-027",
 	}
-	NotChatParticipant = &CustomError{
-		Message: "You are not a participant of this chat. Please check the chat ID and try again.",
-		Code:    "ERR-028",
-	}
 	FileNotFound = &CustomError{
 		Message: "",
 		Code:    "",

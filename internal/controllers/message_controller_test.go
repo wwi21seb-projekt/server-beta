@@ -136,8 +136,8 @@ func TestGetMessagesByChatIdUnauthorized(t *testing.T) {
 	mockChatRepository.AssertExpectations(t)
 }
 
-// TestGetMessagesByChatIdForbidden tests the GetMessagesByChatId function if it returns 403 Forbidden when the user is not part of the chat
-func TestGetMessagesByChatIdForbidden(t *testing.T) {
+// TestGetMessagesByChatIdNoParticipant tests the GetMessagesByChatId function if it returns 404 Not Found when the user is not part of the chat
+func TestGetMessagesByChatIdNoParticipant(t *testing.T) {
 	// Arrange
 	mockChatRepository := new(repositories.MockChatRepository)
 	mockMessageRepository := new(repositories.MockMessageRepository)
@@ -180,12 +180,12 @@ func TestGetMessagesByChatIdForbidden(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	// Assert
-	assert.Equal(t, http.StatusForbidden, w.Code) // Expect 403 Forbidden
+	assert.Equal(t, http.StatusNotFound, w.Code) // Expect 404 Not Found
 	var errorResponse customerrors.ErrorResponse
 	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
 
-	expectedCustomError := customerrors.NotChatParticipant
+	expectedCustomError := customerrors.ChatNotFound
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
