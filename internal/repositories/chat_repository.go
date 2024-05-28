@@ -37,8 +37,8 @@ func (repo *ChatRepository) GetChatByUsernames(currentUsername, otherUsername st
 	var chat models.Chat
 	query := repo.DB.Joins("JOIN chat_users cu1 ON cu1.chat_id = chats.id").
 		Joins("JOIN chat_users cu2 ON cu2.chat_id = chats.id").
-		Joins("JOIN users u1 ON cu1.user_id = u1.id").
-		Joins("JOIN users u2 ON cu2.user_id = u2.id").
+		Joins("JOIN users u1 ON cu1.user_username = u1.username").
+		Joins("JOIN users u2 ON cu2.user_username = u2.username").
 		Where("u1.username = ? AND u2.username = ?", currentUsername, otherUsername).
 		First(&chat)
 	return chat, query.Error
