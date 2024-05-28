@@ -10,7 +10,7 @@ func GetActivationEmailBody(token string) string {
 	currentYear := time.Now().Year()
 	return fmt.Sprintf(`
 	<!DOCTYPE html>
-	<html lang="de">
+	<html lang="en">
 	<head>
 		<meta charset="UTF-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -26,18 +26,18 @@ func GetActivationEmailBody(token string) string {
 	<body>
 		<div class="container">
 			<div class="header">
-				Verifizierungscode
+				Verification Code
 			</div>
 			<div class="content">
-				<p>Hallo!</p>
-				<p>Bitte verwenden Sie den folgenden Code, um die Registrierung Ihres Accounts bei Server Beta abzuschließen:</p>
+				<p>Hello!</p>
+				<p>Please use the following code to complete your account registration at Server Beta:</p>
 				<div class="code">%s</div>
-				<p>Dieser Code ist 2 Stunden gültig. Geben Sie diesen Code auf der entsprechenden Seite zu Ihrer Registrierung ein.</p>
+				<p>This code is valid for 2 hours. Enter this code on the appropriate page for your registration.</p>
 			</div>
 			<div class="footer">
-				© %d Server Beta - Alle Rechte vorbehalten.
+				© %d Server Beta - All rights reserved.
 				<br>
-				Mehr Informationen finden Sie in unserem <a href="https://server-beta.de/api/imprint">Impressum</a>.
+				For more information, see our <a href="https://server-beta.de/api/imprint">imprint</a>.
 			</div>
 		</div>
 	</body>
@@ -49,7 +49,7 @@ func GetWelcomeEmailBody(username string) string {
 	currentYear := time.Now().Year()
 	return fmt.Sprintf(`
 	<!DOCTYPE html>
-	<html lang="de">
+	<html lang="en">
 	<head>
 		<meta charset="UTF-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -64,18 +64,18 @@ func GetWelcomeEmailBody(username string) string {
 	<body>
 		<div class="container">
 			<div class="header">
-				Willkommen bei Server Beta!
+				Welcome to Server Beta!
 			</div>
 			<div class="content">
-				<p>Hallo %s!</p>
+				<p>Hello %s!</p>
 				<p>Let's go!</p>
-				<p>Dein Account wurde erfolgreich verifiziert. Du kannst jetzt unser Netzwerk nutzen.</p>
-				<p>Wir laden dich ein, aktiv Teil unserer Community zu werden und uns deine Gedanken mitzuteilen.</p>
+				<p>Your account has been successfully verified. You can now use our network.</p>
+				<p>We invite you to actively participate in our community and share your thoughts with us.</p>
 			</div>
 			<div class="footer">
-				© %d Server Beta - Alle Rechte vorbehalten.
+				© %d Server Beta - All rights reserved.
 				<br>
-				Mehr Informationen finden Sie in unserem <a href="https://server-beta.de/api/imprint">Impressum</a>.
+				For more information, see our <a href="https://server-beta.de/api/imprint">imprint</a>.
 			</div>
 		</div>
 	</body>
@@ -87,7 +87,7 @@ func GetPasswordResetEmailBody(username string, resetToken string) string {
 	currentYear := time.Now().Year()
 	return fmt.Sprintf(`
 	<!DOCTYPE html>
-	<html lang="de">
+	<html lang="en">
 	<head>
 		<meta charset="UTF-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -103,18 +103,18 @@ func GetPasswordResetEmailBody(username string, resetToken string) string {
 	<body>
 		<div class="container">
 			<div class="header">
-				Passwort zurücksetzen
+				Password Reset
 			</div>
 			<div class="content">
-				<p>Hallo %s!</p>
-				<p>Ihr Code lautet:</p>
+				<p>Hello %s!</p>
+				<p>Your code is:</p>
 				<div class="code">%s</div>
-				<p>Verwenden Sie diesen Code, um Ihr Passwort zurückzusetzen.</p>
+				<p>Use this code to reset your password.</p>
 			</div>
 			<div class="footer">
-				© %d Server Beta - Alle Rechte vorbehalten.
+				© %d Server Beta - All rights reserved.
 				<br>
-				Mehr Informationen finden Sie in unserem <a href="https://server-beta.de/api/imprint">Impressum</a>.
+				For more information, see our <a href="https://server-beta.de/api/imprint">imprint</a>.
 			</div>
 		</div>
 	</body>
