@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
 	"github.com/wwi21seb-projekt/server-beta/internal/models"
@@ -25,8 +24,6 @@ func NewPasswordResetController(passwordResetService services.PasswordResetServi
 
 // InitiatePasswordReset triggers a password reset process for the user and can be called from the router
 func (controller *PasswordResetController) InitiatePasswordReset(c *gin.Context) {
-	fmt.Println("test")
-
 	// Read username from URL
 	username := c.Param("username")
 
