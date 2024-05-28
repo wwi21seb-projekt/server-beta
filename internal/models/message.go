@@ -14,3 +14,13 @@ type Message struct {
 	Content   string    `gorm:"column:content;type:varchar(256);null"`
 	CreatedAt time.Time `gorm:"column:created_at;not_null"`
 }
+
+type MessageRecordDTO struct {
+	Id        uuid.UUID `json:"id"`
+	ChatId    string    `json:"chatId"`
+	Username  string    `json:"username"`
+	Content   string    `json:"content"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+type MessagesResponseDTO struct

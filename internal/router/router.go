@@ -130,9 +130,8 @@ func SetupRouter() *gin.Engine {
 	api.POST("/push/register", middleware.AuthorizeUser, pushSubscriptionController.CreatePushSubscription)
 
 	// Chat
-	api.POST("/chats", middleware.AuthorizeUser, chatController.CreateChat)
 	api.GET("/chats", middleware.AuthorizeUser, chatController.GetAllChats)
-	api.GET("/chats/:chatId?offset&limit", middleware.AuthorizeUser, chatController.GetChatMessages)
+	api.GET("/chats/:chatId", middleware.AuthorizeUser, chatController.GetChatMessages)
 
 	return r
 }

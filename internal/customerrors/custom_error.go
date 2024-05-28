@@ -127,4 +127,8 @@ var (
 		Message: "file too large: to be defined",
 		Code:    "",
 	}
+	ChatNotFound = &CustomError{
+		Message: "The chat was not found. Please check the chat ID and try again.",
+		Code:    "ERR-027",
+	}
 )

@@ -8,8 +8,7 @@ import (
 )
 
 type ChatRepositoryInterface interface {
-	CreateChat(chat *models.Chat) error
-	GetChatMessages(username string, offset int, limit int) ([]models.Chat, error)
+	GetChatMessages(chatId string, offset int, limit int) ([]models.Message, error)
 	GetAllChats(username string) ([]models.Chat, error)
 }
 
@@ -21,25 +20,29 @@ func NewChatRepository(db *gorm.DB) *ChatRepository {
 	return &ChatRepository{DB: db}
 }
 
-func (repo *ChatRepository) CreateChat(chat *models.Chat) error {
-	err := repo.DB.Create(chat).Error
-	return err
+func (repo *ChatRepository) GetChatMessages(chatId string, offset int, limit int) ([]models.Message, error) {
+	var messages []models.Message
+	err := repo.DB.Where("chat_id = ?", chatId).Order("created_at desc").Offset(offset).Limit(limit).Find(&messages).Error
+	if err != nil {
+		if errors.Is(gorm.ErrRecordNotFound, err) {
+			return nil, customerrors.ChatNotFound
+		}
+		return nil, err
+	}
+	return messages, nil
 }
 
-func (repo *ChatRepository) GetChatMessages(username string, offset int, limit int) ([]models.Chat, error) {
-	var chats []models.Chat
-	err := repo.DB.Where("sender = ? OR receiver = ?", username, username).Order("created_at desc").Offset(offset).Limit(limit).Find(&chats).Error
+func (repo *ChatRepository) GetAllChats(username string) ([]models.ChatDTO, error) {
+	var chats []models.ChatDTO
+	err := repo.DB.
+		Joins("JOIN chat_users ON chats.id = chat_users.chat_id").
+		Where("chat_users.username = ?", username).
+		Find(&chats).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, customerrors.BadRequest
+			return nil, customerrors.ChatNotFound
 		}
 		return nil, err
 	}
 	return chats, nil
-}
-
-func (repo *ChatRepository) GetAllChats(username string) ([]models.Chat, error) {
-	var chats []models.Chat
-	err := repo.DB.Where("sender = ? OR receiver = ?", username, username).Find(&chats).Error
-	return chats, err
 }

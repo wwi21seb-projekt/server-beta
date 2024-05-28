@@ -10,3 +10,10 @@ type Chat struct {
 	Users     []User    `gorm:"many2many:chat_users;"` // gorm handles the join table
 	CreatedAt time.Time `gorm:"column:created_at;not_null"`
 }
+
+type ChatDTO struct {
+	Id        uuid.UUID          `json:"id"`
+	Users     []string           `json:"users"`
+	CreatedAt time.Time          `json:"createdAt"`
+	Messages  []MessageRecordDTO `json:"messages"`
+}

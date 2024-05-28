@@ -9,14 +9,9 @@ type MockChatRepository struct {
 	mock.Mock
 }
 
-func (m *MockChatRepository) CreateChat(chat *models.Chat) error {
-	args := m.Called(chat)
-	return args.Error(0)
-}
-
-func (m *MockChatRepository) GetChatMessages(username string, offset, limit int) ([]models.Chat, error) {
-	args := m.Called(username, offset, limit)
-	return args.Get(0).([]models.Chat), args.Error(1)
+func (m *MockChatRepository) GetChatMessages(chatId string, offset int, limit int) ([]models.Message, error) {
+	args := m.Called(chatId, offset, limit)
+	return args.Get(0).([]models.Message), args.Error(1)
 }
 
 func (m *MockChatRepository) GetAllChats(username string) ([]models.Chat, error) {
