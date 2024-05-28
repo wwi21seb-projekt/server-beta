@@ -121,7 +121,7 @@ var (
 	}
 	ChatAlreadyExists = &CustomError{
 		Message: "The chat already exists. Please check the username and try again.",
-		Code:    "to be defined",
+		Code:    "ERR-025",
 	}
 	FileNotFound = &CustomError{
 		Message: "",
