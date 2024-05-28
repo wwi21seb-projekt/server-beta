@@ -613,7 +613,6 @@ func TestCreatePostRepostNotFound(t *testing.T) {
 // TestCreatePostRepostOfRepost tests if the CreatePost function returns a 400 bad request if the post is a repost of a repost
 func TestCreatePostRepostOfRepost(t *testing.T) {
 	// Arrange
-	// Arrange
 	mockUserRepository := new(repositories.MockUserRepository)
 	mockPostRepository := new(repositories.MockPostRepository)
 	mockHashtagRepository := new(repositories.MockHashtagRepository)

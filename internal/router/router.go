@@ -53,6 +53,7 @@ func SetupRouter() *gin.Engine {
 	likeRepo := repositories.NewLikeRepository(initializers.DB)
 	notificationRepo := repositories.NewNotificationRepository(initializers.DB)
 	pushSubscriptionRepo := repositories.NewPushSubscriptionRepository(initializers.DB)
+	chatRepo := repositories.NewChatRepository(initializers.DB)
 
 	validator := utils.NewValidator()
 	mailService := services.NewMailService()
@@ -65,6 +66,7 @@ func SetupRouter() *gin.Engine {
 	subscriptionService := services.NewSubscriptionService(subscriptionRepo, userRepo, notificationService)
 	commentService := services.NewCommentService(commentRepo, postRepo, userRepo)
 	postService := services.NewPostService(postRepo, userRepo, hashtagRepo, imageService, validator, locationRepo, likeRepo, commentRepo, notificationService)
+	chatService := services.NewChatService(chatRepo, userRepo)
 
 	imprintController := controllers.NewImprintController()
 	userController := controllers.NewUserController(userService)
@@ -72,11 +74,11 @@ func SetupRouter() *gin.Engine {
 	feedController := controllers.NewFeedController(feedService)
 	imageController := controllers.NewImageController(imageService)
 	likeController := controllers.NewLikeController(likeService)
-
 	notificationController := controllers.NewNotificationController(notificationService)
 	pushSubscriptionController := controllers.NewPushSubscriptionController(pushSubscriptionService)
 	commentController := controllers.NewCommentController(commentService)
 	subscriptionController := controllers.NewSubscriptionController(subscriptionService)
+	chatController := controllers.NewChatController(chatService)
 
 	// API Routes
 	api := r.Group("/api")
@@ -125,6 +127,9 @@ func SetupRouter() *gin.Engine {
 	// Push subscription (for web or mobile push notifications)
 	api.GET("/push/vapid", middleware.AuthorizeUser, pushSubscriptionController.GetVapidKey)
 	api.POST("/push/register", middleware.AuthorizeUser, pushSubscriptionController.CreatePushSubscription)
+
+	// Chats
+	api.POST("/chats", middleware.AuthorizeUser, chatController.CreateChat)
 
 	return r
 }

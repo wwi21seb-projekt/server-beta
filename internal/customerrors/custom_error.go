@@ -119,6 +119,10 @@ var (
 		Message: "You can only delete your own notifications.",
 		Code:    "ERR-024",
 	}
+	ChatAlreadyExists = &CustomError{
+		Message: "The chat already exists. Please check the username and try again.",
+		Code:    "to be defined",
+	}
 	FileNotFound = &CustomError{
 		Message: "",
 		Code:    "",
