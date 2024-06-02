@@ -1,9 +1,9 @@
 package websockets
 
 import (
+	"fmt"
 	"github.com/wwi21seb-projekt/server-beta/internal/models"
 	"github.com/wwi21seb-projekt/server-beta/internal/services"
-	"log"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -14,7 +14,7 @@ func (c *WebSocketConnection) ReadPump(hub *Hub, chatId string, username string,
 		hub.Unregister <- c
 		err := c.Conn.Close()
 		if err != nil {
-			log.Println("Failed to read JSON:", err)
+			fmt.Println("Failed to read JSON:", err)
 		}
 
 	}()
@@ -24,7 +24,7 @@ func (c *WebSocketConnection) ReadPump(hub *Hub, chatId string, username string,
 		}
 		err := c.Conn.ReadJSON(&msgContent)
 		if err != nil {
-			log.Println("Failed to read JSON:", err)
+			fmt.Println("Failed to read JSON:", err)
 			break
 		}
 

@@ -16,6 +16,7 @@ import (
 type ChatServiceInterface interface {
 	CreatePost(req *models.ChatCreateRequestDTO, currentUsername string) (*models.ChatCreateResponseDTO, *customerrors.CustomError, int)
 	GetChatsByUsername(username string) (*models.ChatsResponseDTO, *customerrors.CustomError, int)
+	CheckUserInChat(username string, chatId string) *customerrors.CustomError
 }
 
 type ChatService struct {
@@ -140,4 +141,18 @@ func (service *ChatService) GetChatsByUsername(username string) (*models.ChatsRe
 	}
 
 	return &response, nil, http.StatusOK
+}
+
+func (service *ChatService) CheckUserInChat(username string, chatId string) *customerrors.CustomError {
+
+	chat, err := service.chatRepo.GetChatById(chatId)
+	if err != nil {
+		return customerrors.BadRequest
+	}
+	for _, user := range chat.Users {
+		if user.Username == username {
+			return nil
+		}
+	}
+	return customerrors.UserUnauthorized
 }

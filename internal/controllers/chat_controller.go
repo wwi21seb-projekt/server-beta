@@ -1,15 +1,14 @@
 package controllers
 
 import (
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
 	"github.com/wwi21seb-projekt/server-beta/internal/models"
 	"github.com/wwi21seb-projekt/server-beta/internal/services"
 	"github.com/wwi21seb-projekt/server-beta/internal/websockets"
-	"log"
 	"net/http"
-	"sync"
 )
 
 type ChatControllerInterface interface {
@@ -96,11 +95,6 @@ type WebSocketConnection struct {
 	Conn *websocket.Conn
 }
 
-var (
-	wsConnections = make(map[string]map[string]*WebSocketConnection)
-	wsMutex       sync.Mutex
-)
-
 func (controller *ChatController) HandleWebSocket(c *gin.Context) {
 	chatId := c.Param("chatId")
 	currentUsername, exists := c.Get("username")
@@ -110,12 +104,20 @@ func (controller *ChatController) HandleWebSocket(c *gin.Context) {
 		})
 		return
 	}
+
 	username := currentUsername.(string)
+	err := controller.chatService.CheckUserInChat(username, chatId)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": customerrors.UserUnauthorized,
+		})
+	}
+
 	hub := websockets.GetHubManager().GetOrCreateHub(chatId)
 
-	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
-	if err != nil {
-		log.Println("Failed to upgrade to WebSocket:", err)
+	conn, erro := upgrader.Upgrade(c.Writer, c.Request, nil)
+	if erro != nil {
+		fmt.Println("Failed to upgrade to WebSocket:", err)
 		return
 	}
 

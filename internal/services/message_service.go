@@ -76,3 +76,7 @@ func (service *MessageService) GetMessagesByChatId(chatId, currentUsername strin
 
 	return &response, nil, http.StatusOK
 }
+
+func (service *MessageService) CreateMessage(chatId string, messageDTO models.MessageRecordDTO) {
+
+}

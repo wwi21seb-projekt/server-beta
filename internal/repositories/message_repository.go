@@ -18,6 +18,11 @@ func NewMessageRepository(db *gorm.DB) *MessageRepository {
 	return &MessageRepository{DB: db}
 }
 
+func (repo *MessageRepository) CreateMessageTx(message *models.Message, tx *gorm.DB) error {
+	err := tx.Create(&message).Error
+	return err
+}
+
 func (repo *MessageRepository) GetMessagesByChatId(chatId string, offset int, limit int) ([]models.Message, int64, error) {
 	var messages []models.Message
 	var count int64
