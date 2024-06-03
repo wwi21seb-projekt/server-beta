@@ -4,12 +4,13 @@ import (
 	"fmt"
 	"github.com/wwi21seb-projekt/server-beta/internal/models"
 	"github.com/wwi21seb-projekt/server-beta/internal/services"
+	"log"
 	"time"
 
 	"github.com/gorilla/websocket"
 )
 
-func (c *WebSocketConnection) ReadPump(hub *Hub, chatId string, username string, chatService services.ChatServiceInterface) {
+func (c *WebSocketConnection) ReadPump(hub *Hub, chatId string, username string, messageService services.MessageServiceInterface) {
 	defer func() {
 		hub.Unregister <- c
 		err := c.Conn.Close()
@@ -36,10 +37,11 @@ func (c *WebSocketConnection) ReadPump(hub *Hub, chatId string, username string,
 		}
 
 		// Nachricht in der Datenbank speichern
-		//if err := chatService.CreatePost(chatId, msg) {
-		//	log.Println("Failed to save message to DB:", err)
-		//	break
-		//}
+		_, err = messageService.CreateMessage(chatId, &msg)
+		if err != nil {
+			log.Println("Failed to save message to DB:", err)
+			break
+		}
 
 		// Nachricht an den Hub broadcasten
 		hub.Broadcast <- &msg
@@ -51,10 +53,18 @@ func (c *WebSocketConnection) WritePump() {
 		select {
 		case message, ok := <-c.Send:
 			if !ok {
-				c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
+				err := c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
+				if err != nil {
+					fmt.Println("Failed to write message:", err)
+					return
+				}
 				return
 			}
-			c.Conn.WriteMessage(websocket.TextMessage, message)
+			err := c.Conn.WriteMessage(websocket.TextMessage, message)
+			if err != nil {
+				fmt.Println("Failed to write message:", err)
+				return
+			}
 		}
 	}
 }

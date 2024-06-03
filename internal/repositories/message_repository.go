@@ -7,6 +7,7 @@ import (
 
 type MessageRepositoryInterface interface {
 	GetMessagesByChatId(chatId string, offset int, limit int) ([]models.Message, int64, error)
+	CreateMessage(message models.Message) error
 }
 
 type MessageRepository struct {
@@ -18,8 +19,8 @@ func NewMessageRepository(db *gorm.DB) *MessageRepository {
 	return &MessageRepository{DB: db}
 }
 
-func (repo *MessageRepository) CreateMessageTx(message *models.Message, tx *gorm.DB) error {
-	err := tx.Create(&message).Error
+func (repo *MessageRepository) CreateMessage(message models.Message) error {
+	err := repo.DB.Create(&message).Error
 	return err
 }
 

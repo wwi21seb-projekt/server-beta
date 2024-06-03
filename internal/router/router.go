@@ -78,7 +78,7 @@ func SetupRouter() *gin.Engine {
 	feedController := controllers.NewFeedController(feedService)
 	imageController := controllers.NewImageController(imageService)
 	likeController := controllers.NewLikeController(likeService)
-	chatController := controllers.NewChatController(chatService)
+	chatController := controllers.NewChatController(chatService, messageService)
 	messageController := controllers.NewMessageController(messageService)
 	passwordResetController := controllers.NewPasswordResetController(passwordResetService)
 	notificationController := controllers.NewNotificationController(notificationService)

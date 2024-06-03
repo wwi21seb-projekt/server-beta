@@ -13,3 +13,8 @@ func (m *MockMessageRepository) GetMessagesByChatId(chatId string, offset int, l
 	args := m.Called(chatId, offset, limit)
 	return args.Get(0).([]models.Message), args.Get(1).(int64), args.Error(2)
 }
+
+func (m *MockMessageRepository) CreateMessage(message models.Message) error {
+	args := m.Called(message)
+	return args.Error(0)
+}

@@ -17,11 +17,12 @@ type ChatControllerInterface interface {
 }
 
 type ChatController struct {
-	chatService services.ChatServiceInterface
+	chatService    services.ChatServiceInterface
+	messageService services.MessageServiceInterface
 }
 
 // NewChatController can be used as a constructor to create a ChatController "object"
-func NewChatController(chatService services.ChatServiceInterface) *ChatController {
+func NewChatController(chatService services.ChatServiceInterface, messageService services.MessageServiceInterface) *ChatController {
 	return &ChatController{chatService: chatService}
 }
 
@@ -106,8 +107,8 @@ func (controller *ChatController) HandleWebSocket(c *gin.Context) {
 	}
 
 	username := currentUsername.(string)
-	err := controller.chatService.CheckUserInChat(username, chatId)
-	if err != nil {
+	customErr := controller.chatService.CheckUserInChat(username, chatId)
+	if customErr != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"error": customerrors.UserUnauthorized,
 		})
@@ -115,8 +116,8 @@ func (controller *ChatController) HandleWebSocket(c *gin.Context) {
 
 	hub := websockets.GetHubManager().GetOrCreateHub(chatId)
 
-	conn, erro := upgrader.Upgrade(c.Writer, c.Request, nil)
-	if erro != nil {
+	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+	if err != nil {
 		fmt.Println("Failed to upgrade to WebSocket:", err)
 		return
 	}
@@ -126,9 +127,13 @@ func (controller *ChatController) HandleWebSocket(c *gin.Context) {
 
 	defer func() {
 		hub.Unregister <- connection
-		conn.Close()
+		err := conn.Close()
+		if err != nil {
+			fmt.Println("Failed to close WebSocket:", err)
+			return
+		}
 	}()
 
 	go connection.WritePump()
-	connection.ReadPump(hub, chatId, username, controller.chatService)
+	connection.ReadPump(hub, chatId, username, controller.messageService)
 }

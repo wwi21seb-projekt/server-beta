@@ -3,6 +3,7 @@ package services
 import (
 	"errors"
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
 	"github.com/wwi21seb-projekt/server-beta/internal/models"
 	"github.com/wwi21seb-projekt/server-beta/internal/repositories"
@@ -12,6 +13,7 @@ import (
 
 type MessageServiceInterface interface {
 	GetMessagesByChatId(chatId, currentUsername string, offset, limit int) (*models.MessagesResponseDTO, *customerrors.CustomError, int)
+	CreateMessage(chatId string, messageDTO *models.MessageRecordDTO) (*models.MessageRecordDTO, *customerrors.CustomError)
 }
 
 type MessageService struct {
@@ -77,6 +79,28 @@ func (service *MessageService) GetMessagesByChatId(chatId, currentUsername strin
 	return &response, nil, http.StatusOK
 }
 
-func (service *MessageService) CreateMessage(chatId string, messageDTO models.MessageRecordDTO) {
+func (service *MessageService) CreateMessage(chatId string, messageDTO *models.MessageRecordDTO) (*models.MessageRecordDTO, *customerrors.CustomError) {
+	if len(messageDTO.Content) > 256 {
+		return nil, customerrors.BadRequest
+	}
+	if len(messageDTO.Content) <= 0 {
+		return nil, customerrors.BadRequest
+	}
+	chatUUID, err := uuid.Parse(chatId)
+	if err != nil {
+		return nil, customerrors.InternalServerError
+	}
 
+	message := models.Message{
+		Id:        uuid.New(),
+		ChatId:    chatUUID,
+		Username:  messageDTO.Username,
+		Content:   messageDTO.Content,
+		CreatedAt: messageDTO.CreationDate,
+	}
+	err = service.messageRepo.CreateMessage(message)
+	if err != nil {
+		return nil, customerrors.InternalServerError
+	}
+	return messageDTO, nil
 }
