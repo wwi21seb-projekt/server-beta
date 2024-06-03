@@ -36,7 +36,7 @@ func (c *WebSocketConnection) ReadPump(hub *Hub, chatId string, username string,
 		}
 
 		// Nachricht in der Datenbank speichern
-		//if err := chatService.CreatePost(chatId, msg) {
+		//if err := chatService.CreateChat(chatId, msg) {
 		//	log.Println("Failed to save message to DB:", err)
 		//	break
 		//}

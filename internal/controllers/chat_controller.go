@@ -2,14 +2,10 @@ package controllers
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/gorilla/websocket"
 	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
 	"github.com/wwi21seb-projekt/server-beta/internal/models"
 	"github.com/wwi21seb-projekt/server-beta/internal/services"
-	"github.com/wwi21seb-projekt/server-beta/internal/websockets"
-	"log"
 	"net/http"
-	"sync"
 )
 
 type ChatControllerInterface interface {
@@ -47,7 +43,7 @@ func (controller *ChatController) CreateChat(c *gin.Context) {
 	}
 
 	// Call service
-	response, customErr, httpStatus := controller.chatService.CreatePost(&req, currentUsername.(string))
+	response, customErr, httpStatus := controller.chatService.CreateChat(&req, currentUsername.(string))
 	if customErr != nil {
 		c.JSON(httpStatus, gin.H{
 			"error": customErr,
@@ -78,55 +74,4 @@ func (controller *ChatController) GetChats(c *gin.Context) {
 	}
 
 	c.JSON(httpStatus, chats)
-}
-
-// Websocket-Funktionen
-
-// zum Verbindungsaufbau
-var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-	CheckOrigin: func(r *http.Request) bool {
-		return true
-	},
-}
-
-// Globale Variablen zum Speichern der WebSocket-Verbindungen
-type WebSocketConnection struct {
-	Conn *websocket.Conn
-}
-
-var (
-	wsConnections = make(map[string]map[string]*WebSocketConnection)
-	wsMutex       sync.Mutex
-)
-
-func (controller *ChatController) HandleWebSocket(c *gin.Context) {
-	chatId := c.Param("chatId")
-	currentUsername, exists := c.Get("username")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": customerrors.UserUnauthorized,
-		})
-		return
-	}
-	username := currentUsername.(string)
-	hub := websockets.GetHubManager().GetOrCreateHub(chatId)
-
-	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
-	if err != nil {
-		log.Println("Failed to upgrade to WebSocket:", err)
-		return
-	}
-
-	connection := &websockets.WebSocketConnection{Conn: conn, Send: make(chan []byte, 256)}
-	hub.Register <- connection
-
-	defer func() {
-		hub.Unregister <- connection
-		conn.Close()
-	}()
-
-	go connection.WritePump()
-	connection.ReadPump(hub, chatId, username, controller.chatService)
 }

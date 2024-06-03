@@ -192,3 +192,34 @@ func TestGetMessagesByChatIdNoParticipant(t *testing.T) {
 	mockMessageRepository.AssertExpectations(t)
 	mockChatRepository.AssertExpectations(t)
 }
+
+//// TestHandleWebSocketSuccess tests the HandleWebSocket establishes a connection and is able to send and receive messages
+//func TestHandleWebSocketSuccess(t *testing.T) {
+//	// Arrange
+//	mockChatRepository := new(repositories.MockChatRepository)
+//	mockMessageRepository := new(repositories.MockMessageRepository)
+//	messageService := services.NewMessageService(mockMessageRepository, mockChatRepository)
+//	messageController := controllers.NewMessageController(messageService)
+//
+//	currentUsername := "myUser"
+//	authenticationToken, err := utils.GenerateAccessToken(currentUsername)
+//	if err != nil {
+//		t.Fatal(err)
+//	}
+//
+//	// Setup HTTP request
+//	req, _ := http.NewRequest("GET", "/chat", nil)
+//	req.Header.Set("Content-Type", "application/json")
+//	req.Header.Set("Authorization", "Bearer "+authenticationToken)
+//	w := httptest.NewRecorder()
+//
+//	// Act
+//	gin.SetMode(gin.TestMode)
+//	router := gin.Default()
+//	router.GET("/chat", messageController.HandleWebSocket)
+//	router.ServeHTTP(w, req)
+//
+//	// Assert
+//	assert.Equal(t, http.StatusOK, w.Code) // Expect 200 OK
+//
+//}

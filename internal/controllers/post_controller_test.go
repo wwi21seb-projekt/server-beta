@@ -28,7 +28,7 @@ import (
 	"time"
 )
 
-// TestCreatePostWithLocationSuccess tests if the CreatePost function returns a postDto and 201 created if post is created successfully with location
+// TestCreatePostWithLocationSuccess tests if the CreateChat function returns a postDto and 201 created if post is created successfully with location
 func TestCreatePostWithLocationSuccess(t *testing.T) {
 	// Arrange
 	mockUserRepository := new(repositories.MockUserRepository)
@@ -91,7 +91,7 @@ func TestCreatePostWithLocationSuccess(t *testing.T) {
 	var capturedPost *models.Post
 	var capturedLocation *models.Location
 	mockUserRepository.On("FindUserByUsername", user.Username).Return(&user, nil) // User found successfully
-	mockPostRepository.On("CreatePost", mock.AnythingOfType("*models.Post")).
+	mockPostRepository.On("CreateChat", mock.AnythingOfType("*models.Post")).
 		Run(func(args mock.Arguments) {
 			capturedPost = args.Get(0).(*models.Post) // Save argument to captor
 		}).Return(nil) // Post created successfully
@@ -217,7 +217,7 @@ func TestCreatePostWithLocationZeroValues(t *testing.T) {
 	var capturedPost *models.Post
 	var capturedLocation *models.Location
 	mockUserRepository.On("FindUserByUsername", user.Username).Return(&user, nil) // User found successfully
-	mockPostRepository.On("CreatePost", mock.AnythingOfType("*models.Post")).
+	mockPostRepository.On("CreateChat", mock.AnythingOfType("*models.Post")).
 		Run(func(args mock.Arguments) {
 			capturedPost = args.Get(0).(*models.Post) // Save argument to captor
 		}).Return(nil) // Post created successfully
@@ -281,7 +281,7 @@ func TestCreatePostWithLocationZeroValues(t *testing.T) {
 	mockLocationRepository.AssertExpectations(t)
 }
 
-// TestCreatePostWithoutLocationSuccess tests if the CreatePost function returns a postDto and 201 created if post is created successfully without location
+// TestCreatePostWithoutLocationSuccess tests if the CreateChat function returns a postDto and 201 created if post is created successfully without location
 func TestCreatePostWithoutLocationSuccess(t *testing.T) {
 	// Arrange
 	mockUserRepository := new(repositories.MockUserRepository)
@@ -333,7 +333,7 @@ func TestCreatePostWithoutLocationSuccess(t *testing.T) {
 	// Mock expectations
 	var capturedPost *models.Post
 	mockUserRepository.On("FindUserByUsername", user.Username).Return(&user, nil) // User found successfully
-	mockPostRepository.On("CreatePost", mock.AnythingOfType("*models.Post")).
+	mockPostRepository.On("CreateChat", mock.AnythingOfType("*models.Post")).
 		Run(func(args mock.Arguments) {
 			capturedPost = args.Get(0).(*models.Post) // Save argument to captor
 		}).Return(nil) // Post created successfully
@@ -387,7 +387,7 @@ func TestCreatePostWithoutLocationSuccess(t *testing.T) {
 	mockLocationRepository.AssertExpectations(t)
 }
 
-// TestCreatePostWithRepostSuccess tests if the CreatePost function returns a postDto and 201 created if post is created successfully with repost
+// TestCreatePostWithRepostSuccess tests if the CreateChat function returns a postDto and 201 created if post is created successfully with repost
 func TestCreatePostWithRepostSuccess(t *testing.T) {
 	// Arrange
 	mockUserRepository := new(repositories.MockUserRepository)
@@ -454,7 +454,7 @@ func TestCreatePostWithRepostSuccess(t *testing.T) {
 	var capturedPost *models.Post
 	var capturedNotification *models.Notification
 	mockUserRepository.On("FindUserByUsername", user.Username).Return(&user, nil) // User found successfully
-	mockPostRepository.On("CreatePost", mock.AnythingOfType("*models.Post")).
+	mockPostRepository.On("CreateChat", mock.AnythingOfType("*models.Post")).
 		Run(func(args mock.Arguments) {
 			capturedPost = args.Get(0).(*models.Post) // Save argument to captor
 		}).Return(nil) // Post created successfully
@@ -534,7 +534,7 @@ func TestCreatePostWithRepostSuccess(t *testing.T) {
 	mockCommentRepository.AssertExpectations(t)
 }
 
-// TestCreatePostRepostNotFound tests if the CreatePost function returns a 404 not found if the original post is not found
+// TestCreatePostRepostNotFound tests if the CreateChat function returns a 404 not found if the original post is not found
 func TestCreatePostRepostNotFound(t *testing.T) {
 	// Arrange
 	mockUserRepository := new(repositories.MockUserRepository)
@@ -610,7 +610,7 @@ func TestCreatePostRepostNotFound(t *testing.T) {
 	mockLikeRepository.AssertExpectations(t)
 }
 
-// TestCreatePostRepostOfRepost tests if the CreatePost function returns a 400 bad request if the post is a repost of a repost
+// TestCreatePostRepostOfRepost tests if the CreateChat function returns a 400 bad request if the post is a repost of a repost
 func TestCreatePostRepostOfRepost(t *testing.T) {
 	// Arrange
 	mockUserRepository := new(repositories.MockUserRepository)
@@ -697,7 +697,7 @@ func TestCreatePostRepostOfRepost(t *testing.T) {
 
 }
 
-// TestCreatePostBadRequest tests if the CreatePost function returns a 400 bad request if the content is empty
+// TestCreatePostBadRequest tests if the CreateChat function returns a 400 bad request if the content is empty
 func TestCreatePostBadRequest(t *testing.T) {
 	invalidBodies := []string{
 		`{"invalidField": "value"}`,                       // invalid body
@@ -760,7 +760,7 @@ func TestCreatePostBadRequest(t *testing.T) {
 	}
 }
 
-// TestCreatePostUnauthorized tests if the CreatePost function returns a 401 unauthorized if the user is not authenticated
+// TestCreatePostUnauthorized tests if the CreateChat function returns a 401 unauthorized if the user is not authenticated
 func TestCreatePostUnauthorized(t *testing.T) {
 	nonExistingUserToken, err := utils.GenerateAccessToken("nonExistingUser")
 	if err != nil {
@@ -829,7 +829,7 @@ func createFormFile(writer *multipart.Writer, fieldName, fileName string, conten
 	return writer.CreatePart(h)
 }
 
-// TestCreatePostWithImageSuccess tests if the CreatePost function returns a postDto and 201 created if post is created successfully with image
+// TestCreatePostWithImageSuccess tests if the CreateChat function returns a postDto and 201 created if post is created successfully with image
 func TestCreatePostWithImageSuccess(t *testing.T) {
 	testCases := [][]string{
 		{"This is a test post.", "../../tests/resources/valid.jpeg", "image/jpeg"},      // test jpeg
@@ -888,7 +888,7 @@ func TestCreatePostWithImageSuccess(t *testing.T) {
 		var capturedFile []uint8
 		var capturedFilename string
 		mockUserRepository.On("FindUserByUsername", user.Username).Return(&user, nil) // User found successfully
-		mockPostRepository.On("CreatePost", mock.AnythingOfType("*models.Post")).
+		mockPostRepository.On("CreateChat", mock.AnythingOfType("*models.Post")).
 			Run(func(args mock.Arguments) {
 				capturedPost = args.Get(0).(*models.Post) // Save argument to captor
 			}).Return(nil) // Post created successfully
@@ -965,7 +965,7 @@ func TestCreatePostWithImageSuccess(t *testing.T) {
 	}
 }
 
-// TestCreatePostWithImageBadRequest tests if the CreatePost function returns a 400 bad request if image is not webp or jpeg
+// TestCreatePostWithImageBadRequest tests if the CreateChat function returns a 400 bad request if image is not webp or jpeg
 func TestCreatePostWithImageBadRequest(t *testing.T) {
 
 	// Create multipart request body
@@ -1059,7 +1059,7 @@ func TestCreatePostWithImageBadRequest(t *testing.T) {
 
 }
 
-// TestCreatePostWithEmptyImageSuccess tests if the CreatePost function returns a postDto and 201 created if post is created successfully with empty image
+// TestCreatePostWithEmptyImageSuccess tests if the CreateChat function returns a postDto and 201 created if post is created successfully with empty image
 func TestCreatePostWithEmptyImageSuccess(t *testing.T) {
 	// Create multipart request body
 	content := "Some text"
@@ -1106,7 +1106,7 @@ func TestCreatePostWithEmptyImageSuccess(t *testing.T) {
 	// Mock expectations
 	var capturedPost *models.Post
 	mockUserRepository.On("FindUserByUsername", user.Username).Return(&user, nil) // User found successfully
-	mockPostRepository.On("CreatePost", mock.AnythingOfType("*models.Post")).
+	mockPostRepository.On("CreateChat", mock.AnythingOfType("*models.Post")).
 		Run(func(args mock.Arguments) {
 			capturedPost = args.Get(0).(*models.Post) // Save argument to captor
 		}).Return(nil) // Post created successfully
@@ -1166,7 +1166,7 @@ func TestCreatePostWithEmptyImageSuccess(t *testing.T) {
 }
 
 // Regression Test
-// TestCreatePostWithWrongContentTypeBadRequest tests if the CreatePost function returns a 400 bad request if the content type is not multipart/form-data or application/json
+// TestCreatePostWithWrongContentTypeBadRequest tests if the CreateChat function returns a 400 bad request if the content type is not multipart/form-data or application/json
 func TestCreatePostWithWrongContentTypeBadRequest(t *testing.T) {
 	for _, contentType := range []string{
 		"application/xml",

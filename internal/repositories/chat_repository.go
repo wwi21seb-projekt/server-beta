@@ -6,7 +6,7 @@ import (
 )
 
 type ChatRepositoryInterface interface {
-  CreateChatWithFirstMessage(chat models.Chat, message models.Message) error
+	CreateChatWithFirstMessage(chat models.Chat, message models.Message) error
 	GetChatByUsernames(currentUsername, otherUsername string) (models.Chat, error)
 	GetChatsByUsername(username string) ([]models.Chat, error)
 	GetChatById(chatId string) (models.Chat, error)

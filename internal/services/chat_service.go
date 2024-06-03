@@ -14,7 +14,7 @@ import (
 )
 
 type ChatServiceInterface interface {
-	CreatePost(req *models.ChatCreateRequestDTO, currentUsername string) (*models.ChatCreateResponseDTO, *customerrors.CustomError, int)
+	CreateChat(req *models.ChatCreateRequestDTO, currentUsername string) (*models.ChatCreateResponseDTO, *customerrors.CustomError, int)
 	GetChatsByUsername(username string) (*models.ChatsResponseDTO, *customerrors.CustomError, int)
 }
 
@@ -31,8 +31,8 @@ func NewChatService(
 	return &ChatService{chatRepo: chatRepo, userRepo: userRepo, policy: bluemonday.UGCPolicy()}
 }
 
-// CreatePost creates a chat for a given post id, username and the current logged-in user
-func (service *ChatService) CreatePost(req *models.ChatCreateRequestDTO, currentUsername string) (*models.ChatCreateResponseDTO, *customerrors.CustomError, int) {
+// CreateChat creates a chat for a given post id, username and the current logged-in user
+func (service *ChatService) CreateChat(req *models.ChatCreateRequestDTO, currentUsername string) (*models.ChatCreateResponseDTO, *customerrors.CustomError, int) {
 	// Sanitize message content because it is a free text field
 	req.Content = strings.Trim(req.Content, " ") // remove leading and trailing whitespaces
 	req.Content = service.policy.Sanitize(req.Content)

@@ -1,24 +1,43 @@
 package controllers
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
 	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
+	"github.com/wwi21seb-projekt/server-beta/internal/models"
 	"github.com/wwi21seb-projekt/server-beta/internal/services"
 	"net/http"
 	"strconv"
+	"sync"
 )
 
 type MessageControllerInterface interface {
 	GetMessagesByChatId(c *gin.Context)
+	HandleWebSocket(c *gin.Context)
 }
 
 type MessageController struct {
 	messageService services.MessageServiceInterface
+
+	// Websockets:
+	connections     map[string]map[string][]*websocket.Conn // chatId -> username -> []*websocket.Conn, for each user and chat, all connections
+	connectionsLock sync.RWMutex
+	upgrader        websocket.Upgrader
 }
 
 // NewMessageController creates a new instance of the MessageController
 func NewMessageController(messageService services.MessageServiceInterface) *MessageController {
-	return &MessageController{messageService: messageService}
+	return &MessageController{
+		messageService: messageService,
+		connections:    make(map[string]map[string][]*websocket.Conn),
+		upgrader: websocket.Upgrader{
+			CheckOrigin: func(r *http.Request) bool {
+				return true
+			},
+		},
+	}
 }
 
 // GetMessagesByChatId retrieves all messages of a chat by its chatId and can be called from the router
@@ -55,4 +74,126 @@ func (controller *MessageController) GetMessagesByChatId(c *gin.Context) {
 	}
 
 	c.JSON(httpStatus, responseDto)
+}
+
+// HandleWebSocket handles WebSocket connections for a given chatId and the logged-in user
+func (controller *MessageController) HandleWebSocket(c *gin.Context) {
+	// Read chatId from query parameter and username from context
+	chatId := c.Query("chatId")
+	currentUsername, exists := c.Get("username")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": customerrors.UserUnauthorized,
+		})
+		return
+	}
+
+	// Check if chat exists and if user is a participant
+	_, serviceErr, httpStatus := controller.messageService.GetMessagesByChatId(chatId, currentUsername.(string), 0, 1)
+	if serviceErr != nil { // if no participant or chat does not exist, service returns 404 custom error
+		c.JSON(httpStatus, gin.H{
+			"error": serviceErr,
+		})
+		return
+	}
+
+	// Create WebSocket connection
+	conn, err := controller.upgrader.Upgrade(c.Writer, c.Request, nil)
+	if err != nil {
+		fmt.Println("Failed to upgrade to WebSocket for user,", currentUsername.(string), ":", err)
+	}
+	defer func(conn *websocket.Conn) {
+		_ = conn.Close() // close connection when function terminates
+	}(conn)
+
+	// Add connection to map
+	controller.addConnection(currentUsername.(string), chatId, conn)
+	defer controller.removeConnection(currentUsername.(string), chatId, conn) // remove connection when function terminates
+
+	for {
+		// Read message from client
+		_, message, err := conn.ReadMessage()
+		if err != nil {
+			sendError(conn, customerrors.BadRequest)
+			break
+		}
+
+		// Bind message to DTO
+		var req models.MessageCreateRequestDTO
+		if err := json.Unmarshal(message, &req); err != nil {
+			sendError(conn, customerrors.BadRequest)
+			break
+		}
+
+		// Call service to save received message to database
+		response, customErr, _ := controller.messageService.CreateMessage(chatId, currentUsername.(string), &req)
+		if customErr != nil {
+			sendError(conn, customErr)
+			break
+		}
+
+		// Send message to all open connections of the chat
+		responseBytes, _ := json.Marshal(response)
+		controller.sendMessageToChat(chatId, string(responseBytes))
+	}
+
+}
+
+// sendError sends an error message to the client using the given connection
+func sendError(connection *websocket.Conn, customErr *customerrors.CustomError) {
+	errMessage, _ := json.Marshal(gin.H{
+		"error": customErr,
+	})
+	err := connection.WriteMessage(websocket.TextMessage, errMessage)
+	if err != nil {
+		fmt.Println("Failed to send error websocket message:", err)
+	}
+}
+
+// addConnection adds a connection to the map of connections
+func (controller *MessageController) addConnection(username string, chatId string, conn *websocket.Conn) {
+	controller.connectionsLock.Lock()
+	defer controller.connectionsLock.Unlock()
+
+	if controller.connections[chatId] == nil {
+		controller.connections[chatId] = make(map[string][]*websocket.Conn)
+	}
+	controller.connections[chatId][username] = append(controller.connections[chatId][username], conn)
+}
+
+// removeConnection removes a connection from the map of connections
+func (controller *MessageController) removeConnection(username string, chatId string, conn *websocket.Conn) {
+	controller.connectionsLock.Lock()
+	defer controller.connectionsLock.Unlock()
+
+	if controller.connections[chatId] == nil {
+		return
+	}
+
+	connections := controller.connections[chatId][username]
+	for i, c := range connections {
+		if c == conn {
+			controller.connections[chatId][username] = append(connections[:i], connections[i+1:]...)
+			break
+		}
+	}
+}
+
+// sendMessageToChat sends a message to all connections of a chat
+func (controller *MessageController) sendMessageToChat(chatId, message string) {
+	controller.connectionsLock.RLock()
+	defer controller.connectionsLock.RUnlock()
+
+	connections := controller.connections[chatId]
+
+	// send message to all connections (also to the sender as a sending confirmation)
+	// iterate through all users of the chat and then all their connections
+	for username, conn := range connections {
+		for _, c := range conn {
+			err := c.WriteMessage(websocket.TextMessage, []byte(message))
+			if err != nil {
+				fmt.Println("Failed to send websocket message to ", username, ":", err)
+			}
+		}
+	}
 }
