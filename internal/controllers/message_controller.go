@@ -8,6 +8,7 @@ import (
 	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
 	"github.com/wwi21seb-projekt/server-beta/internal/models"
 	"github.com/wwi21seb-projekt/server-beta/internal/services"
+	"github.com/wwi21seb-projekt/server-beta/internal/utils"
 	"net/http"
 	"strconv"
 	"sync"
@@ -78,10 +79,15 @@ func (controller *MessageController) GetMessagesByChatId(c *gin.Context) {
 
 // HandleWebSocket handles WebSocket connections for a given chatId and the logged-in user
 func (controller *MessageController) HandleWebSocket(c *gin.Context) {
-	// Read chatId from query parameter and username from context
+	// Read chatId from query parameter
 	chatId := c.Query("chatId")
-	currentUsername, exists := c.Get("username")
-	if !exists {
+
+	// Using Sec-WebSocket-Protocol header for JWT authentication because browsers do not allow custom headers
+	// So middleware was not called and the JWT token needs to be verified here
+	jwtToken := c.GetHeader("Sec-WebSocket-Protocol")
+	jwtToken = jwtToken[7:] // Remove "Bearer " prefix
+	currentUsername, isRefreshToken, err := utils.VerifyJWTToken(jwtToken)
+	if isRefreshToken || err != nil { // if token is a refresh token or invalid, return 401
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"error": customerrors.UserUnauthorized,
 		})
@@ -89,8 +95,8 @@ func (controller *MessageController) HandleWebSocket(c *gin.Context) {
 	}
 
 	// Check if chat exists and if user is a participant
-	_, serviceErr, httpStatus := controller.messageService.GetMessagesByChatId(chatId, currentUsername.(string), 0, 1)
-	if serviceErr != nil { // if no participant or chat does not exist, service returns 404 custom error
+	_, serviceErr, httpStatus := controller.messageService.GetMessagesByChatId(chatId, currentUsername, 0, 1)
+	if serviceErr != nil { // if no participant or chat does not exist, service returns 404 and custom error
 		c.JSON(httpStatus, gin.H{
 			"error": serviceErr,
 		})
@@ -98,17 +104,19 @@ func (controller *MessageController) HandleWebSocket(c *gin.Context) {
 	}
 
 	// Create WebSocket connection
-	conn, err := controller.upgrader.Upgrade(c.Writer, c.Request, nil)
+	// Header needs to be the same as the request header
+	conn, err := controller.upgrader.Upgrade(c.Writer, c.Request, http.Header{"Sec-WebSocket-Protocol": []string{c.GetHeader("Sec-WebSocket-Protocol")}})
 	if err != nil {
-		fmt.Println("Failed to upgrade to WebSocket for user,", currentUsername.(string), ":", err)
+		fmt.Println("Failed to upgrade to WebSocket for user,", currentUsername, ":", err)
+		return
 	}
 	defer func(conn *websocket.Conn) {
 		_ = conn.Close() // close connection when function terminates
 	}(conn)
 
 	// Add connection to map
-	controller.addConnection(currentUsername.(string), chatId, conn)
-	defer controller.removeConnection(currentUsername.(string), chatId, conn) // remove connection when function terminates
+	controller.addConnection(currentUsername, chatId, conn)
+	defer controller.removeConnection(currentUsername, chatId, conn) // remove connection when function terminates
 
 	for {
 		// Read message from client
@@ -126,7 +134,7 @@ func (controller *MessageController) HandleWebSocket(c *gin.Context) {
 		}
 
 		// Call service to save received message to database
-		response, customErr, _ := controller.messageService.CreateMessage(chatId, currentUsername.(string), &req)
+		response, customErr, _ := controller.messageService.CreateMessage(chatId, currentUsername, &req)
 		if customErr != nil {
 			sendError(conn, customErr)
 			break
@@ -134,7 +142,7 @@ func (controller *MessageController) HandleWebSocket(c *gin.Context) {
 
 		// Send message to all open connections of the chat
 		responseBytes, _ := json.Marshal(response)
-		controller.sendMessageToChat(chatId, string(responseBytes))
+		controller.broadCastMessageToChat(chatId, string(responseBytes))
 	}
 
 }
@@ -179,8 +187,8 @@ func (controller *MessageController) removeConnection(username string, chatId st
 	}
 }
 
-// sendMessageToChat sends a message to all connections of a chat
-func (controller *MessageController) sendMessageToChat(chatId, message string) {
+// broadCastMessageToChat sends a message to all connections of a chat
+func (controller *MessageController) broadCastMessageToChat(chatId, message string) {
 	controller.connectionsLock.RLock()
 	defer controller.connectionsLock.RUnlock()
 

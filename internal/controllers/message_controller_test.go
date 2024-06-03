@@ -193,7 +193,7 @@ func TestGetMessagesByChatIdNoParticipant(t *testing.T) {
 	mockChatRepository.AssertExpectations(t)
 }
 
-//// TestHandleWebSocketSuccess tests the HandleWebSocket establishes a connection and is able to send and receive messages
+// TestHandleWebSocketSuccess tests the HandleWebSocket establishes a connection and is able to send and receive messages
 //func TestHandleWebSocketSuccess(t *testing.T) {
 //	// Arrange
 //	mockChatRepository := new(repositories.MockChatRepository)
@@ -206,20 +206,67 @@ func TestGetMessagesByChatIdNoParticipant(t *testing.T) {
 //	if err != nil {
 //		t.Fatal(err)
 //	}
+//	otherUsername := "otherUser"
 //
-//	// Setup HTTP request
-//	req, _ := http.NewRequest("GET", "/chat", nil)
-//	req.Header.Set("Content-Type", "application/json")
-//	req.Header.Set("Authorization", "Bearer "+authenticationToken)
-//	w := httptest.NewRecorder()
+//	chat := models.Chat{
+//		Id: uuid.New(),
+//		Users: []models.User{
+//			{Username: currentUsername},
+//			{Username: otherUsername},
+//		},
+//	}
 //
-//	// Act
+//	// Mock expectations
+//	var capturedMessage models.Message
+//	mockChatRepository.On("GetChatById", chat.Id.String()).Return(chat, nil) // Expect chat to be found
+//	mockMessageRepository.On("GetMessagesByChatId", chat.Id.String(), 0, 1).Return([]models.Message{}, int64(0), nil)
+//	mockMessageRepository.On("CreateMessage", mock.AnythingOfType("*models.Message")).
+//		Run(func(args mock.Arguments) {
+//			capturedMessage = args.Get(0).(models.Message)
+//		}).Return(nil)
+//
+//	// Create test server
 //	gin.SetMode(gin.TestMode)
 //	router := gin.Default()
 //	router.GET("/chat", messageController.HandleWebSocket)
-//	router.ServeHTTP(w, req)
+//	server := httptest.NewServer(router)
+//	defer server.Close()
+//
+//	// Create WebSocket connection
+//	url := "ws" + server.URL[4:] + "/chat?chatId=" + chat.Id.String()
+//	headers := http.Header{"Sec-WebSocket-Protocol": []string{"Bearer " + authenticationToken}}
+//	ws, _, err := websocket.DefaultDialer.Dial(url, headers)
+//	assert.NoError(t, err)
+//
+//	// Send message
+//	message := models.MessageCreateRequestDTO{
+//		Content: "Test message",
+//	}
+//	messageJSON, err := json.Marshal(message)
+//	assert.NoError(t, err)
+//
+//	err = ws.WriteMessage(websocket.TextMessage, messageJSON)
+//	assert.NoError(t, err)
+//
+//	// Read message
+//	_, receivedMessage, err := ws.ReadMessage()
+//	assert.NoError(t, err)
+//	var response models.MessageRecordDTO
+//	err = json.Unmarshal(receivedMessage, &response)
+//	assert.NoError(t, err)
 //
 //	// Assert
-//	assert.Equal(t, http.StatusOK, w.Code) // Expect 200 OK
+//	assert.Equal(t, message.Content, response.Content)
+//	assert.Equal(t, currentUsername, response.Username)
+//	assert.NotEmpty(t, response.CreationDate)
+//
+//	assert.Equal(t, message.Content, capturedMessage.Content)
+//	assert.Equal(t, currentUsername, capturedMessage.Username)
+//	assert.Equal(t, chat.Id, capturedMessage.ChatId)
+//	assert.NotEmpty(t, capturedMessage.Id)
+//	assert.True(t, capturedMessage.CreatedAt.Equal(response.CreationDate))
+//
+//	mockMessageRepository.AssertExpectations(t)
+//	mockChatRepository.AssertExpectations(t)
 //
 //}

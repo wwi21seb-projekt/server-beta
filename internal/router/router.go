@@ -144,7 +144,7 @@ func SetupRouter() *gin.Engine {
 	api.PATCH("/users/:username/reset-password", passwordResetController.ResetPassword)
 
 	// WebSocket
-	api.GET("/chat", middleware.AuthorizeUser, messageController.HandleWebSocket)
+	api.GET("/chat", messageController.HandleWebSocket)
 
 	return r
 }
