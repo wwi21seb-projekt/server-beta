@@ -34,7 +34,7 @@ type ChatCreateResponseDTO struct {
 }
 
 type ChatRecordDTO struct {
-	ChatId string       `json:"id"`
+	ChatId string       `json:"chatId"`
 	User   *ChatUserDTO `json:"user"`
 }
 
