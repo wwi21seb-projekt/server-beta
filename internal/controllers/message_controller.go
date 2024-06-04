@@ -84,8 +84,7 @@ func (controller *MessageController) HandleWebSocket(c *gin.Context) {
 
 	// Using Sec-WebSocket-Protocol header for JWT authentication because browsers do not allow custom headers
 	// So middleware was not called and the JWT token needs to be verified here
-	jwtToken := c.GetHeader("Sec-WebSocket-Protocol")
-	jwtToken = jwtToken[7:] // Remove "Bearer " prefix
+	jwtToken := c.GetHeader("Sec-WebSocket-Protocol") // agreed on no Bearer prefix
 	currentUsername, isRefreshToken, err := utils.VerifyJWTToken(jwtToken)
 	if isRefreshToken || err != nil { // if token is a refresh token or invalid, return 401
 		c.JSON(http.StatusUnauthorized, gin.H{

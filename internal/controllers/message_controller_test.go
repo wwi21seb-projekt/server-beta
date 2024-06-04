@@ -234,7 +234,7 @@ func TestGetMessagesByChatIdNoParticipant(t *testing.T) {
 //
 //	// Create WebSocket connection
 //	url := "ws" + server.URL[4:] + "/chat?chatId=" + chat.Id.String()
-//	headers := http.Header{"Sec-WebSocket-Protocol": []string{"Bearer " + authenticationToken}}
+//	headers := http.Header{"Sec-WebSocket-Protocol": authenticationToken}
 //	ws, _, err := websocket.DefaultDialer.Dial(url, headers)
 //	assert.NoError(t, err)
 //
