@@ -16,18 +16,19 @@ import (
 
 type MessageServiceInterface interface {
 	GetMessagesByChatId(chatId, currentUsername string, offset, limit int) (*models.MessagesResponseDTO, *customerrors.CustomError, int)
-	CreateMessage(chatId, currentUsername string, req *models.MessageCreateRequestDTO) (*models.MessageRecordDTO, *customerrors.CustomError, int)
+	CreateMessage(chatId, currentUsername string, req *models.MessageCreateRequestDTO, connectedParticipants []string) (*models.MessageRecordDTO, *customerrors.CustomError, int)
 }
 
 type MessageService struct {
-	messageRepo repositories.MessageRepositoryInterface
-	chatRepo    repositories.ChatRepositoryInterface
-	policy      *bluemonday.Policy
+	messageRepo         repositories.MessageRepositoryInterface
+	chatRepo            repositories.ChatRepositoryInterface
+	notificationService NotificationServiceInterface
+	policy              *bluemonday.Policy
 }
 
 // NewMessageService can be used as a constructor to create a MessageService "object"
-func NewMessageService(messageRepo repositories.MessageRepositoryInterface, chatRepo repositories.ChatRepositoryInterface) *MessageService {
-	return &MessageService{messageRepo: messageRepo, chatRepo: chatRepo, policy: bluemonday.UGCPolicy()}
+func NewMessageService(messageRepo repositories.MessageRepositoryInterface, chatRepo repositories.ChatRepositoryInterface, notificationService NotificationServiceInterface) *MessageService {
+	return &MessageService{messageRepo: messageRepo, chatRepo: chatRepo, notificationService: notificationService, policy: bluemonday.UGCPolicy()}
 }
 
 // GetMessagesByChatId retrieves all messages of a chat by its chatId
@@ -84,7 +85,7 @@ func (service *MessageService) GetMessagesByChatId(chatId, currentUsername strin
 }
 
 // CreateMessage creates a new message for a given chatId and username
-func (service *MessageService) CreateMessage(chatId, currentUsername string, req *models.MessageCreateRequestDTO) (*models.MessageRecordDTO, *customerrors.CustomError, int) {
+func (service *MessageService) CreateMessage(chatId, currentUsername string, req *models.MessageCreateRequestDTO, connectedParticipants []string) (*models.MessageRecordDTO, *customerrors.CustomError, int) {
 	// Sanitize message content because it is a free text field
 	req.Content = strings.Trim(req.Content, " ") // remove leading and trailing whitespaces
 	req.Content = service.policy.Sanitize(req.Content)
@@ -129,6 +130,13 @@ func (service *MessageService) CreateMessage(chatId, currentUsername string, req
 		return nil, customerrors.DatabaseError, http.StatusInternalServerError
 	}
 
+	// Send notifications to other chat participants that have no active websocket connection
+	for _, user := range chat.Users {
+		if user.Username != currentUsername && !contains(connectedParticipants, user.Username) {
+			_ = service.notificationService.CreateNotification("message", user.Username, currentUsername) // ignore creation/sending error for current user
+		}
+	}
+
 	// Create response DTO
 	response := models.MessageRecordDTO{
 		Content:      message.Content,
@@ -137,4 +145,14 @@ func (service *MessageService) CreateMessage(chatId, currentUsername string, req
 	}
 
 	return &response, nil, http.StatusCreated
+}
+
+// contains checks if a slice contains a specific string
+func contains(slice []string, item string) bool {
+	for _, a := range slice {
+		if a == item {
+			return true
+		}
+	}
+	return false
 }

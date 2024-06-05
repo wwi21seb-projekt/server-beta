@@ -132,11 +132,21 @@ func (controller *MessageController) HandleWebSocket(c *gin.Context) {
 			break
 		}
 
+		// Get users of the chat from map that are currently connected
+		// This is needed to send notifications to all other participants in the service following service function
+		var connectedParticipants []string
+		controller.connectionsLock.RLock()
+		if controller.connections[chatId] != nil {
+			for username := range controller.connections[chatId] {
+				connectedParticipants = append(connectedParticipants, username)
+			}
+		}
+
 		// Call service to save received message to database
-		response, customErr, _ := controller.messageService.CreateMessage(chatId, currentUsername, &req)
+		response, customErr, _ := controller.messageService.CreateMessage(chatId, currentUsername, &req, connectedParticipants)
 		if customErr != nil {
 			sendError(conn, customErr)
-			break
+			continue // continue to listen for more messages
 		}
 
 		// Send message to all open connections of the chat
@@ -146,7 +156,7 @@ func (controller *MessageController) HandleWebSocket(c *gin.Context) {
 
 }
 
-// sendError sends an error message to the client using the given connection
+// sendError sends an error message to the client using the given websocket connection
 func sendError(connection *websocket.Conn, customErr *customerrors.CustomError) {
 	errMessage, _ := json.Marshal(gin.H{
 		"error": customErr,
@@ -154,6 +164,7 @@ func sendError(connection *websocket.Conn, customErr *customerrors.CustomError) 
 	err := connection.WriteMessage(websocket.TextMessage, errMessage)
 	if err != nil {
 		fmt.Println("Failed to send error websocket message:", err)
+		_ = connection.Close() // close connection if sending failed
 	}
 }
 
@@ -168,7 +179,7 @@ func (controller *MessageController) addConnection(username string, chatId strin
 	controller.connections[chatId][username] = append(controller.connections[chatId][username], conn)
 }
 
-// removeConnection removes a connection from the map of connections
+// removeConnection removes a connection from the map of websocket connections
 func (controller *MessageController) removeConnection(username string, chatId string, conn *websocket.Conn) {
 	controller.connectionsLock.Lock()
 	defer controller.connectionsLock.Unlock()
@@ -186,7 +197,7 @@ func (controller *MessageController) removeConnection(username string, chatId st
 	}
 }
 
-// broadCastMessageToChat sends a message to all connections of a chat
+// broadCastMessageToChat sends a message to all websocket connections of a chat
 func (controller *MessageController) broadCastMessageToChat(chatId, message string) {
 	controller.connectionsLock.RLock()
 	defer controller.connectionsLock.RUnlock()
@@ -200,6 +211,7 @@ func (controller *MessageController) broadCastMessageToChat(chatId, message stri
 			err := c.WriteMessage(websocket.TextMessage, []byte(message))
 			if err != nil {
 				fmt.Println("Failed to send websocket message to ", username, ":", err)
+				_ = c.Close() // close connection if sending failed
 			}
 		}
 	}

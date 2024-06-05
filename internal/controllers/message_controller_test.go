@@ -193,7 +193,7 @@ func TestGetMessagesByChatIdNoParticipant(t *testing.T) {
 	mockChatRepository.AssertExpectations(t)
 }
 
-// TestHandleWebSocketSuccess tests the HandleWebSocket establishes a connection and is able to send and receive messages
+//// TestHandleWebSocketSuccess tests the HandleWebSocket establishes a connection and is able to send and receive messages
 //func TestHandleWebSocketSuccess(t *testing.T) {
 //	// Arrange
 //	mockChatRepository := new(repositories.MockChatRepository)
