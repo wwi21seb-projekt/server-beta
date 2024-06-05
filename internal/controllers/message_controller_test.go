@@ -24,7 +24,11 @@ func TestGetMessagesByChatIdSuccess(t *testing.T) {
 	// Arrange
 	mockChatRepository := new(repositories.MockChatRepository)
 	mockMessageRepository := new(repositories.MockMessageRepository)
-	messageService := services.NewMessageService(mockMessageRepository, mockChatRepository)
+	mockNotificationRepository := new(repositories.MockNotificationRepository)
+	mockPushSubscriptionRepository := new(repositories.MockPushSubscriptionRepository)
+	pushSubscriptionService := services.NewPushSubscriptionService(mockPushSubscriptionRepository)
+	notificationService := services.NewNotificationService(mockNotificationRepository, pushSubscriptionService)
+	messageService := services.NewMessageService(mockMessageRepository, mockChatRepository, notificationService)
 	messageController := controllers.NewMessageController(messageService)
 
 	currentUsername := "myUser"
@@ -98,6 +102,8 @@ func TestGetMessagesByChatIdSuccess(t *testing.T) {
 
 	mockMessageRepository.AssertExpectations(t)
 	mockChatRepository.AssertExpectations(t)
+	mockPushSubscriptionRepository.AssertExpectations(t)
+	mockNotificationRepository.AssertExpectations(t)
 }
 
 // TestGetMessagesByChatIdUnauthorized tests the GetMessagesByChatId function if it returns 401 Unauthorized when the user is not authenticated
@@ -105,7 +111,11 @@ func TestGetMessagesByChatIdUnauthorized(t *testing.T) {
 	// Arrange
 	mockChatRepository := new(repositories.MockChatRepository)
 	mockMessageRepository := new(repositories.MockMessageRepository)
-	messageService := services.NewMessageService(mockMessageRepository, mockChatRepository)
+	mockNotificationRepository := new(repositories.MockNotificationRepository)
+	mockPushSubscriptionRepository := new(repositories.MockPushSubscriptionRepository)
+	pushSubscriptionService := services.NewPushSubscriptionService(mockPushSubscriptionRepository)
+	notificationService := services.NewNotificationService(mockNotificationRepository, pushSubscriptionService)
+	messageService := services.NewMessageService(mockMessageRepository, mockChatRepository, notificationService)
 	messageController := controllers.NewMessageController(messageService)
 
 	chatId := uuid.New().String()
@@ -134,6 +144,8 @@ func TestGetMessagesByChatIdUnauthorized(t *testing.T) {
 
 	mockMessageRepository.AssertExpectations(t)
 	mockChatRepository.AssertExpectations(t)
+	mockPushSubscriptionRepository.AssertExpectations(t)
+	mockNotificationRepository.AssertExpectations(t)
 }
 
 // TestGetMessagesByChatIdNoParticipant tests the GetMessagesByChatId function if it returns 404 Not Found when the user is not part of the chat
@@ -141,7 +153,11 @@ func TestGetMessagesByChatIdNoParticipant(t *testing.T) {
 	// Arrange
 	mockChatRepository := new(repositories.MockChatRepository)
 	mockMessageRepository := new(repositories.MockMessageRepository)
-	messageService := services.NewMessageService(mockMessageRepository, mockChatRepository)
+	mockNotificationRepository := new(repositories.MockNotificationRepository)
+	mockPushSubscriptionRepository := new(repositories.MockPushSubscriptionRepository)
+	pushSubscriptionService := services.NewPushSubscriptionService(mockPushSubscriptionRepository)
+	notificationService := services.NewNotificationService(mockNotificationRepository, pushSubscriptionService)
+	messageService := services.NewMessageService(mockMessageRepository, mockChatRepository, notificationService)
 	messageController := controllers.NewMessageController(messageService)
 
 	currentUsername := "myUser"
@@ -191,6 +207,8 @@ func TestGetMessagesByChatIdNoParticipant(t *testing.T) {
 
 	mockMessageRepository.AssertExpectations(t)
 	mockChatRepository.AssertExpectations(t)
+	mockPushSubscriptionRepository.AssertExpectations(t)
+	mockNotificationRepository.AssertExpectations(t)
 }
 
 //// TestHandleWebSocketSuccess tests the HandleWebSocket establishes a connection and is able to send and receive messages
@@ -198,7 +216,11 @@ func TestGetMessagesByChatIdNoParticipant(t *testing.T) {
 //	// Arrange
 //	mockChatRepository := new(repositories.MockChatRepository)
 //	mockMessageRepository := new(repositories.MockMessageRepository)
-//	messageService := services.NewMessageService(mockMessageRepository, mockChatRepository)
+//	mockNotificationRepository := new(repositories.MockNotificationRepository)
+//	mockPushSubscriptionRepository := new(repositories.MockPushSubscriptionRepository)
+//	pushSubscriptionService := services.NewPushSubscriptionService(mockPushSubscriptionRepository)
+//	notificationService := services.NewNotificationService(mockNotificationRepository, pushSubscriptionService)
+//	messageService := services.NewMessageService(mockMessageRepository, mockChatRepository, notificationService)
 //	messageController := controllers.NewMessageController(messageService)
 //
 //	currentUsername := "myUser"
