@@ -43,7 +43,7 @@ func (controller *ChatController) CreateChat(c *gin.Context) {
 	}
 
 	// Call service
-	response, customErr, httpStatus := controller.chatService.CreatePost(&req, currentUsername.(string))
+	response, customErr, httpStatus := controller.chatService.CreateChat(&req, currentUsername.(string))
 	if customErr != nil {
 		c.JSON(httpStatus, gin.H{
 			"error": customErr,

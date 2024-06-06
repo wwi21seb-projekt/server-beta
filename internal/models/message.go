@@ -31,3 +31,7 @@ type MessagesResponseDTO struct {
 	Records    []MessageRecordDTO    `json:"records"`
 	Pagination *MessagePaginationDTO `json:"pagination"`
 }
+
+type MessageCreateRequestDTO struct {
+	Content string `json:"content" binding:"required"`
+}

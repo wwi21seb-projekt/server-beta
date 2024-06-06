@@ -14,25 +14,27 @@ import (
 )
 
 type ChatServiceInterface interface {
-	CreatePost(req *models.ChatCreateRequestDTO, currentUsername string) (*models.ChatCreateResponseDTO, *customerrors.CustomError, int)
+	CreateChat(req *models.ChatCreateRequestDTO, currentUsername string) (*models.ChatCreateResponseDTO, *customerrors.CustomError, int)
 	GetChatsByUsername(username string) (*models.ChatsResponseDTO, *customerrors.CustomError, int)
 }
 
 type ChatService struct {
-	chatRepo repositories.ChatRepositoryInterface
-	userRepo repositories.UserRepositoryInterface
-	policy   *bluemonday.Policy
+	chatRepo            repositories.ChatRepositoryInterface
+	userRepo            repositories.UserRepositoryInterface
+	notificationService NotificationServiceInterface
+	policy              *bluemonday.Policy
 }
 
 // NewChatService can be used as a constructor to create a ChatService "object"
 func NewChatService(
 	chatRepo repositories.ChatRepositoryInterface,
-	userRepo repositories.UserRepositoryInterface) *ChatService {
-	return &ChatService{chatRepo: chatRepo, userRepo: userRepo, policy: bluemonday.UGCPolicy()}
+	userRepo repositories.UserRepositoryInterface,
+	notificationService NotificationServiceInterface) *ChatService {
+	return &ChatService{chatRepo: chatRepo, userRepo: userRepo, notificationService: notificationService, policy: bluemonday.UGCPolicy()}
 }
 
-// CreatePost creates a chat for a given post id, username and the current logged-in user
-func (service *ChatService) CreatePost(req *models.ChatCreateRequestDTO, currentUsername string) (*models.ChatCreateResponseDTO, *customerrors.CustomError, int) {
+// CreateChat creates a chat for a given post id, username and the current logged-in user
+func (service *ChatService) CreateChat(req *models.ChatCreateRequestDTO, currentUsername string) (*models.ChatCreateResponseDTO, *customerrors.CustomError, int) {
 	// Sanitize message content because it is a free text field
 	req.Content = strings.Trim(req.Content, " ") // remove leading and trailing whitespaces
 	req.Content = service.policy.Sanitize(req.Content)
@@ -88,6 +90,9 @@ func (service *ChatService) CreatePost(req *models.ChatCreateRequestDTO, current
 	if err != nil {
 		return nil, customerrors.DatabaseError, http.StatusInternalServerError
 	}
+
+	// Send notification to other user
+	_ = service.notificationService.CreateNotification("message", req.Username, currentUsername) // ignore creation/sending error for current user
 
 	// Create response
 	response := &models.ChatCreateResponseDTO{

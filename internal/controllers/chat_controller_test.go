@@ -27,7 +27,11 @@ func TestCreateChatSuccess(t *testing.T) {
 	// Arrange
 	mockUserRepo := new(repositories.MockUserRepository)
 	mockChatRepo := new(repositories.MockChatRepository)
-	chatService := services.NewChatService(mockChatRepo, mockUserRepo)
+	mockNotificationRepo := new(repositories.MockNotificationRepository)
+	mockPushSubscriptionRepo := new(repositories.MockPushSubscriptionRepository)
+	pushSubscriptionService := services.NewPushSubscriptionService(mockPushSubscriptionRepo)
+	notificationService := services.NewNotificationService(mockNotificationRepo, pushSubscriptionService)
+	chatService := services.NewChatService(mockChatRepo, mockUserRepo, notificationService)
 	chatController := controllers.NewChatController(chatService)
 
 	currentUser := &models.User{
@@ -50,6 +54,7 @@ func TestCreateChatSuccess(t *testing.T) {
 	// Mock expectations
 	var capturedChat models.Chat
 	var capturedMessage models.Message
+	var capturedNotification *models.Notification
 	mockUserRepo.On("FindUserByUsername", chatCreateRequest.Username).Return(otherUser, nil)
 	mockUserRepo.On("FindUserByUsername", currentUser.Username).Return(currentUser, nil)
 	mockChatRepo.On("GetChatByUsernames", currentUser.Username, chatCreateRequest.Username).Return(models.Chat{}, gorm.ErrRecordNotFound)
@@ -58,6 +63,11 @@ func TestCreateChatSuccess(t *testing.T) {
 			capturedChat = args.Get(0).(models.Chat)
 			capturedMessage = args.Get(1).(models.Message)
 		}).Return(nil)
+	mockNotificationRepo.On("CreateNotification", mock.AnythingOfType("*models.Notification")).
+		Run(func(args mock.Arguments) {
+			capturedNotification = args.Get(0).(*models.Notification)
+		}).Return(nil)
+	mockPushSubscriptionRepo.On("GetPushSubscriptionsByUsername", otherUser.Username).Return([]models.PushSubscription{}, nil)
 
 	// Setup HTTP request
 	requestBody, err := json.Marshal(chatCreateRequest)
@@ -101,8 +111,17 @@ func TestCreateChatSuccess(t *testing.T) {
 	assert.Equal(t, currentUser.Username, response.Message.Username)
 	assert.True(t, response.Message.CreationDate.Equal(capturedMessage.CreatedAt))
 
-	mockUserRepo.AssertExpectations(t)
+	assert.NotNil(t, capturedNotification)
+	assert.NotEmpty(t, capturedNotification.Id)
+	assert.Equal(t, "message", capturedNotification.NotificationType)
+	assert.Equal(t, otherUser.Username, capturedNotification.ForUsername)
+	assert.Equal(t, currentUser.Username, capturedNotification.FromUsername)
+	assert.NotEmpty(t, capturedNotification.Timestamp)
+
 	mockChatRepo.AssertExpectations(t)
+	mockUserRepo.AssertExpectations(t)
+	mockPushSubscriptionRepo.AssertExpectations(t)
+	mockNotificationRepo.AssertExpectations(t)
 }
 
 // TestCreateChatBadRequest tests the CreateChat function if it returns 400 Bad Request if the request body is invalid
@@ -118,7 +137,11 @@ func TestCreateChatBadRequest(t *testing.T) {
 		// Arrange
 		mockUserRepo := new(repositories.MockUserRepository)
 		mockChatRepo := new(repositories.MockChatRepository)
-		chatService := services.NewChatService(mockChatRepo, mockUserRepo)
+		mockNotificationRepo := new(repositories.MockNotificationRepository)
+		mockPushSubscriptionRepo := new(repositories.MockPushSubscriptionRepository)
+		pushSubscriptionService := services.NewPushSubscriptionService(mockPushSubscriptionRepo)
+		notificationService := services.NewNotificationService(mockNotificationRepo, pushSubscriptionService)
+		chatService := services.NewChatService(mockChatRepo, mockUserRepo, notificationService)
 		chatController := controllers.NewChatController(chatService)
 
 		currentUser := &models.User{
@@ -152,8 +175,10 @@ func TestCreateChatBadRequest(t *testing.T) {
 		assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 		assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
-		mockUserRepo.AssertExpectations(t)
 		mockChatRepo.AssertExpectations(t)
+		mockUserRepo.AssertExpectations(t)
+		mockPushSubscriptionRepo.AssertExpectations(t)
+		mockNotificationRepo.AssertExpectations(t)
 	}
 }
 
@@ -162,7 +187,11 @@ func TestCreateChatUnauthorized(t *testing.T) {
 	// Arrange
 	mockUserRepo := new(repositories.MockUserRepository)
 	mockChatRepo := new(repositories.MockChatRepository)
-	chatService := services.NewChatService(mockChatRepo, mockUserRepo)
+	mockNotificationRepo := new(repositories.MockNotificationRepository)
+	mockPushSubscriptionRepo := new(repositories.MockPushSubscriptionRepository)
+	pushSubscriptionService := services.NewPushSubscriptionService(mockPushSubscriptionRepo)
+	notificationService := services.NewNotificationService(mockNotificationRepo, pushSubscriptionService)
+	chatService := services.NewChatService(mockChatRepo, mockUserRepo, notificationService)
 	chatController := controllers.NewChatController(chatService)
 
 	// Setup HTTP request
@@ -186,8 +215,10 @@ func TestCreateChatUnauthorized(t *testing.T) {
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
-	mockUserRepo.AssertExpectations(t)
 	mockChatRepo.AssertExpectations(t)
+	mockUserRepo.AssertExpectations(t)
+	mockPushSubscriptionRepo.AssertExpectations(t)
+	mockNotificationRepo.AssertExpectations(t)
 }
 
 // TestCreateChatUserNotFound tests the CreateChat function if it returns 404 Not Found if the other user does not exist
@@ -195,7 +226,11 @@ func TestCreateChatUserNotFound(t *testing.T) {
 	// Arrange
 	mockUserRepo := new(repositories.MockUserRepository)
 	mockChatRepo := new(repositories.MockChatRepository)
-	chatService := services.NewChatService(mockChatRepo, mockUserRepo)
+	mockNotificationRepo := new(repositories.MockNotificationRepository)
+	mockPushSubscriptionRepo := new(repositories.MockPushSubscriptionRepository)
+	pushSubscriptionService := services.NewPushSubscriptionService(mockPushSubscriptionRepo)
+	notificationService := services.NewNotificationService(mockNotificationRepo, pushSubscriptionService)
+	chatService := services.NewChatService(mockChatRepo, mockUserRepo, notificationService)
 	chatController := controllers.NewChatController(chatService)
 
 	currentUser := &models.User{
@@ -241,8 +276,10 @@ func TestCreateChatUserNotFound(t *testing.T) {
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
-	mockUserRepo.AssertExpectations(t)
 	mockChatRepo.AssertExpectations(t)
+	mockUserRepo.AssertExpectations(t)
+	mockPushSubscriptionRepo.AssertExpectations(t)
+	mockNotificationRepo.AssertExpectations(t)
 }
 
 // TestCreateChatChatAlreadyExists tests the CreateChat function if it returns 409 Conflict if the chat already exists
@@ -250,7 +287,11 @@ func TestCreateChatChatAlreadyExists(t *testing.T) {
 	// Arrange
 	mockUserRepo := new(repositories.MockUserRepository)
 	mockChatRepo := new(repositories.MockChatRepository)
-	chatService := services.NewChatService(mockChatRepo, mockUserRepo)
+	mockNotificationRepo := new(repositories.MockNotificationRepository)
+	mockPushSubscriptionRepo := new(repositories.MockPushSubscriptionRepository)
+	pushSubscriptionService := services.NewPushSubscriptionService(mockPushSubscriptionRepo)
+	notificationService := services.NewNotificationService(mockNotificationRepo, pushSubscriptionService)
+	chatService := services.NewChatService(mockChatRepo, mockUserRepo, notificationService)
 	chatController := controllers.NewChatController(chatService)
 
 	currentUser := &models.User{
@@ -300,16 +341,22 @@ func TestCreateChatChatAlreadyExists(t *testing.T) {
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
-	mockUserRepo.AssertExpectations(t)
 	mockChatRepo.AssertExpectations(t)
+	mockUserRepo.AssertExpectations(t)
+	mockPushSubscriptionRepo.AssertExpectations(t)
+	mockNotificationRepo.AssertExpectations(t)
 }
 
 // TestGetChatsSuccess tests the GetChats function if it returns 200 OK after successfully retrieving chats
 func TestGetChatsSuccess(t *testing.T) {
 	// Arrange
-	mockChatRepository := new(repositories.MockChatRepository)
-	mockUserRepository := new(repositories.MockUserRepository)
-	chatService := services.NewChatService(mockChatRepository, mockUserRepository)
+	mockUserRepo := new(repositories.MockUserRepository)
+	mockChatRepo := new(repositories.MockChatRepository)
+	mockNotificationRepo := new(repositories.MockNotificationRepository)
+	mockPushSubscriptionRepo := new(repositories.MockPushSubscriptionRepository)
+	pushSubscriptionService := services.NewPushSubscriptionService(mockPushSubscriptionRepo)
+	notificationService := services.NewNotificationService(mockNotificationRepo, pushSubscriptionService)
+	chatService := services.NewChatService(mockChatRepo, mockUserRepo, notificationService)
 	chatController := controllers.NewChatController(chatService)
 
 	currentUsername := "myUser"
@@ -336,7 +383,7 @@ func TestGetChatsSuccess(t *testing.T) {
 	}
 
 	// Mock expectations
-	mockChatRepository.On("GetChatsByUsername", currentUsername).Return(chats, nil)
+	mockChatRepo.On("GetChatsByUsername", currentUsername).Return(chats, nil)
 
 	// Setup HTTP request
 	url := "/chats"
@@ -366,16 +413,22 @@ func TestGetChatsSuccess(t *testing.T) {
 		assert.Equal(t, chat.Users[0].ProfilePictureUrl, response.Records[i].User.ProfilePictureUrl)
 	}
 
-	mockChatRepository.AssertExpectations(t)
-	mockUserRepository.AssertExpectations(t)
+	mockChatRepo.AssertExpectations(t)
+	mockUserRepo.AssertExpectations(t)
+	mockPushSubscriptionRepo.AssertExpectations(t)
+	mockNotificationRepo.AssertExpectations(t)
 }
 
 // TestGetChatsUnauthorized tests the GetChats function if it returns 401 Unauthorized when the user is not authenticated
 func TestGetChatsUnauthorized(t *testing.T) {
 	// Arrange
-	mockChatRepository := new(repositories.MockChatRepository)
-	mockUserRepository := new(repositories.MockUserRepository)
-	chatService := services.NewChatService(mockChatRepository, mockUserRepository)
+	mockUserRepo := new(repositories.MockUserRepository)
+	mockChatRepo := new(repositories.MockChatRepository)
+	mockNotificationRepo := new(repositories.MockNotificationRepository)
+	mockPushSubscriptionRepo := new(repositories.MockPushSubscriptionRepository)
+	pushSubscriptionService := services.NewPushSubscriptionService(mockPushSubscriptionRepo)
+	notificationService := services.NewNotificationService(mockNotificationRepo, pushSubscriptionService)
+	chatService := services.NewChatService(mockChatRepo, mockUserRepo, notificationService)
 	chatController := controllers.NewChatController(chatService)
 
 	// Setup HTTP request
@@ -400,6 +453,8 @@ func TestGetChatsUnauthorized(t *testing.T) {
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
-	mockChatRepository.AssertExpectations(t)
-	mockUserRepository.AssertExpectations(t)
+	mockChatRepo.AssertExpectations(t)
+	mockUserRepo.AssertExpectations(t)
+	mockPushSubscriptionRepo.AssertExpectations(t)
+	mockNotificationRepo.AssertExpectations(t)
 }

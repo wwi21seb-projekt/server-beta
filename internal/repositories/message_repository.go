@@ -7,6 +7,7 @@ import (
 
 type MessageRepositoryInterface interface {
 	GetMessagesByChatId(chatId string, offset int, limit int) ([]models.Message, int64, error)
+	CreateMessage(message *models.Message) error
 }
 
 type MessageRepository struct {
@@ -37,4 +38,8 @@ func (repo *MessageRepository) GetMessagesByChatId(chatId string, offset int, li
 	}
 
 	return messages, count, err
+}
+
+func (repo *MessageRepository) CreateMessage(message *models.Message) error {
+	return repo.DB.Create(message).Error
 }

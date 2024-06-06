@@ -69,8 +69,8 @@ func SetupRouter() *gin.Engine {
 	commentService := services.NewCommentService(commentRepo, postRepo, userRepo)
 	postService := services.NewPostService(postRepo, userRepo, hashtagRepo, imageService, validator, locationRepo, likeRepo, commentRepo, notificationService)
 	passwordResetService := services.NewPasswordResetService(userRepo, passwordResetRepo, mailService, validator)
-	chatService := services.NewChatService(chatRepo, userRepo)
-	messageService := services.NewMessageService(messageRepo, chatRepo)
+	chatService := services.NewChatService(chatRepo, userRepo, notificationService)
+	messageService := services.NewMessageService(messageRepo, chatRepo, notificationService)
 
 	imprintController := controllers.NewImprintController()
 	userController := controllers.NewUserController(userService)
@@ -142,6 +142,9 @@ func SetupRouter() *gin.Engine {
 	// Reset Password
 	api.POST("/users/:username/reset-password", passwordResetController.InitiatePasswordReset)
 	api.PATCH("/users/:username/reset-password", passwordResetController.ResetPassword)
+
+	// WebSocket
+	api.GET("/chat", messageController.HandleWebSocket)
 
 	return r
 }

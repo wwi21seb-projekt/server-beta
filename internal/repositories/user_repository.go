@@ -107,25 +107,54 @@ func (repo *UserRepository) GetUnactivatedUsers() ([]models.User, error) {
 }
 
 func (repo *UserRepository) DeleteUserByUsername(username string) error {
-	// This function deletes a user and related subscription and activation tokens
+	// This function deletes a user and related subscription, messages and activation tokens
 	// It is only used for unactivated users that do not have any posts or comments, etc.
 	// If this function should also be used for activated users, additional deletions are required
 	return repo.DB.Transaction(func(tx *gorm.DB) error {
+
 		// Delete subscriptions (user can already be followed by others even when he is not activated yet)
 		if err := tx.Where("following = ? OR follower = ?", username, username).Delete(&models.Subscription{}).Error; err != nil {
 			if !errors.Is(err, gorm.ErrRecordNotFound) {
 				return err
 			}
 		}
+
 		// Delete token
 		if err := tx.Where("username = ?", username).Delete(&models.ActivationToken{}).Error; err != nil {
 			if !errors.Is(err, gorm.ErrRecordNotFound) {
 				return err
 			}
 		}
+		// Delete messages
+		if err := tx.Where("username_fk = ?", username).Delete(&models.Message{}).Error; err != nil {
+			if !errors.Is(err, gorm.ErrRecordNotFound) {
+				return err
+			}
+		}
+
+		// Find chats where the user is a participant
+		var chats []models.Chat
+		if err := tx.Model(&models.Chat{}).Joins("JOIN chat_users ON chat_users.chat_id = chats.id").Where("chat_users.user_username = ?", username).Find(&chats).Error; err != nil {
+			return err
+		}
+
+		// Delete all messages in each chat
+		for _, chat := range chats {
+			if err := tx.Where("chat_id = ?", chat.Id).Delete(&models.Message{}).Error; err != nil {
+				return err
+			}
+		}
+
+		// Delete chats where the user is a participant
+		for _, chat := range chats {
+			if err := tx.Where("id = ?", chat.Id).Delete(&models.Chat{}).Error; err != nil {
+				return err
+			}
+		}
+
 		// Delete user
 		if err := tx.Where("username = ?", username).Delete(&models.User{}).Error; err != nil {
-			return err // Rückkehr bei einem Fehler
+			return err
 		}
 
 		return nil
