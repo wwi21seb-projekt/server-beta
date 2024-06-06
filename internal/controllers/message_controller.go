@@ -88,6 +88,7 @@ func (controller *MessageController) HandleWebSocket(c *gin.Context) {
 		return // return if connection could not be established
 	}
 	defer func(conn *websocket.Conn) {
+		_ = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 		_ = conn.Close() // close connection when function terminates
 	}(conn)
 
@@ -116,14 +117,14 @@ func (controller *MessageController) HandleWebSocket(c *gin.Context) {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
 			sendError(conn, customerrors.BadRequest)
-			break
+			continue // continue to listen for more messages
 		}
 
 		// Bind message to DTO
 		var req models.MessageCreateRequestDTO
 		if err := json.Unmarshal(message, &req); err != nil {
 			sendError(conn, customerrors.BadRequest)
-			break
+			continue // continue to listen for more messages
 		}
 
 		// Get users of the chat from map that are currently connected
@@ -156,6 +157,7 @@ func sendError(connection *websocket.Conn, customErr *customerrors.CustomError) 
 	})
 	err := connection.WriteMessage(websocket.TextMessage, errMessage)
 	if err != nil {
+		_ = connection.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 		_ = connection.Close() // close connection if sending failed
 	}
 }
@@ -198,11 +200,13 @@ func (controller *MessageController) broadCastMessageToChat(chatId, message stri
 
 	// send message to all connections (also to the sender as a sending confirmation)
 	// iterate through all users of the chat and then all their connections
-	for _, conn := range connections {
+	for username, conn := range connections {
 		for _, c := range conn {
 			err := c.WriteMessage(websocket.TextMessage, []byte(message))
 			if err != nil {
+				_ = c.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 				_ = c.Close() // close connection if sending failed
+				controller.removeConnection(username, chatId, c)
 			}
 		}
 	}
