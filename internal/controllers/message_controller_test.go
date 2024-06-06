@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/wwi21seb-projekt/server-beta/internal/controllers"
 	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
 	"github.com/wwi21seb-projekt/server-beta/internal/middleware"
@@ -12,9 +14,11 @@ import (
 	"github.com/wwi21seb-projekt/server-beta/internal/repositories"
 	"github.com/wwi21seb-projekt/server-beta/internal/services"
 	"github.com/wwi21seb-projekt/server-beta/internal/utils"
+	"gorm.io/gorm"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 )
@@ -211,84 +215,381 @@ func TestGetMessagesByChatIdNoParticipant(t *testing.T) {
 	mockNotificationRepository.AssertExpectations(t)
 }
 
-//// TestHandleWebSocketSuccess tests the HandleWebSocket establishes a connection and is able to send and receive messages
-//func TestHandleWebSocketSuccess(t *testing.T) {
-//	// Arrange
-//	mockChatRepository := new(repositories.MockChatRepository)
-//	mockMessageRepository := new(repositories.MockMessageRepository)
-//	mockNotificationRepository := new(repositories.MockNotificationRepository)
-//	mockPushSubscriptionRepository := new(repositories.MockPushSubscriptionRepository)
-//	pushSubscriptionService := services.NewPushSubscriptionService(mockPushSubscriptionRepository)
-//	notificationService := services.NewNotificationService(mockNotificationRepository, pushSubscriptionService)
-//	messageService := services.NewMessageService(mockMessageRepository, mockChatRepository, notificationService)
-//	messageController := controllers.NewMessageController(messageService)
-//
-//	currentUsername := "myUser"
-//	authenticationToken, err := utils.GenerateAccessToken(currentUsername)
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//	otherUsername := "otherUser"
-//
-//	chat := models.Chat{
-//		Id: uuid.New(),
-//		Users: []models.User{
-//			{Username: currentUsername},
-//			{Username: otherUsername},
-//		},
-//	}
-//
-//	// Mock expectations
-//	var capturedMessage models.Message
-//	mockChatRepository.On("GetChatById", chat.Id.String()).Return(chat, nil) // Expect chat to be found
-//	mockMessageRepository.On("GetMessagesByChatId", chat.Id.String(), 0, 1).Return([]models.Message{}, int64(0), nil)
-//	mockMessageRepository.On("CreateMessage", mock.AnythingOfType("*models.Message")).
-//		Run(func(args mock.Arguments) {
-//			capturedMessage = args.Get(0).(models.Message)
-//		}).Return(nil)
-//
-//	// Create test server
-//	gin.SetMode(gin.TestMode)
-//	router := gin.Default()
-//	router.GET("/chat", messageController.HandleWebSocket)
-//	server := httptest.NewServer(router)
-//	defer server.Close()
-//
-//	// Create WebSocket connection
-//	url := "ws" + server.URL[4:] + "/chat?chatId=" + chat.Id.String()
-//	headers := http.Header{"Sec-WebSocket-Protocol": authenticationToken}
-//	ws, _, err := websocket.DefaultDialer.Dial(url, headers)
-//	assert.NoError(t, err)
-//
-//	// Send message
-//	message := models.MessageCreateRequestDTO{
-//		Content: "Test message",
-//	}
-//	messageJSON, err := json.Marshal(message)
-//	assert.NoError(t, err)
-//
-//	err = ws.WriteMessage(websocket.TextMessage, messageJSON)
-//	assert.NoError(t, err)
-//
-//	// Read message
-//	_, receivedMessage, err := ws.ReadMessage()
-//	assert.NoError(t, err)
-//	var response models.MessageRecordDTO
-//	err = json.Unmarshal(receivedMessage, &response)
-//	assert.NoError(t, err)
-//
-//	// Assert
-//	assert.Equal(t, message.Content, response.Content)
-//	assert.Equal(t, currentUsername, response.Username)
-//	assert.NotEmpty(t, response.CreationDate)
-//
-//	assert.Equal(t, message.Content, capturedMessage.Content)
-//	assert.Equal(t, currentUsername, capturedMessage.Username)
-//	assert.Equal(t, chat.Id, capturedMessage.ChatId)
-//	assert.NotEmpty(t, capturedMessage.Id)
-//	assert.True(t, capturedMessage.CreatedAt.Equal(response.CreationDate))
-//
-//	mockMessageRepository.AssertExpectations(t)
-//	mockChatRepository.AssertExpectations(t)
-//
-//}
+// TestHandleWebSocketSuccess tests if the HandleWebSocket establishes a connection and is able to send and receive messages
+func TestHandleWebSocketSuccess(t *testing.T) {
+	// Arrange
+	mockChatRepository := new(repositories.MockChatRepository)
+	mockMessageRepository := new(repositories.MockMessageRepository)
+	mockNotificationRepository := new(repositories.MockNotificationRepository)
+	mockPushSubscriptionRepository := new(repositories.MockPushSubscriptionRepository)
+	pushSubscriptionService := services.NewPushSubscriptionService(mockPushSubscriptionRepository)
+	notificationService := services.NewNotificationService(mockNotificationRepository, pushSubscriptionService)
+	messageService := services.NewMessageService(mockMessageRepository, mockChatRepository, notificationService)
+	messageController := controllers.NewMessageController(messageService)
+
+	currentUsername := "myUser"
+	authenticationToken, err := utils.GenerateAccessToken(currentUsername)
+	if err != nil {
+		t.Fatal(err)
+	}
+	otherUsername := "otherUser"
+	secondOtherUsername := "secondOtherUser"
+	authTokenSecondOther, err := utils.GenerateAccessToken(secondOtherUsername)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	chat := models.Chat{
+		Id: uuid.New(),
+		Users: []models.User{
+			{Username: currentUsername},
+			{Username: otherUsername},
+			{Username: secondOtherUsername},
+		},
+	}
+
+	// Mock expectations
+	var capturedMessage *models.Message
+	var capturedNotification *models.Notification
+	mockChatRepository.On("GetChatById", chat.Id.String()).Return(chat, nil)
+	mockMessageRepository.On("CreateMessage", mock.AnythingOfType("*models.Message")).
+		Run(func(args mock.Arguments) {
+			capturedMessage = args.Get(0).(*models.Message)
+		}).Return(nil)
+
+	// First other user has no open connection --> expect notification
+	mockNotificationRepository.On("CreateNotification", mock.AnythingOfType("*models.Notification")).
+		Run(func(args mock.Arguments) {
+			capturedNotification = args.Get(0).(*models.Notification)
+		}).Return(nil)
+	mockPushSubscriptionRepository.On("GetPushSubscriptionsByUsername", otherUsername).Return([]models.PushSubscription{}, nil)
+
+	// Create test server
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+	router.GET("/chat", messageController.HandleWebSocket)
+	server := httptest.NewServer(router)
+	defer server.Close()
+
+	// Create WebSocket connection
+	url := "ws" + server.URL[4:] + "/chat?chatId=" + chat.Id.String()
+	headers := http.Header{"Sec-WebSocket-Protocol": []string{authenticationToken}}
+	ws, _, err := websocket.DefaultDialer.Dial(url, headers)
+	assert.NoError(t, err)
+	defer func(ws *websocket.Conn) {
+		_ = ws.Close()
+	}(ws)
+	_ = ws.SetReadDeadline(time.Now().Add(10 * time.Second)) // set read deadline to avoid blocking
+
+	// Create WebSocket connection for second other user
+	url = "ws" + server.URL[4:] + "/chat?chatId=" + chat.Id.String()
+	headers = http.Header{"Sec-WebSocket-Protocol": []string{authTokenSecondOther}}
+	ws2, _, err := websocket.DefaultDialer.Dial(url, headers)
+	assert.NoError(t, err)
+	defer func(ws2 *websocket.Conn) {
+		_ = ws2.Close()
+	}(ws2)
+	_ = ws2.SetReadDeadline(time.Now().Add(10 * time.Second)) // set read deadline to avoid blocking
+
+	// Send message from current user
+	message := models.MessageCreateRequestDTO{
+		Content: "Test message",
+	}
+	messageJSON, err := json.Marshal(message)
+	assert.NoError(t, err)
+
+	err = ws.WriteMessage(websocket.TextMessage, messageJSON)
+	assert.NoError(t, err)
+
+	// Read message from current user
+	_, receivedMessage, err := ws.ReadMessage()
+	assert.NoError(t, err)
+	var response models.MessageRecordDTO
+	err = json.Unmarshal(receivedMessage, &response)
+	assert.NoError(t, err)
+
+	// Read message from second other user
+	_, receivedMessage2, err := ws2.ReadMessage()
+	assert.NoError(t, err)
+	var response2 models.MessageRecordDTO
+	err = json.Unmarshal(receivedMessage2, &response2)
+	assert.NoError(t, err)
+
+	// Assertions
+	// Current user response
+	assert.Equal(t, message.Content, response.Content)
+	assert.Equal(t, currentUsername, response.Username)
+	assert.NotEmpty(t, response.CreationDate)
+
+	// Second other user response
+	assert.Equal(t, message.Content, response2.Content)
+	assert.Equal(t, currentUsername, response2.Username)
+	assert.NotEmpty(t, response2.CreationDate)
+
+	// Captured message
+	assert.NotNil(t, capturedMessage)
+	assert.Equal(t, message.Content, capturedMessage.Content)
+	assert.Equal(t, currentUsername, capturedMessage.Username)
+	assert.Equal(t, chat.Id, capturedMessage.ChatId)
+	assert.NotEmpty(t, capturedMessage.Id)
+	assert.True(t, capturedMessage.CreatedAt.Equal(response.CreationDate))
+
+	// Captured notification
+	assert.NotNil(t, capturedNotification)
+	assert.Equal(t, "message", capturedNotification.NotificationType)
+	assert.Equal(t, otherUsername, capturedNotification.ForUsername)
+	assert.Equal(t, currentUsername, capturedNotification.FromUsername)
+	assert.NotEmpty(t, capturedNotification.Id)
+	assert.NotEmpty(t, capturedNotification.Timestamp)
+
+	mockMessageRepository.AssertExpectations(t)
+	mockChatRepository.AssertExpectations(t)
+	mockPushSubscriptionRepository.AssertExpectations(t)
+	mockNotificationRepository.AssertExpectations(t)
+}
+
+// TestHandleWebSocketBadRequest tests if the HandleWebSocket function returns BadRequest custom error when the message is invalid
+func TestHandleWebSocketBadRequest(t *testing.T) {
+	// Arrange
+	mockChatRepository := new(repositories.MockChatRepository)
+	mockMessageRepository := new(repositories.MockMessageRepository)
+	mockNotificationRepository := new(repositories.MockNotificationRepository)
+	mockPushSubscriptionRepository := new(repositories.MockPushSubscriptionRepository)
+	pushSubscriptionService := services.NewPushSubscriptionService(mockPushSubscriptionRepository)
+	notificationService := services.NewNotificationService(mockNotificationRepository, pushSubscriptionService)
+	messageService := services.NewMessageService(mockMessageRepository, mockChatRepository, notificationService)
+	messageController := controllers.NewMessageController(messageService)
+
+	currentUsername := "myUser"
+	authenticationToken, err := utils.GenerateAccessToken(currentUsername)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	chat := models.Chat{
+		Id: uuid.New(),
+		Users: []models.User{
+			{Username: currentUsername},
+			{Username: "otherUsername"},
+		},
+	}
+
+	// Mock expectations
+	mockChatRepository.On("GetChatById", chat.Id.String()).Return(chat, nil)
+
+	// Create test server
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+	router.GET("/chat", messageController.HandleWebSocket)
+	server := httptest.NewServer(router)
+	defer server.Close()
+
+	// Create WebSocket connection
+	url := "ws" + server.URL[4:] + "/chat?chatId=" + chat.Id.String()
+	headers := http.Header{"Sec-WebSocket-Protocol": []string{authenticationToken}}
+	ws, _, err := websocket.DefaultDialer.Dial(url, headers)
+	assert.NoError(t, err)
+	defer func(ws *websocket.Conn) {
+		_ = ws.Close()
+	}(ws)
+
+	invalidContents := []string{
+		"", // empty
+		" ",
+		strings.Repeat("A", 257), // over 256 chars
+	}
+	for _, content := range invalidContents {
+		// Send message from current user
+		message := models.MessageCreateRequestDTO{
+			Content: content,
+		}
+		messageJSON, err := json.Marshal(message)
+		assert.NoError(t, err)
+
+		err = ws.WriteMessage(websocket.TextMessage, messageJSON)
+		assert.NoError(t, err)
+
+		// Read message
+		_, receivedMessage, err := ws.ReadMessage()
+		assert.NoError(t, err)
+		var errorResponse customerrors.ErrorResponse
+		err = json.Unmarshal(receivedMessage, &errorResponse)
+		assert.NoError(t, err)
+
+		// Assert
+		expectedCustomError := customerrors.BadRequest
+		assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
+		assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
+	}
+
+	mockMessageRepository.AssertExpectations(t)
+	mockChatRepository.AssertExpectations(t)
+	mockPushSubscriptionRepository.AssertExpectations(t)
+	mockNotificationRepository.AssertExpectations(t)
+}
+
+// TestHandleWebSocketUnauthorized tests if the HandleWebSocket function returns Unauthorized custom error when the user is not authenticated
+func TestHandleWebSocketUnauthorized(t *testing.T) {
+	// Arrange
+	mockChatRepository := new(repositories.MockChatRepository)
+	mockMessageRepository := new(repositories.MockMessageRepository)
+	mockNotificationRepository := new(repositories.MockNotificationRepository)
+	mockPushSubscriptionRepository := new(repositories.MockPushSubscriptionRepository)
+	pushSubscriptionService := services.NewPushSubscriptionService(mockPushSubscriptionRepository)
+	notificationService := services.NewNotificationService(mockNotificationRepository, pushSubscriptionService)
+	messageService := services.NewMessageService(mockMessageRepository, mockChatRepository, notificationService)
+	messageController := controllers.NewMessageController(messageService)
+
+	// Create test server
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+	router.GET("/chat", messageController.HandleWebSocket)
+	server := httptest.NewServer(router)
+	defer server.Close()
+
+	// Create WebSocket connection
+	url := "ws" + server.URL[4:] + "/chat?chatId=" + uuid.New().String()
+	headers := http.Header{"Sec-WebSocket-Protocol": []string{"invalidToken"}}
+	ws, _, err := websocket.DefaultDialer.Dial(url, headers)
+	assert.NoError(t, err)
+	defer func(ws *websocket.Conn) {
+		_ = ws.Close()
+	}(ws)
+
+	// Read message
+	_, receivedMessage, err := ws.ReadMessage()
+	assert.NoError(t, err)
+	var errorResponse customerrors.ErrorResponse
+	err = json.Unmarshal(receivedMessage, &errorResponse)
+	assert.NoError(t, err)
+
+	// Assert
+	expectedCustomError := customerrors.UserUnauthorized
+	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
+	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
+
+	mockMessageRepository.AssertExpectations(t)
+	mockChatRepository.AssertExpectations(t)
+	mockPushSubscriptionRepository.AssertExpectations(t)
+	mockNotificationRepository.AssertExpectations(t)
+}
+
+// TestHandleWebSocketChatNotFound tests if the HandleWebSocket function returns ChatNotFound custom error when the chat does not exist
+func TestHandleWebSocketChatNotFound(t *testing.T) {
+	// Arrange
+	mockChatRepository := new(repositories.MockChatRepository)
+	mockMessageRepository := new(repositories.MockMessageRepository)
+	mockNotificationRepository := new(repositories.MockNotificationRepository)
+	mockPushSubscriptionRepository := new(repositories.MockPushSubscriptionRepository)
+	pushSubscriptionService := services.NewPushSubscriptionService(mockPushSubscriptionRepository)
+	notificationService := services.NewNotificationService(mockNotificationRepository, pushSubscriptionService)
+	messageService := services.NewMessageService(mockMessageRepository, mockChatRepository, notificationService)
+	messageController := controllers.NewMessageController(messageService)
+
+	currentUsername := "myUser"
+	authenticationToken, err := utils.GenerateAccessToken(currentUsername)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	chatId := uuid.New().String()
+
+	// Mock expectations
+	mockChatRepository.On("GetChatById", chatId).Return(models.Chat{}, gorm.ErrRecordNotFound)
+
+	// Create test server
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+	router.GET("/chat", messageController.HandleWebSocket)
+	server := httptest.NewServer(router)
+	defer server.Close()
+
+	// Create WebSocket connection
+	url := "ws" + server.URL[4:] + "/chat?chatId=" + chatId
+	headers := http.Header{"Sec-WebSocket-Protocol": []string{authenticationToken}}
+	ws, _, err := websocket.DefaultDialer.Dial(url, headers)
+	assert.NoError(t, err)
+	defer func(ws *websocket.Conn) {
+		_ = ws.Close()
+	}(ws)
+
+	// Read message
+	_, receivedMessage, err := ws.ReadMessage()
+	assert.NoError(t, err)
+	var errorResponse customerrors.ErrorResponse
+	err = json.Unmarshal(receivedMessage, &errorResponse)
+	assert.NoError(t, err)
+
+	// Assert
+	expectedCustomError := customerrors.ChatNotFound
+	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
+	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
+
+	mockMessageRepository.AssertExpectations(t)
+	mockChatRepository.AssertExpectations(t)
+	mockPushSubscriptionRepository.AssertExpectations(t)
+	mockNotificationRepository.AssertExpectations(t)
+}
+
+// TestHandleWebSocketNotParticipant tests if the HandleWebSocket function returns ChatNotFound custom error when the user is not part of the chat
+func TestHandleWebSocketNotParticipant(t *testing.T) {
+	// Arrange
+	mockChatRepository := new(repositories.MockChatRepository)
+	mockMessageRepository := new(repositories.MockMessageRepository)
+	mockNotificationRepository := new(repositories.MockNotificationRepository)
+	mockPushSubscriptionRepository := new(repositories.MockPushSubscriptionRepository)
+	pushSubscriptionService := services.NewPushSubscriptionService(mockPushSubscriptionRepository)
+	notificationService := services.NewNotificationService(mockNotificationRepository, pushSubscriptionService)
+	messageService := services.NewMessageService(mockMessageRepository, mockChatRepository, notificationService)
+	messageController := controllers.NewMessageController(messageService)
+
+	currentUsername := "myUser"
+	authenticationToken, err := utils.GenerateAccessToken(currentUsername)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	chat := models.Chat{
+		Id: uuid.New(),
+		Users: []models.User{
+			{Username: "otherUsername"},
+			{Username: "secondOtherUsername"},
+		},
+	}
+
+	// Mock expectations
+	mockChatRepository.On("GetChatById", chat.Id.String()).Return(chat, nil)
+
+	// Create test server
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+	router.GET("/chat", messageController.HandleWebSocket)
+	server := httptest.NewServer(router)
+	defer server.Close()
+
+	// Create WebSocket connection
+	url := "ws" + server.URL[4:] + "/chat?chatId=" + chat.Id.String()
+	headers := http.Header{"Sec-WebSocket-Protocol": []string{authenticationToken}}
+	ws, _, err := websocket.DefaultDialer.Dial(url, headers)
+	assert.NoError(t, err)
+	defer func(ws *websocket.Conn) {
+		_ = ws.Close()
+	}(ws)
+
+	// Read message
+	_, receivedMessage, err := ws.ReadMessage()
+	assert.NoError(t, err)
+	var errorResponse customerrors.ErrorResponse
+	err = json.Unmarshal(receivedMessage, &errorResponse)
+	assert.NoError(t, err)
+
+	// Assert
+	expectedCustomError := customerrors.ChatNotFound
+	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
+	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
+
+	mockMessageRepository.AssertExpectations(t)
+	mockChatRepository.AssertExpectations(t)
+	mockPushSubscriptionRepository.AssertExpectations(t)
+	mockNotificationRepository.AssertExpectations(t)
+}

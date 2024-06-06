@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
@@ -82,36 +81,31 @@ func (controller *MessageController) HandleWebSocket(c *gin.Context) {
 	// Read chatId from query parameter
 	chatId := c.Query("chatId")
 
-	// Using Sec-WebSocket-Protocol header for JWT authentication because browsers do not allow custom headers
-	// So middleware was not called and the JWT token needs to be verified here
-	jwtToken := c.GetHeader("Sec-WebSocket-Protocol") // agreed on no Bearer prefix
-	currentUsername, isRefreshToken, err := utils.VerifyJWTToken(jwtToken)
-	if isRefreshToken || err != nil { // if token is a refresh token or invalid, return 401
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": customerrors.UserUnauthorized,
-		})
-		return
-	}
-
-	// Check if chat exists and if user is a participant
-	_, serviceErr, httpStatus := controller.messageService.GetMessagesByChatId(chatId, currentUsername, 0, 1)
-	if serviceErr != nil { // if no participant or chat does not exist, service returns 404 and custom error
-		c.JSON(httpStatus, gin.H{
-			"error": serviceErr,
-		})
-		return
-	}
-
 	// Create WebSocket connection
 	// Header needs to be the same as the request header
 	conn, err := controller.upgrader.Upgrade(c.Writer, c.Request, http.Header{"Sec-WebSocket-Protocol": []string{c.GetHeader("Sec-WebSocket-Protocol")}})
 	if err != nil {
-		fmt.Println("Failed to upgrade to WebSocket for user,", currentUsername, ":", err)
-		return
+		return // return if connection could not be established
 	}
 	defer func(conn *websocket.Conn) {
 		_ = conn.Close() // close connection when function terminates
 	}(conn)
+
+	// Using Sec-WebSocket-Protocol header for JWT authentication because browsers do not allow custom headers
+	// So middleware was not called and the JWT token needs to be verified here
+	jwtToken := c.GetHeader("Sec-WebSocket-Protocol") // agreed on no Bearer prefix
+	currentUsername, isRefreshToken, err := utils.VerifyJWTToken(jwtToken)
+	if isRefreshToken || err != nil { // if token is a refresh token or invalid, return Unauthorized error
+		sendError(conn, customerrors.UserUnauthorized)
+		return // return and close connection
+	}
+
+	// Check if chat exists and if user is a participant
+	_, serviceErr, _ := controller.messageService.GetChatById(chatId, currentUsername)
+	if serviceErr != nil { // if no participant or chat does not exist, service returns 404 and custom error
+		sendError(conn, serviceErr)
+		return // return and close connection
+	}
 
 	// Add connection to map
 	controller.addConnection(currentUsername, chatId, conn)
@@ -153,7 +147,6 @@ func (controller *MessageController) HandleWebSocket(c *gin.Context) {
 		responseBytes, _ := json.Marshal(response)
 		controller.broadCastMessageToChat(chatId, string(responseBytes))
 	}
-
 }
 
 // sendError sends an error message to the client using the given websocket connection
@@ -163,7 +156,6 @@ func sendError(connection *websocket.Conn, customErr *customerrors.CustomError) 
 	})
 	err := connection.WriteMessage(websocket.TextMessage, errMessage)
 	if err != nil {
-		fmt.Println("Failed to send error websocket message:", err)
 		_ = connection.Close() // close connection if sending failed
 	}
 }
@@ -206,11 +198,10 @@ func (controller *MessageController) broadCastMessageToChat(chatId, message stri
 
 	// send message to all connections (also to the sender as a sending confirmation)
 	// iterate through all users of the chat and then all their connections
-	for username, conn := range connections {
+	for _, conn := range connections {
 		for _, c := range conn {
 			err := c.WriteMessage(websocket.TextMessage, []byte(message))
 			if err != nil {
-				fmt.Println("Failed to send websocket message to ", username, ":", err)
 				_ = c.Close() // close connection if sending failed
 			}
 		}

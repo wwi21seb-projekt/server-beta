@@ -49,10 +49,17 @@ func (repo *ChatRepository) GetChatByUsernames(currentUsername, otherUsername st
 
 func (repo *ChatRepository) GetChatsByUsername(username string) ([]models.Chat, error) {
 	var chats []models.Chat
+
+	subQuery := repo.DB.Table("messages").
+		Select("chat_id", "MAX(created_at) as last_message_date").
+		Group("chat_id") // Sub query to get the latest message date for each chat
+
 	err := repo.DB.
 		Joins("JOIN chat_users ON chats.id = chat_users.chat_id").
+		Joins("LEFT JOIN (?) as latest_messages ON chats.id = latest_messages.chat_id", subQuery).
 		Where("chat_users.user_username = ?", username).
 		Preload("Users").
+		Order("latest_messages.last_message_date DESC"). // Order chats by latest message date
 		Find(&chats).Error
 	return chats, err
 }
