@@ -86,6 +86,13 @@ func SetupRouter() *gin.Engine {
 	commentController := controllers.NewCommentController(commentService)
 	subscriptionController := controllers.NewSubscriptionController(subscriptionService)
 
+	// Empty route for standard information
+	r.GET("/", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{
+			"apiName": "Server Beta",
+		})
+	})
+
 	// API Routes
 	api := r.Group("/api")
 
