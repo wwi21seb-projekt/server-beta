@@ -21,29 +21,26 @@ make all
 If no port is specified, the server will run on the default port `:8080`.
 
 The user needs to have PostgreSQL installed and running. Additionally, the user needs to create an `.env` file with the following information:
-```
-JWT_SECRET=
 
-DB_HOST=
-DB_PORT=
-DB_SSL_MODE=
-DB_NAME=
-DB_USER=
-DB_PASSWORD=
+| Variable          | Description                                                                      |
+|-------------------|----------------------------------------------------------------------------------|
+| JWT_SECRET        | Secret key for JSON Web Token (JWT) authentication                               |
+| DB_HOST           | Hostname or IP address of the PostgreSQL database server                         |
+| DB_PORT           | Port number of the PostgreSQL database server                                    |
+| DB_SSL_MODE       | SSL mode for the database connection (e.g., disable, require, etc.)              |
+| DB_NAME           | Name of the PostgreSQL database                                                  |
+| DB_USER           | Username for the PostgreSQL database                                             |
+| DB_PASSWORD       | Password for the PostgreSQL database                                             |
+| PROXY_HOST        | Hostname or IP address of the proxy server                                       |
+| SERVER_URL        | URL of the server                                                                |
+| EMAIL_HOST        | Hostname or IP address of the email server                                       |
+| EMAIL_PORT        | Port number of the email server                                                  |
+| EMAIL_ADDRESS     | Email address used for sending emails                                            |
+| EMAIL_PASSWORD    | Password for the email address                                                   |
+| VAPID_PRIVATE_KEY | VAPID private key for web push notifications                                     |
+| VAPID_PUBLIC_KEY  | VAPID public key for web push notifications                                      |
+| IMAGES_PATH       | Path to the directory where images are stored                                    |
+| GIN_MODE          | Mode of the application (e.g., debug, release)                                   |
 
-PROXY_HOST=
-SERVER_URL=
 
-EMAIL_HOST=
-EMAIL_PORT=
-EMAIL_ADDRESS=
-EMAIL_PASSWORD=
-
-VAPID_PRIVATE_KEY=
-VAPID_PUBLIC_KEY=
-
-IMAGES_PATH=
-
-GIN_MODE=
-```
 An example `.env` file (`.env.example`) can be found in the root directory of the project.
