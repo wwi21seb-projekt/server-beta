@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
@@ -112,6 +113,8 @@ func (controller *MessageController) HandleWebSocket(c *gin.Context) {
 	controller.addConnection(currentUsername, chatId, conn)
 	defer controller.removeConnection(currentUsername, chatId, conn) // remove connection when function terminates
 
+	fmt.Println("New WebSocket connection established for user", currentUsername, "in chat", chatId)
+
 	for {
 		// Read message from client
 		_, message, err := conn.ReadMessage()
@@ -127,6 +130,8 @@ func (controller *MessageController) HandleWebSocket(c *gin.Context) {
 			continue // continue to listen for more messages
 		}
 
+		fmt.Println("Received message from user", currentUsername, "in chat", chatId, ":", req.Content)
+
 		// Get users of the chat from map that are currently connected
 		// This is needed to send notifications to all other participants in the service following service function
 		var connectedParticipants []string
@@ -136,6 +141,9 @@ func (controller *MessageController) HandleWebSocket(c *gin.Context) {
 				connectedParticipants = append(connectedParticipants, username)
 			}
 		}
+		controller.connectionsLock.RUnlock()
+
+		fmt.Println("Connected participants in chat", chatId, ":", connectedParticipants)
 
 		// Call service to save received message to database
 		response, customErr, _ := controller.messageService.CreateMessage(chatId, currentUsername, &req, connectedParticipants)
@@ -144,9 +152,13 @@ func (controller *MessageController) HandleWebSocket(c *gin.Context) {
 			continue // continue to listen for more messages
 		}
 
+		fmt.Println("Message saved to database in chat", chatId, ":", response.Content)
+
 		// Send message to all open connections of the chat
 		responseBytes, _ := json.Marshal(response)
 		controller.broadCastMessageToChat(chatId, string(responseBytes))
+
+		fmt.Println("Message sent to all participants in chat", chatId, ":", response.Content)
 	}
 }
 
