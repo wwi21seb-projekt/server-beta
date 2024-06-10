@@ -136,6 +136,7 @@ func (controller *MessageController) HandleWebSocket(c *gin.Context) {
 				connectedParticipants = append(connectedParticipants, username)
 			}
 		}
+		controller.connectionsLock.RUnlock()
 
 		// Call service to save received message to database
 		response, customErr, _ := controller.messageService.CreateMessage(chatId, currentUsername, &req, connectedParticipants)
