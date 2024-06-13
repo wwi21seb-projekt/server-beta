@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"github.com/wwi21seb-projekt/server-beta/internal/initializers"
 	"github.com/wwi21seb-projekt/server-beta/internal/repositories"
+	"github.com/wwi21seb-projekt/server-beta/internal/services"
+	"github.com/wwi21seb-projekt/server-beta/internal/utils"
 	"time"
 )
 
@@ -12,6 +14,9 @@ import (
 func StartDailyRoutines() {
 	// Arrange
 	userRepo := repositories.NewUserRepository(initializers.DB)
+	validator := utils.NewValidator()
+	fileSystem := repositories.NewFileSystem()
+	imageService := services.NewImageService(fileSystem, validator)
 
 	for {
 		now := time.Now()
@@ -24,12 +29,12 @@ func StartDailyRoutines() {
 		<-timer.C
 
 		// Will be called daily at 3 AM to delete users that did not verify their email address
-		DeleteUnactivatedUsers(userRepo)
+		DeleteUnactivatedUsers(userRepo, imageService)
 	}
 }
 
 // DeleteUnactivatedUsers deletes all users that have not activated their account within 7 days
-func DeleteUnactivatedUsers(userRepo repositories.UserRepositoryInterface) {
+func DeleteUnactivatedUsers(userRepo repositories.UserRepositoryInterface, imageService services.ImageServiceInterface) {
 	fmt.Println("Delete unactivated users...")
 
 	// Get all unactivated users
@@ -42,7 +47,12 @@ func DeleteUnactivatedUsers(userRepo repositories.UserRepositoryInterface) {
 	// Delete users
 	counter := 0
 	for _, user := range users {
-		if user.CreatedAt.Add(7*24*time.Hour).Before(time.Now()) && user.Activated == false { // User has not activated account within 7 days
+		if user.CreatedAt.Add(7*24*time.Hour).Before(time.Now()) && user.Activated == false {
+			//Delete Profile Image
+			customErr, _ := imageService.DeleteImage(user.ImageURL)
+			if customErr != nil {
+				fmt.Println("Error deleting user's picture: ", user.Username, err)
+			} // User has not activated account within 7 days
 			err := userRepo.DeleteUserByUsername(user.Username)
 			if err != nil {
 				fmt.Println("Error deleting user: ", user.Username, err)

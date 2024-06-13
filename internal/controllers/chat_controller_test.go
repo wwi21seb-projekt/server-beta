@@ -369,14 +369,14 @@ func TestGetChatsSuccess(t *testing.T) {
 		{
 			Id: uuid.New(),
 			Users: []models.User{
-				{Username: "testUser2", Nickname: "Test User 2", ProfilePictureUrl: "https://example.com/testuser2.jpg"},
+				{Username: "testUser2", Nickname: "Test User 2", ImageURL: "https://example.com/testuser2.jpg"},
 			},
 			CreatedAt: time.Now(),
 		},
 		{
 			Id: uuid.New(),
 			Users: []models.User{
-				{Username: "testUser3", Nickname: "Test User 3", ProfilePictureUrl: "https://example.com/testuser3.jpg"},
+				{Username: "testUser3", Nickname: "Test User 3", ImageURL: "https://example.com/testuser3.jpg"},
 			},
 			CreatedAt: time.Now(),
 		},
@@ -410,7 +410,7 @@ func TestGetChatsSuccess(t *testing.T) {
 		assert.Equal(t, chat.Id.String(), response.Records[i].ChatId)
 		assert.Equal(t, chat.Users[0].Username, response.Records[i].User.Username)
 		assert.Equal(t, chat.Users[0].Nickname, response.Records[i].User.Nickname)
-		assert.Equal(t, chat.Users[0].ProfilePictureUrl, response.Records[i].User.ProfilePictureUrl)
+		assert.Equal(t, chat.Users[0].ImageURL, response.Records[i].User.Picture.ImageUrl)
 	}
 
 	mockChatRepo.AssertExpectations(t)

@@ -23,7 +23,7 @@ type UserServiceInterface interface {
 	ResendActivationToken(username string) (*customerrors.CustomError, int)
 	RefreshToken(req *models.UserRefreshTokenRequestDTO) (*models.UserLoginResponseDTO, *customerrors.CustomError, int)
 	SearchUser(username string, limit int, offset int, currentUsername string) (*models.UserSearchResponseDTO, *customerrors.CustomError, int)
-	UpdateUserInformation(req *models.UserInformationUpdateDTO, currentUsername string) (*models.UserInformationUpdateDTO, *customerrors.CustomError, int)
+	UpdateUserInformation(req *models.UserInformationUpdateDTO, currentUsername string) (*models.UserInformationUpdateResponseDTO, *customerrors.CustomError, int)
 	ChangeUserPassword(req *models.ChangePasswordDTO, currentUsername string) (*customerrors.CustomError, int)
 	GetUserProfile(username string, currentUser string) (*models.UserProfileResponseDTO, *customerrors.CustomError, int)
 }
@@ -34,6 +34,7 @@ type UserService struct {
 	mailService         MailServiceInterface
 	validator           utils.ValidatorInterface
 	postRepo            repositories.PostRepositoryInterface
+	imageService        ImageServiceInterface
 	subscriptionRepo    repositories.SubscriptionRepositoryInterface
 	policy              *bluemonday.Policy
 }
@@ -45,6 +46,7 @@ func NewUserService(
 	mailService MailServiceInterface,
 	validator utils.ValidatorInterface,
 	postRepo repositories.PostRepositoryInterface,
+	imageService ImageServiceInterface,
 	subscriptionRepo repositories.SubscriptionRepositoryInterface) *UserService {
 	return &UserService{
 		userRepo:            userRepo,
@@ -52,6 +54,7 @@ func NewUserService(
 		mailService:         mailService,
 		validator:           validator,
 		postRepo:            postRepo,
+		imageService:        imageService,
 		subscriptionRepo:    subscriptionRepo,
 		policy:              bluemonday.UGCPolicy(),
 	}
@@ -121,17 +124,26 @@ func (service *UserService) CreateUser(req models.UserCreateRequestDTO) (*models
 		service.userRepo.RollbackTx(tx)
 		return nil, customerrors.InternalServerError, http.StatusInternalServerError
 	}
+	var imageResponseDTO *models.Image
+	var imageUrl = ""
+	if req.Image != "" {
+		imageResponseDTO, err, httpStatus := service.imageService.SaveImage(req.Image)
+		if err != nil {
+			return nil, err, httpStatus
+		}
+		imageUrl = imageResponseDTO.ImageUrl
+	}
 
 	// Create user
 	user := models.User{
-		Username:          req.Username,
-		Nickname:          req.Nickname,
-		Email:             req.Email,
-		ProfilePictureUrl: "", // Profile picture is empty in the beginning
-		PasswordHash:      passwordHashed,
-		CreatedAt:         time.Now(),
-		Activated:         false,
-		Status:            "", //status is empty in the beginning
+		Username:     req.Username,
+		Nickname:     req.Nickname,
+		Email:        req.Email,
+		ImageURL:     imageUrl,
+		PasswordHash: passwordHashed,
+		CreatedAt:    time.Now(),
+		Activated:    false,
+		Status:       "", //status is empty in the beginning
 	}
 
 	// Create new code
@@ -174,6 +186,7 @@ func (service *UserService) CreateUser(req models.UserCreateRequestDTO) (*models
 		Username: user.Username,
 		Nickname: user.Nickname,
 		Email:    user.Email,
+		Image:    imageResponseDTO,
 	}
 
 	return &response, nil, http.StatusCreated
@@ -406,10 +419,11 @@ func (service *UserService) SearchUser(username string, limit int, offset int, c
 	}
 
 	for _, user := range users {
+
 		record := models.UserSearchRecordDTO{
-			Username:          user.Username,
-			Nickname:          user.Nickname,
-			ProfilePictureUrl: user.ProfilePictureUrl,
+			Username: user.Username,
+			Nickname: user.Nickname,
+			Image:    &user.Image,
 		}
 		response.Records = append(response.Records, record)
 	}
@@ -418,7 +432,7 @@ func (service *UserService) SearchUser(username string, limit int, offset int, c
 }
 
 // UpdateUserInformation can be called from the controller to update a user's nickname and status
-func (service *UserService) UpdateUserInformation(req *models.UserInformationUpdateDTO, currentUsername string) (*models.UserInformationUpdateDTO, *customerrors.CustomError, int) {
+func (service *UserService) UpdateUserInformation(req *models.UserInformationUpdateDTO, currentUsername string) (*models.UserInformationUpdateResponseDTO, *customerrors.CustomError, int) {
 	// Sanitize status because it is a free text field
 	// Other fields are checked with regex patterns, that don't allow for malicious input
 	req.Status = strings.Trim(req.Status, " ") // Trim leading and trailing whitespaces
@@ -434,19 +448,48 @@ func (service *UserService) UpdateUserInformation(req *models.UserInformationUpd
 	if err != nil {
 		return nil, customerrors.DatabaseError, http.StatusInternalServerError
 	}
+	var imageResponseDTO *models.Image
+	var imageUrl = ""
 
+	if req.Image != "null" {
+		customErr, httpCode := service.imageService.DeleteImage(user.ImageURL)
+		if customErr != nil {
+			return nil, customErr, httpCode
+		}
+
+		if req.Image != "" {
+			imageResponseDTO, err, httpStatus := service.imageService.SaveImage(req.Image)
+			if err != nil {
+				return nil, err, httpStatus
+			}
+			imageUrl = imageResponseDTO.ImageUrl
+		}
+
+	}
+
+	if imageUrl == "" {
+		imageUrl = user.ImageURL
+		imageMetadata, err, httpCode := service.imageService.GetImageMetadata(imageUrl)
+		if err != nil {
+			return nil, err, httpCode
+		}
+		imageResponseDTO = imageMetadata
+
+	}
 	// Update the user's nickname and status
 	user.Nickname = req.Nickname
 	user.Status = req.Status
+	user.ImageURL = imageUrl
 	err = service.userRepo.UpdateUser(user)
 	if err != nil {
 		return nil, customerrors.DatabaseError, http.StatusInternalServerError
 	}
 
 	// Create and return the response DTO
-	responseDTO := models.UserInformationUpdateDTO{
+	responseDTO := models.UserInformationUpdateResponseDTO{
 		Nickname: user.Nickname,
 		Status:   user.Status,
+		Image:    imageResponseDTO,
 	}
 
 	return &responseDTO, nil, http.StatusOK
@@ -523,14 +566,14 @@ func (service *UserService) GetUserProfile(username string, currentUser string) 
 
 	// Create response
 	userProfile := &models.UserProfileResponseDTO{
-		Username:          user.Username,
-		Nickname:          user.Nickname,
-		Status:            user.Status,
-		ProfilePictureUrl: user.ProfilePictureUrl,
-		Follower:          followerCount,
-		Following:         followingCount,
-		Posts:             postCount,
-		SubscriptionId:    subscriptionId,
+		Username:       user.Username,
+		Nickname:       user.Nickname,
+		Status:         user.Status,
+		Image:          &user.Image,
+		Follower:       followerCount,
+		Following:      followingCount,
+		Posts:          postCount,
+		SubscriptionId: subscriptionId,
 	}
 
 	return userProfile, nil, http.StatusOK

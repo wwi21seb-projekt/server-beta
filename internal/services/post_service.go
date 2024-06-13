@@ -9,7 +9,6 @@ import (
 	"github.com/wwi21seb-projekt/server-beta/internal/repositories"
 	"github.com/wwi21seb-projekt/server-beta/internal/utils"
 	"gorm.io/gorm"
-	"mime/multipart"
 	"net/http"
 	"strings"
 	"time"
@@ -17,7 +16,7 @@ import (
 )
 
 type PostServiceInterface interface {
-	CreatePost(req *models.PostCreateRequestDTO, file *multipart.FileHeader, username string) (*models.PostResponseDTO, *customerrors.CustomError, int)
+	CreatePost(req *models.PostCreateRequestDTO, username string) (*models.PostResponseDTO, *customerrors.CustomError, int)
 	DeletePost(postId string, username string) (*customerrors.CustomError, int)
 }
 
@@ -47,7 +46,7 @@ func NewPostService(postRepo repositories.PostRepositoryInterface,
 	return &PostService{postRepo: postRepo, userRepo: userRepo, hashtagRepo: hashtagRepo, imageService: imageService, validator: validator, locationRepo: locationRepo, likeRepo: likeRepo, commentRepo: commentRepo, policy: bluemonday.UGCPolicy(), notificationService: notificationService}
 }
 
-func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *multipart.FileHeader, username string) (*models.PostResponseDTO, *customerrors.CustomError, int) {
+func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, username string) (*models.PostResponseDTO, *customerrors.CustomError, int) {
 	// Sanitize content because it is a free text field
 	// Other fields are checked with regex patterns, that don't allow for malicious input
 	req.Content = strings.Trim(req.Content, " ") // remove leading and trailing whitespaces
@@ -92,7 +91,7 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *m
 		}
 
 		// Create dto
-		repostDto = createPostResponseFromPostObject(&repost, &repost.User, &repost.Location, nil, repostCommentsCount, repostLikeCount, repostLikedByCurrentUser)
+		repostDto = createPostResponseFromPostObject(&repost, &repost.User, &repost.Location, nil, &repost.Image, repostCommentsCount, repostLikeCount, repostLikedByCurrentUser)
 
 	}
 
@@ -100,7 +99,7 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *m
 	if len(req.Content) > 256 {
 		return nil, customerrors.BadRequest, http.StatusBadRequest
 	}
-	if len(req.Content) <= 0 && file == nil && req.RepostId == nil { // either content, repostId or image is required
+	if len(req.Content) <= 0 && req.Image == "" && req.RepostId == nil { // either content, repostId or image is required
 		return nil, customerrors.BadRequest, http.StatusBadRequest
 	}
 	if !utf8.ValidString(req.Content) {
@@ -136,13 +135,14 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *m
 	}
 
 	// Save image if present
+	var imageResponseDTO *models.Image
 	var imageUrl = ""
-	if file != nil {
-		url, err, httpStatus := service.imageService.SaveImage(*file)
+	if req.Image != "" {
+		imageResponseDTO, err, httpStatus := service.imageService.SaveImage(req.Image)
 		if err != nil {
 			return nil, err, httpStatus
 		}
-		imageUrl = url
+		imageUrl = imageResponseDTO.ImageUrl
 	}
 
 	// Create post
@@ -165,7 +165,7 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *m
 		Id:         uuid.New(),
 		Username:   username,
 		Content:    req.Content,
-		ImageUrl:   imageUrl,
+		ImageURL:   imageUrl,
 		Hashtags:   hashtags,
 		CreatedAt:  time.Now(),
 		LocationId: locationId,
@@ -177,7 +177,7 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, file *m
 	}
 
 	// Create response dto and return
-	postDto := createPostResponseFromPostObject(&post, user, location, repostDto, 0, 0, false) // no likes and comments yet
+	postDto := createPostResponseFromPostObject(&post, user, location, repostDto, imageResponseDTO, 0, 0, false) // no likes and comments yet
 
 	// Create notification for owner of original post
 	if repostId != nil {
@@ -190,6 +190,7 @@ func createPostResponseFromPostObject(
 	post *models.Post, user *models.User,
 	location *models.Location,
 	repostDto *models.PostResponseDTO,
+	image *models.Image,
 	commentsCount int64,
 	likesCount int64,
 	likedByCurrentUser bool) *models.PostResponseDTO {
@@ -205,12 +206,13 @@ func createPostResponseFromPostObject(
 	postDto := models.PostResponseDTO{
 		PostId: post.Id,
 		Author: &models.AuthorDTO{
-			Username:          user.Username,
-			Nickname:          user.Nickname,
-			ProfilePictureUrl: user.ProfilePictureUrl,
+			Username: user.Username,
+			Nickname: user.Nickname,
+			Picture:  &user.Image,
 		},
 		CreationDate: post.CreatedAt,
 		Content:      post.Content,
+		Image:        image,
 		Comments:     commentsCount,
 		Likes:        likesCount,
 		Liked:        likedByCurrentUser,
@@ -234,6 +236,12 @@ func (service *PostService) DeletePost(postId string, username string) (*custome
 	// Check if the requesting user is the author of the post
 	if post.Username != username {
 		return customerrors.PostDeleteForbidden, http.StatusForbidden
+	}
+
+	//Delete Image
+	customErr, httpCode := service.imageService.DeleteImage(post.ImageURL)
+	if customErr != nil {
+		return customErr, httpCode
 	}
 
 	// Delete post

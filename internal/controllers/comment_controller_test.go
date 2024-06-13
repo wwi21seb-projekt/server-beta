@@ -39,9 +39,9 @@ func TestCreateCommentSuccess(t *testing.T) {
 	}
 
 	user := models.User{
-		Username:          testUsername,
-		Nickname:          "test user",
-		ProfilePictureUrl: "https://example.com/profile.jpg",
+		Username: testUsername,
+		Nickname: "test user",
+		ImageURL: "https://example.com/profile.jpg",
 	}
 
 	post := models.Post{
@@ -95,7 +95,7 @@ func TestCreateCommentSuccess(t *testing.T) {
 	assert.True(t, capturedComment.CreatedAt.Equal(responseComment.CreationDate))
 	assert.Equal(t, user.Username, responseComment.Author.Username)
 	assert.Equal(t, user.Nickname, responseComment.Author.Nickname)
-	assert.Equal(t, user.ProfilePictureUrl, responseComment.Author.ProfilePictureUrl)
+	assert.Equal(t, user.ImageURL, responseComment.Author.Picture.ImageUrl)
 
 	mockCommentRepository.AssertExpectations(t)
 	mockPostRepository.AssertExpectations(t)
@@ -282,9 +282,9 @@ func TestGetCommentsByPostIdSuccess(t *testing.T) {
 			PostID:   post.Id,
 			Username: "testuser",
 			User: models.User{
-				Username:          "testuser",
-				Nickname:          "test user",
-				ProfilePictureUrl: "https://example.com/profile.jpg",
+				Username: "testuser",
+				Nickname: "test user",
+				ImageURL: "https://example.com/profile.jpg",
 			},
 			Content:   "Test comment 1",
 			CreatedAt: time.Now(),
@@ -294,9 +294,9 @@ func TestGetCommentsByPostIdSuccess(t *testing.T) {
 			PostID:   post.Id,
 			Username: "testuser2",
 			User: models.User{
-				Username:          "testuser2",
-				Nickname:          "test user 2",
-				ProfilePictureUrl: "https://example.com/profile2.jpg",
+				Username: "testuser2",
+				Nickname: "test user 2",
+				ImageURL: "https://example.com/profile2.jpg",
 			},
 			Content:   "Test comment 2",
 			CreatedAt: time.Now(),
@@ -341,7 +341,7 @@ func TestGetCommentsByPostIdSuccess(t *testing.T) {
 		assert.True(t, comment.CreatedAt.Equal(responseList.Records[i].CreationDate))
 		assert.Equal(t, comment.User.Username, responseList.Records[i].Author.Username)
 		assert.Equal(t, comment.User.Nickname, responseList.Records[i].Author.Nickname)
-		assert.Equal(t, comment.User.ProfilePictureUrl, responseList.Records[i].Author.ProfilePictureUrl)
+		assert.Equal(t, comment.User.ImageURL, responseList.Records[i].Author.Picture.ImageUrl)
 	}
 
 	mockCommentRepository.AssertExpectations(t)

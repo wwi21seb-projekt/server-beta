@@ -76,6 +76,7 @@ func (service *FeedService) GetPostsByUsername(username string, offset, limit in
 			PostId:       post.Id.String(),
 			CreationDate: post.CreatedAt,
 			Content:      post.Content,
+			Picture:      &post.Image,
 			Comments:     commentCount,
 			Likes:        likeCount,
 			Liked:        likedByCurrentUser,
@@ -260,9 +261,9 @@ func (service *FeedService) generatePostFeedWithAuthor(posts []models.Post, tota
 		}
 
 		authorDto := models.AuthorDTO{
-			Username:          post.User.Username,
-			Nickname:          post.User.Nickname,
-			ProfilePictureUrl: post.User.ProfilePictureUrl,
+			Username: post.User.Username,
+			Nickname: post.User.Nickname,
+			Picture:  &post.User.Image,
 		}
 		var locationDTO *models.LocationDTO = nil
 		if post.LocationId != nil {
@@ -286,6 +287,7 @@ func (service *FeedService) generatePostFeedWithAuthor(posts []models.Post, tota
 			Author:       &authorDto,
 			CreationDate: post.CreatedAt,
 			Content:      post.Content,
+			Image:        &post.Image,
 			Comments:     commentCount,
 			Likes:        likeCount,
 			Liked:        likedByCurrentUser,
@@ -352,9 +354,9 @@ func (service *FeedService) getRepostResponseDto(post models.Post, currentUserna
 
 	// Create dto
 	authorDto := models.AuthorDTO{
-		Username:          repost.User.Username,
-		Nickname:          repost.User.Nickname,
-		ProfilePictureUrl: repost.User.ProfilePictureUrl,
+		Username: repost.User.Username,
+		Nickname: repost.User.Nickname,
+		Picture:  &repost.User.Image,
 	}
 
 	var locationDTO *models.LocationDTO = nil
@@ -372,6 +374,7 @@ func (service *FeedService) getRepostResponseDto(post models.Post, currentUserna
 		CreationDate: repost.CreatedAt,
 		Content:      repost.Content,
 		Comments:     commentCount,
+		Image:        &repost.Image,
 		Likes:        likeCount,
 		Liked:        likedByCurrentUser,
 		Location:     locationDTO,

@@ -12,9 +12,9 @@ type Chat struct {
 }
 
 type ChatUserDTO struct {
-	Username          string `json:"username"`
-	Nickname          string `json:"nickname"`
-	ProfilePictureUrl string `json:"profilePictureUrl"`
+	Username string `json:"username"`
+	Nickname string `json:"nickname"`
+	Picture  *Image `json:"picture"`
 }
 
 type ChatCreateRequestDTO struct {

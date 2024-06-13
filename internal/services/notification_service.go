@@ -47,9 +47,9 @@ func (service *NotificationService) CreateNotification(notificationType string, 
 		Timestamp:        newNotification.Timestamp,
 		NotificationType: newNotification.NotificationType,
 		User: &models.NotificationUserDTO{
-			Username:          newNotification.FromUsername,
-			Nickname:          newNotification.FromUser.Nickname,
-			ProfilePictureUrl: newNotification.FromUser.ProfilePictureUrl,
+			Username: newNotification.FromUsername,
+			Nickname: newNotification.FromUser.Nickname,
+			Picture:  &newNotification.FromUser.Image,
 		},
 	}
 	service.PushSubscriptionService.SendPushMessages(&notificationDto, forUsername) // send push message in background
@@ -73,9 +73,9 @@ func (service *NotificationService) GetNotifications(username string) (*models.N
 			Timestamp:        notification.Timestamp,
 			NotificationType: notification.NotificationType,
 			User: &models.NotificationUserDTO{
-				Username:          notification.FromUsername,
-				Nickname:          notification.FromUser.Nickname,
-				ProfilePictureUrl: notification.FromUser.ProfilePictureUrl,
+				Username: notification.FromUsername,
+				Nickname: notification.FromUser.Nickname,
+				Picture:  &notification.FromUser.Image,
 			},
 		}
 		notificationResponseDTOs = append(notificationResponseDTOs, notificationResponseDTO)

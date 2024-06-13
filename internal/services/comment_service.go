@@ -84,9 +84,9 @@ func (service *CommentService) CreateComment(req *models.CommentCreateRequestDTO
 		CommentId: comment.Id,
 		Content:   comment.Content,
 		Author: &models.AuthorDTO{
-			Username:          user.Username,
-			Nickname:          user.Nickname,
-			ProfilePictureUrl: user.ProfilePictureUrl,
+			Username: user.Username,
+			Nickname: user.Nickname,
+			Picture:  &user.Image,
 		},
 		CreationDate: comment.CreatedAt,
 	}
@@ -119,9 +119,9 @@ func (service *CommentService) GetCommentsByPostId(postId string, offset, limit 
 			CommentId: comment.Id,
 			Content:   comment.Content,
 			Author: &models.AuthorDTO{
-				Username:          comment.User.Username,
-				Nickname:          comment.User.Nickname,
-				ProfilePictureUrl: comment.User.ProfilePictureUrl,
+				Username: comment.User.Username,
+				Nickname: comment.User.Nickname,
+				Picture:  &comment.User.Image,
 			},
 			CreationDate: comment.CreatedAt,
 		})

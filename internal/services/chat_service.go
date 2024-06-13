@@ -124,9 +124,9 @@ func (service *ChatService) GetChatsByUsername(username string) (*models.ChatsRe
 		for _, user := range chat.Users {
 			if user.Username != username {
 				chatUserDto = models.ChatUserDTO{
-					Username:          user.Username,
-					Nickname:          user.Nickname,
-					ProfilePictureUrl: user.ProfilePictureUrl,
+					Username: user.Username,
+					Nickname: user.Nickname,
+					Picture:  &user.Image,
 				}
 				break
 			}

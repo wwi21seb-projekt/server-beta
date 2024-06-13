@@ -120,6 +120,7 @@ func (repo *PostRepository) GetPostsPersonalFeed(username string, lastPost *mode
 		Limit(limit).
 		Preload("User").
 		Preload("Location").
+		Preload("Image").
 		Find(&posts).Error
 	if err != nil {
 		return nil, 0, err
@@ -139,12 +140,12 @@ func (repo *PostRepository) DeletePostById(postId string) error {
 
 		// Delete comments
 		if err := tx.Where("post_id = ?", post.Id).Delete(&models.Comment{}).Error; err != nil {
-      if !errors.Is(err, gorm.ErrRecordNotFound) {
+			if !errors.Is(err, gorm.ErrRecordNotFound) {
 				return err
 			}
 		}
 
-    // Delete likes
+		// Delete likes
 		if err := tx.Where("post_id = ?", postId).Delete(&models.Like{}).Error; err != nil {
 			if !errors.Is(err, gorm.ErrRecordNotFound) {
 				return err
@@ -165,6 +166,12 @@ func (repo *PostRepository) DeletePostById(postId string) error {
 
 		// Delete location
 		if err := tx.Where("id = ?", post.LocationId).Delete(&models.Location{}).Error; err != nil {
+			if !errors.Is(err, gorm.ErrRecordNotFound) {
+				return err
+			}
+		}
+		// Delete image
+		if err := tx.Where("imageUrl = ?", post.ImageURL).Delete(&models.Image{}).Error; err != nil {
 			if !errors.Is(err, gorm.ErrRecordNotFound) {
 				return err
 			}
@@ -200,6 +207,7 @@ func (repo *PostRepository) GetPostsByHashtag(hashtag string, lastPost *models.P
 		Limit(limit).
 		Preload("Location").
 		Preload("User").
+		Preload("Image").
 		Find(&posts).Error
 	if err != nil {
 		return nil, 0, err

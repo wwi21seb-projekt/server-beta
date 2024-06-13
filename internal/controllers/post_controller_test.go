@@ -131,7 +131,7 @@ func TestCreatePostWithLocationSuccess(t *testing.T) {
 	assert.Equal(t, *postCreateRequestDTO.Location.Accuracy, capturedLocation.Accuracy)
 	assert.Equal(t, capturedLocation.Id, *capturedPost.LocationId)
 	assert.NotEmpty(t, capturedPost.CreatedAt)
-	assert.Empty(t, capturedPost.ImageUrl)
+	assert.Empty(t, capturedPost.ImageURL)
 	assert.Equal(t, capturedPost.Hashtags[0].Id, expectedHashtagOne.Id)
 	assert.Equal(t, capturedPost.Hashtags[0].Name, expectedHashtagOne.Name)
 	assert.Equal(t, capturedPost.Hashtags[1].Id, expectedHashtagTwo.Id)
@@ -139,7 +139,7 @@ func TestCreatePostWithLocationSuccess(t *testing.T) {
 
 	assert.Equal(t, user.Username, responsePost.Author.Username)
 	assert.Equal(t, user.Nickname, responsePost.Author.Nickname)
-	assert.Equal(t, user.ProfilePictureUrl, responsePost.Author.ProfilePictureUrl)
+	assert.Equal(t, user.ImageURL, responsePost.Author.Picture.ImageUrl)
 	assert.Equal(t, content, responsePost.Content)
 	assert.Equal(t, capturedPost.Id, responsePost.PostId)
 	assert.True(t, capturedPost.CreatedAt.Equal(responsePost.CreationDate))
@@ -257,7 +257,7 @@ func TestCreatePostWithLocationZeroValues(t *testing.T) {
 	assert.Equal(t, *postCreateRequestDTO.Location.Accuracy, capturedLocation.Accuracy)
 	assert.Equal(t, capturedLocation.Id, *capturedPost.LocationId)
 	assert.NotEmpty(t, capturedPost.CreatedAt)
-	assert.Empty(t, capturedPost.ImageUrl)
+	assert.Empty(t, capturedPost.ImageURL)
 	assert.Equal(t, capturedPost.Hashtags[0].Id, expectedHashtagOne.Id)
 	assert.Equal(t, capturedPost.Hashtags[0].Name, expectedHashtagOne.Name)
 	assert.Equal(t, capturedPost.Hashtags[1].Id, expectedHashtagTwo.Id)
@@ -265,7 +265,7 @@ func TestCreatePostWithLocationZeroValues(t *testing.T) {
 
 	assert.Equal(t, user.Username, responsePost.Author.Username)
 	assert.Equal(t, user.Nickname, responsePost.Author.Nickname)
-	assert.Equal(t, user.ProfilePictureUrl, responsePost.Author.ProfilePictureUrl)
+	assert.Equal(t, user.ImageURL, responsePost.Author.Picture.ImageUrl)
 	assert.Equal(t, content, responsePost.Content)
 	assert.Equal(t, capturedPost.Id, responsePost.PostId)
 	assert.True(t, capturedPost.CreatedAt.Equal(responsePost.CreationDate))
@@ -366,7 +366,7 @@ func TestCreatePostWithoutLocationSuccess(t *testing.T) {
 	assert.Equal(t, postCreateRequestDTO.Content, capturedPost.Content)
 	assert.Nil(t, capturedPost.LocationId)
 	assert.NotEmpty(t, capturedPost.CreatedAt)
-	assert.Empty(t, capturedPost.ImageUrl)
+	assert.Empty(t, capturedPost.ImageURL)
 	assert.Equal(t, capturedPost.Hashtags[0].Id, expectedHashtagOne.Id)
 	assert.Equal(t, capturedPost.Hashtags[0].Name, expectedHashtagOne.Name)
 	assert.Equal(t, capturedPost.Hashtags[1].Id, expectedHashtagTwo.Id)
@@ -374,7 +374,7 @@ func TestCreatePostWithoutLocationSuccess(t *testing.T) {
 
 	assert.Equal(t, user.Username, responsePost.Author.Username)
 	assert.Equal(t, user.Nickname, responsePost.Author.Nickname)
-	assert.Equal(t, user.ProfilePictureUrl, responsePost.Author.ProfilePictureUrl)
+	assert.Equal(t, user.ImageURL, responsePost.Author.Picture.ImageUrl)
 	assert.Equal(t, content, responsePost.Content)
 	assert.Equal(t, capturedPost.Id, responsePost.PostId)
 	assert.True(t, capturedPost.CreatedAt.Equal(responsePost.CreationDate))
@@ -417,9 +417,9 @@ func TestCreatePostWithRepostSuccess(t *testing.T) {
 	postController := controllers.NewPostController(postService)
 
 	user := models.User{
-		Username:          "testUser",
-		Nickname:          "testNickname",
-		ProfilePictureUrl: "img.jpg",
+		Username: "testUser",
+		Nickname: "testNickname",
+		ImageURL: "img.jpg",
 	}
 	originalUser := models.User{
 		Username: "originalUser",
@@ -495,12 +495,12 @@ func TestCreatePostWithRepostSuccess(t *testing.T) {
 	assert.Equal(t, postCreateRequestDTO.Content, capturedPost.Content)
 	assert.Nil(t, capturedPost.LocationId)
 	assert.NotEmpty(t, capturedPost.CreatedAt)
-	assert.Empty(t, capturedPost.ImageUrl)
+	assert.Empty(t, capturedPost.ImageURL)
 	assert.Equal(t, capturedPost.RepostId, &originalPost.Id)
 
 	assert.Equal(t, user.Username, responsePost.Author.Username)
 	assert.Equal(t, user.Nickname, responsePost.Author.Nickname)
-	assert.Equal(t, user.ProfilePictureUrl, responsePost.Author.ProfilePictureUrl)
+	assert.Equal(t, user.ImageURL, responsePost.Author.Picture.ImageUrl)
 	assert.Equal(t, content, responsePost.Content)
 	assert.Equal(t, capturedPost.Id, responsePost.PostId)
 	assert.True(t, capturedPost.CreatedAt.Equal(responsePost.CreationDate))
@@ -512,7 +512,7 @@ func TestCreatePostWithRepostSuccess(t *testing.T) {
 	assert.True(t, originalPost.CreatedAt.Equal(responsePost.Repost.CreationDate))
 	assert.Equal(t, originalPost.Username, responsePost.Repost.Author.Username)
 	assert.Equal(t, originalUser.Nickname, responsePost.Repost.Author.Nickname)
-	assert.Equal(t, originalUser.ProfilePictureUrl, responsePost.Repost.Author.ProfilePictureUrl)
+	assert.Equal(t, originalUser.ImageURL, responsePost.Repost.Author.Picture.ImageUrl)
 	assert.Equal(t, totalCommentsCount, responsePost.Repost.Comments)
 	assert.Equal(t, totalLikesCount, responsePost.Repost.Likes)
 	assert.False(t, responsePost.Repost.Liked)
@@ -949,13 +949,13 @@ func TestCreatePostWithImageSuccess(t *testing.T) {
 		assert.NotNil(t, capturedPost.Id)
 		assert.Equal(t, user.Username, responsePost.Author.Username)
 		assert.Equal(t, user.Nickname, responsePost.Author.Nickname)
-		assert.Equal(t, user.ProfilePictureUrl, responsePost.Author.ProfilePictureUrl)
+		assert.Equal(t, user.ImageURL, responsePost.Author.Picture.ImageUrl)
 		assert.Equal(t, content, responsePost.Content)
 		assert.Equal(t, content, capturedPost.Content)
 		assert.Equal(t, user.Username, capturedPost.Username)
 		assert.NotNil(t, capturedPost.CreatedAt)
 		assert.True(t, capturedPost.CreatedAt.Equal(responsePost.CreationDate))
-		assert.Equal(t, "/api/images"+capturedFilename, capturedPost.ImageUrl)
+		assert.Equal(t, "/api/images"+capturedFilename, capturedPost.ImageURL)
 		assert.True(t, reflect.DeepEqual(imageData, capturedFile))
 
 		mockPostRepository.AssertExpectations(t)
@@ -1151,13 +1151,13 @@ func TestCreatePostWithEmptyImageSuccess(t *testing.T) {
 	assert.NotNil(t, capturedPost.Id)
 	assert.Equal(t, user.Username, responsePost.Author.Username)
 	assert.Equal(t, user.Nickname, responsePost.Author.Nickname)
-	assert.Equal(t, user.ProfilePictureUrl, responsePost.Author.ProfilePictureUrl)
+	assert.Equal(t, user.ImageURL, responsePost.Author.Picture.ImageUrl)
 	assert.Equal(t, content, responsePost.Content)
 	assert.Equal(t, content, capturedPost.Content)
 	assert.Equal(t, user.Username, capturedPost.Username)
 	assert.NotNil(t, capturedPost.CreatedAt)
 	assert.True(t, capturedPost.CreatedAt.Equal(responsePost.CreationDate))
-	assert.Equal(t, capturedPost.ImageUrl, "")
+	assert.Equal(t, capturedPost.ImageURL, "")
 
 	mockPostRepository.AssertExpectations(t)
 	mockHashtagRepository.AssertExpectations(t)

@@ -60,7 +60,7 @@ func SetupRouter() *gin.Engine {
 	validator := utils.NewValidator()
 	mailService := services.NewMailService()
 	imageService := services.NewImageService(fileSystem, validator)
-	userService := services.NewUserService(userRepo, activationTokenRepo, mailService, validator, postRepo, subscriptionRepo)
+	userService := services.NewUserService(userRepo, activationTokenRepo, mailService, validator, postRepo, imageService, subscriptionRepo)
 	feedService := services.NewFeedService(postRepo, userRepo, likeRepo, commentRepo)
 	likeService := services.NewLikeService(likeRepo, postRepo)
 	pushSubscriptionService := services.NewPushSubscriptionService(pushSubscriptionRepo)

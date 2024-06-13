@@ -209,7 +209,8 @@ func (controller *UserController) UpdateUserInformation(c *gin.Context) {
 	// Check if the keys are present in the request
 	_, nicknamePresent := requestData["nickname"]
 	_, statusPresent := requestData["status"]
-	if !nicknamePresent && !statusPresent {
+	_, imagePresent := requestData["picture"]
+	if !nicknamePresent && !statusPresent && !imagePresent {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": customerrors.BadRequest,
 		})
@@ -223,6 +224,9 @@ func (controller *UserController) UpdateUserInformation(c *gin.Context) {
 	}
 	if status, ok := requestData["status"].(string); ok {
 		userUpdateResponseDTO.Status = status
+	}
+	if image, ok := requestData["picture"].(string); ok {
+		userUpdateResponseDTO.Image = image
 	}
 
 	// Update the user's information

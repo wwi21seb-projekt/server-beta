@@ -270,7 +270,7 @@ func TestGetGlobalPostFeedSuccess(t *testing.T) {
 			Username:  "someUserTest",
 			User:      models.User{},
 			Content:   "This is the last post",
-			ImageUrl:  "",
+			ImageURL:  "",
 			CreatedAt: time.Now().Add(time.Hour * -1),
 		}
 
@@ -280,12 +280,12 @@ func TestGetGlobalPostFeedSuccess(t *testing.T) {
 				Id:       uuid.New(),
 				Username: "someOtherUsername",
 				User: models.User{
-					Username:          "someOtherUsername",
-					Nickname:          "someOtherNickname",
-					ProfilePictureUrl: "",
+					Username: "someOtherUsername",
+					Nickname: "someOtherNickname",
+					ImageURL: "",
 				},
 				Content:    "This is the next post",
-				ImageUrl:   "",
+				ImageURL:   "",
 				CreatedAt:  time.Now().Add(time.Hour * -2),
 				LocationId: &locationId,
 				Location: models.Location{
@@ -298,12 +298,12 @@ func TestGetGlobalPostFeedSuccess(t *testing.T) {
 				Id:       uuid.New(),
 				Username: "anotherTestUsername",
 				User: models.User{
-					Username:          "anotherTestUsername",
-					Nickname:          "anotherTestNickname",
-					ProfilePictureUrl: "",
+					Username: "anotherTestUsername",
+					Nickname: "anotherTestNickname",
+					ImageURL: "",
 				},
 				Content:   "This is another next post",
-				ImageUrl:  "",
+				ImageURL:  "",
 				CreatedAt: time.Now().Add(time.Hour * -3),
 			},
 		}
@@ -358,7 +358,7 @@ func TestGetGlobalPostFeedSuccess(t *testing.T) {
 		assert.Equal(t, lastPost.Id, capturedLastPost.Id)
 		assert.Equal(t, lastPost.Username, capturedLastPost.Username)
 		assert.Equal(t, lastPost.Content, capturedLastPost.Content)
-		assert.Equal(t, lastPost.ImageUrl, capturedLastPost.ImageUrl)
+		assert.Equal(t, lastPost.ImageURL, capturedLastPost.ImageURL)
 		assert.True(t, lastPost.CreatedAt.Equal(capturedLastPost.CreatedAt))
 		assert.Equal(t, lastPost.Hashtags, capturedLastPost.Hashtags)
 
@@ -460,7 +460,7 @@ func TestGetPersonalPostFeedSuccess(t *testing.T) {
 		Username:  "someUserTest",
 		User:      models.User{},
 		Content:   "This is the last post",
-		ImageUrl:  "",
+		ImageURL:  "",
 		CreatedAt: time.Now().Add(time.Hour * -1),
 	}
 
@@ -476,12 +476,12 @@ func TestGetPersonalPostFeedSuccess(t *testing.T) {
 			Id:       uuid.New(),
 			Username: "someOtherUsername",
 			User: models.User{
-				Username:          "someOtherUsername",
-				Nickname:          "someOtherNickname",
-				ProfilePictureUrl: "",
+				Username: "someOtherUsername",
+				Nickname: "someOtherNickname",
+				ImageURL: "",
 			},
 			Content:    "This is the next post",
-			ImageUrl:   "",
+			ImageURL:   "",
 			CreatedAt:  time.Now().Add(time.Hour * -2),
 			LocationId: &locationId,
 			Location: models.Location{
@@ -494,12 +494,12 @@ func TestGetPersonalPostFeedSuccess(t *testing.T) {
 			Id:       uuid.New(),
 			Username: "anotherTestUsername",
 			User: models.User{
-				Username:          "anotherTestUsername",
-				Nickname:          "anotherTestNickname",
-				ProfilePictureUrl: "",
+				Username: "anotherTestUsername",
+				Nickname: "anotherTestNickname",
+				ImageURL: "",
 			},
 			Content:   "This is another next post",
-			ImageUrl:  "",
+			ImageURL:  "",
 			CreatedAt: time.Now().Add(time.Hour * -3),
 		},
 	}
@@ -549,7 +549,7 @@ func TestGetPersonalPostFeedSuccess(t *testing.T) {
 	assert.Equal(t, lastPost.Id, capturedLastPost.Id)
 	assert.Equal(t, lastPost.Username, capturedLastPost.Username)
 	assert.Equal(t, lastPost.Content, capturedLastPost.Content)
-	assert.Equal(t, lastPost.ImageUrl, capturedLastPost.ImageUrl)
+	assert.Equal(t, lastPost.ImageURL, capturedLastPost.ImageURL)
 	assert.True(t, lastPost.CreatedAt.Equal(capturedLastPost.CreatedAt))
 	assert.Equal(t, lastPost.Hashtags, capturedLastPost.Hashtags)
 
@@ -706,9 +706,9 @@ func TestGetPostsByHashtagSuccess(t *testing.T) {
 			Id:       uuid.New(),
 			Username: "testUser",
 			User: models.User{
-				Username:          "testUser",
-				Nickname:          "testNickname",
-				ProfilePictureUrl: "",
+				Username: "testUser",
+				Nickname: "testNickname",
+				ImageURL: "",
 			},
 			Content:    "Test #Post 2",
 			CreatedAt:  time.Now(),
@@ -723,9 +723,9 @@ func TestGetPostsByHashtagSuccess(t *testing.T) {
 			Id:       uuid.New(),
 			Username: "testUser",
 			User: models.User{
-				Username:          "testUser",
-				Nickname:          "testNickname",
-				ProfilePictureUrl: "",
+				Username: "testUser",
+				Nickname: "testNickname",
+				ImageURL: "",
 			},
 			Content:   "Test #Post 3",
 			CreatedAt: time.Now().Add(-1 * time.Hour),
@@ -744,7 +744,7 @@ func TestGetPostsByHashtagSuccess(t *testing.T) {
 		Id:        uuid.New(),
 		Username:  "testUser",
 		Content:   "Test #Post 1",
-		ImageUrl:  "",
+		ImageURL:  "",
 		CreatedAt: time.Now().Add(-2 * time.Hour),
 	}
 
@@ -792,14 +792,14 @@ func TestGetPostsByHashtagSuccess(t *testing.T) {
 	assert.Equal(t, lastPost.Id, capturedLastPost.Id)
 	assert.Equal(t, lastPost.Username, capturedLastPost.Username)
 	assert.Equal(t, lastPost.Content, capturedLastPost.Content)
-	assert.Equal(t, lastPost.ImageUrl, capturedLastPost.ImageUrl)
+	assert.Equal(t, lastPost.ImageURL, capturedLastPost.ImageURL)
 	assert.True(t, lastPost.CreatedAt.Equal(capturedLastPost.CreatedAt))
 	assert.Equal(t, lastPost.Hashtags, capturedLastPost.Hashtags)
 
 	assert.Equal(t, posts[0].Id, responsePostFeed.Records[0].PostId)
 	assert.Equal(t, posts[0].Username, responsePostFeed.Records[0].Author.Username)
 	assert.Equal(t, posts[0].User.Nickname, responsePostFeed.Records[0].Author.Nickname)
-	assert.Equal(t, posts[0].User.ProfilePictureUrl, responsePostFeed.Records[0].Author.ProfilePictureUrl)
+	assert.Equal(t, posts[0].User.ImageURL, responsePostFeed.Records[0].Author.Picture.ImageUrl)
 	assert.Equal(t, posts[0].Content, responsePostFeed.Records[0].Content)
 	assert.True(t, posts[0].CreatedAt.Equal(responsePostFeed.Records[0].CreationDate))
 	assert.Equal(t, firstPostComments, responsePostFeed.Records[0].Comments)
@@ -813,7 +813,7 @@ func TestGetPostsByHashtagSuccess(t *testing.T) {
 	assert.Equal(t, posts[1].Id, responsePostFeed.Records[1].PostId)
 	assert.Equal(t, posts[1].Username, responsePostFeed.Records[1].Author.Username)
 	assert.Equal(t, posts[1].User.Nickname, responsePostFeed.Records[1].Author.Nickname)
-	assert.Equal(t, posts[1].User.ProfilePictureUrl, responsePostFeed.Records[1].Author.ProfilePictureUrl)
+	assert.Equal(t, posts[1].User.ImageURL, responsePostFeed.Records[1].Author.Picture.ImageUrl)
 	assert.Equal(t, posts[1].Content, responsePostFeed.Records[1].Content)
 	assert.True(t, posts[1].CreatedAt.Equal(responsePostFeed.Records[1].CreationDate))
 	assert.Equal(t, secondPostComments, responsePostFeed.Records[1].Comments)

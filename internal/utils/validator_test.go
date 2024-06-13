@@ -1,7 +1,9 @@
 package utils_test
 
 import (
+	"encoding/base64"
 	"github.com/wwi21seb-projekt/server-beta/internal/utils"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -133,15 +135,14 @@ func TestValidateStatus(t *testing.T) {
 // TestValidateImage tests the ValidateImage function using multiple image examples from the tests/resources folder
 func TestValidateImage(t *testing.T) {
 	tests := []struct {
-		name        string
-		filePath    string
-		contentType string
-		want        bool
+		name     string
+		filePath string
+		want     bool
 	}{
-		{"Valid JPEG Image", "../../tests/resources/valid.jpeg", "image/jpeg", true},
-		{"Valid WEBP Image", "../../tests/resources/valid.webp", "image/webp", true},
-		{"Empty JPEG Image", "../../tests/resources/empty.jpeg", "image/jpeg", false},
-		{"Empty WEBP Image", "../../tests/resources/empty.webp", "image/webp", false},
+		{"Valid JPEG Image", "../../tests/resources/valid.jpeg", true},
+		{"Valid WEBP Image", "../../tests/resources/valid.webp", true},
+		{"Empty JPEG Image", "../../tests/resources/empty.jpeg", false},
+		{"Empty WEBP Image", "../../tests/resources/empty.webp", false},
 	}
 
 	for _, tt := range tests {
@@ -154,8 +155,14 @@ func TestValidateImage(t *testing.T) {
 
 			validator := utils.NewValidator()
 
-			if got := validator.ValidateImage(imageData, tt.contentType); got != tt.want {
-				t.Errorf("ValidateImage() = %v, want %v", got, tt.want)
+			base64String := base64.StdEncoding.EncodeToString(imageData)
+			if err != nil {
+				log.Fatal("Error converting image to Base64: ", err)
+			}
+			isValid, _, err := validator.ValidateImage(base64String)
+
+			if isValid != tt.want {
+				t.Errorf("ValidateImage() = %v, want %v", isValid, tt.want)
 			}
 		})
 	}

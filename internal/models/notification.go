@@ -16,9 +16,9 @@ type Notification struct {
 }
 
 type NotificationUserDTO struct {
-	Username          string `json:"username"`
-	Nickname          string `json:"nickname"`
-	ProfilePictureUrl string `json:"profilePictureUrl"`
+	Username string `json:"username"`
+	Nickname string `json:"nickname"`
+	Picture  *Image `json:"picture"`
 }
 
 type NotificationRecordDTO struct {

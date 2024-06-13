@@ -80,6 +80,7 @@ func (repo *UserRepository) SearchUser(username string, limit int, offset int, c
 	maxLevenshteinDistance := 3.5 // max distance for search results is set to ensure that only relevant results are returned
 
 	query := repo.DB.Model(&models.User{}).
+		Preload("Image").
 		Where("username != ?", currentUsername). // exclude current user from search
 		Select("*, levenshtein(username, ?) as distance", username).
 		Where("levenshtein(username, ?) <= ? OR username like ?", username, maxLevenshteinDistance, username+"%").
