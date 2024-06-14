@@ -38,6 +38,11 @@ func TestGetNotificationsSuccess(t *testing.T) {
 		Username: "test2",
 		Nickname: "nick",
 		ImageURL: "img.png",
+		Image: models.Image{
+			ImageUrl: "img.png",
+			Width:    100,
+			Height:   101,
+		},
 	}
 
 	foundNotifications := []models.Notification{

@@ -369,14 +369,32 @@ func TestGetChatsSuccess(t *testing.T) {
 		{
 			Id: uuid.New(),
 			Users: []models.User{
-				{Username: "testUser2", Nickname: "Test User 2", ImageURL: "https://example.com/testuser2.jpg"},
+				{
+					Username: "testUser2",
+					Nickname: "Test User 2",
+					ImageURL: "https://example.com/testuser2.jpg",
+					Image: models.Image{
+						ImageUrl: "https://example.com/testuser2.jpg",
+						Width:    100,
+						Height:   100,
+					},
+				},
 			},
 			CreatedAt: time.Now(),
 		},
 		{
 			Id: uuid.New(),
 			Users: []models.User{
-				{Username: "testUser3", Nickname: "Test User 3", ImageURL: "https://example.com/testuser3.jpg"},
+				{
+					Username: "testUser3",
+					Nickname: "Test User 3",
+					ImageURL: "https://example.com/testuser3.jpg",
+					Image: models.Image{
+						ImageUrl: "https://example.com/testuser3.jpg",
+						Width:    100,
+						Height:   100,
+					},
+				},
 			},
 			CreatedAt: time.Now(),
 		},

@@ -34,25 +34,32 @@ func (controller *PostController) CreatePost(c *gin.Context) {
 	}
 
 	// If ContentType is application/json, read body and continue only with text
-	var postCreateRequestDTO models.PostCreateRequestDTO
-	if c.ShouldBindJSON(&postCreateRequestDTO) != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": customerrors.BadRequest,
-		})
+	if c.ContentType() == "application/json" {
+		var postCreateRequestDTO models.PostCreateRequestDTO
+		if c.ShouldBindJSON(&postCreateRequestDTO) != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": customerrors.BadRequest,
+			})
+			return
+		}
+
+		// Create post
+		postDto, serviceErr, httpStatus := controller.postService.CreatePost(&postCreateRequestDTO, username.(string))
+		if serviceErr != nil {
+			c.JSON(httpStatus, gin.H{
+				"error": serviceErr,
+			})
+			return
+		}
+
+		c.JSON(httpStatus, postDto)
 		return
 	}
 
-	// Create post
-	postDto, serviceErr, httpStatus := controller.postService.CreatePost(&postCreateRequestDTO, username.(string))
-	if serviceErr != nil {
-		c.JSON(httpStatus, gin.H{
-			"error": serviceErr,
-		})
-		return
-	}
+	// If ContentType is not application/json  return bad request
+	c.JSON(http.StatusBadRequest, gin.H{
+		"error": customerrors.BadRequest})
 
-	c.JSON(httpStatus, postDto)
-	return
 }
 
 func (controller *PostController) DeletePost(c *gin.Context) {

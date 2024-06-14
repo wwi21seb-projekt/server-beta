@@ -42,6 +42,11 @@ func TestCreateCommentSuccess(t *testing.T) {
 		Username: testUsername,
 		Nickname: "test user",
 		ImageURL: "https://example.com/profile.jpg",
+		Image: models.Image{
+			ImageUrl: "https://example.com/profile.jpg",
+			Width:    100,
+			Height:   101,
+		},
 	}
 
 	post := models.Post{
@@ -285,6 +290,11 @@ func TestGetCommentsByPostIdSuccess(t *testing.T) {
 				Username: "testuser",
 				Nickname: "test user",
 				ImageURL: "https://example.com/profile.jpg",
+				Image: models.Image{
+					ImageUrl: "https://example.com/profile.jpg",
+					Width:    100,
+					Height:   101,
+				},
 			},
 			Content:   "Test comment 1",
 			CreatedAt: time.Now(),
@@ -297,6 +307,11 @@ func TestGetCommentsByPostIdSuccess(t *testing.T) {
 				Username: "testuser2",
 				Nickname: "test user 2",
 				ImageURL: "https://example.com/profile2.jpg",
+				Image: models.Image{
+					ImageUrl: "https://example.com/profile2.jpg",
+					Width:    100,
+					Height:   101,
+				},
 			},
 			Content:   "Test comment 2",
 			CreatedAt: time.Now(),
@@ -336,6 +351,9 @@ func TestGetCommentsByPostIdSuccess(t *testing.T) {
 	assert.Equal(t, limit, responseList.Pagination.Limit)
 
 	for i, comment := range comments {
+		fmt.Printf("Expected Comment User: %+v\n", comment.User)
+		fmt.Printf("Actual Comment User: %+v\n", responseList.Records[i].Author.Picture)
+		fmt.Printf("Actual Comment User: %+v\n", i)
 		assert.Equal(t, comment.Id, responseList.Records[i].CommentId)
 		assert.Equal(t, comment.Content, responseList.Records[i].Content)
 		assert.True(t, comment.CreatedAt.Equal(responseList.Records[i].CreationDate))

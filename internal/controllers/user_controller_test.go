@@ -2,6 +2,7 @@ package controllers_test
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
@@ -16,6 +17,8 @@ import (
 	"github.com/wwi21seb-projekt/server-beta/internal/services"
 	"github.com/wwi21seb-projekt/server-beta/internal/utils"
 	"gorm.io/gorm"
+	"io/ioutil"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -1930,33 +1933,54 @@ func TestSearchUserUnauthorized(t *testing.T) {
 	}
 }
 
-// TestUpdateUserInformationSuccess tests if UpdateUserInformation returns 200-OK when user information is updated successfully
 func TestUpdateUserInformationSuccess(t *testing.T) {
+
+	filePath1 := "../../tests/resources/valid.jpeg"
+	filePath2 := "../../tests/resources/valid.webp"
+
+	// Lese die Bilddatei
+	imageData1, err := ioutil.ReadFile(filePath1)
+	if err != nil {
+		log.Fatal("Error reading image file:", err)
+	}
+	imageData2, err := ioutil.ReadFile(filePath2)
+	if err != nil {
+		log.Fatal("Error reading image file:", err)
+	}
+
+	// Base64-kodiere die Bilddaten
+	base64String1 := base64.StdEncoding.EncodeToString(imageData1)
+	base64String2 := base64.StdEncoding.EncodeToString(imageData2)
+
 	requests := []models.UserInformationUpdateDTO{
 		{
 			Nickname: "New Nickname",
 			Status:   "New status",
+			Image:    base64String1, // Füge hier einen Base64-String für das Bild hinzu
 		},
-
 		// Regression test
 		// No failures when either nickname or status is empty
 		{
 			Nickname: "New Nickname",
 			Status:   "", // New status is empty/delete nickname
+			Image:    base64String2,
 		},
 		{
 			Nickname: "", // New nickname is empty/delete nickname
 			Status:   "New status",
+			Image:    "",
 		},
 		{
 			Nickname: "", // New nickname is empty/delete nickname
 			Status:   "", // New status is empty/delete nickname
+			Image:    base64String2,
 		},
 	}
 
 	for _, request := range requests {
 		// Arrange
 		mockUserRepository := new(repositories.MockUserRepository)
+		mockImageService := new(services.MockImageService) // Mock für den ImageService
 		validator := utils.NewValidator()
 		userService := services.NewUserService(
 			mockUserRepository,
@@ -1964,7 +1988,7 @@ func TestUpdateUserInformationSuccess(t *testing.T) {
 			nil,
 			validator,
 			nil,
-			nil,
+			mockImageService,
 			nil,
 		)
 		userController := controllers.NewUserController(userService)
@@ -1973,6 +1997,7 @@ func TestUpdateUserInformationSuccess(t *testing.T) {
 			Username: "testUser",
 			Nickname: "Old Nickname",
 			Status:   "Old status",
+			ImageURL: "https://example.com/old_image.jpg",
 		}
 
 		authenticationToken, err := utils.GenerateAccessToken(user.Username)
@@ -1987,6 +2012,19 @@ func TestUpdateUserInformationSuccess(t *testing.T) {
 			Run(func(args mock.Arguments) {
 				capturedUpdatedUser = args.Get(0).(*models.User)
 			}).Return(nil) // Update user successfully
+
+		// Mock für den ImageService
+		mockImageService.On("DeleteImage", user.ImageURL).Maybe().Return(nil, http.StatusOK)
+		mockImageService.On("SaveImage", request.Image).Maybe().Return(&models.Image{
+			ImageUrl: "https://example.com/new_image.jpg",
+			Width:    100,
+			Height:   100,
+		}, nil, http.StatusOK)
+		mockImageService.On("GetImageMetadata", user.ImageURL).Maybe().Return(&models.Image{
+			ImageUrl: "https://example.com/new_image.jpg",
+			Width:    100,
+			Height:   100,
+		}, nil, http.StatusOK)
 
 		// Setup HTTP request and recorder
 		requestBody, err := json.Marshal(request)
@@ -2007,16 +2045,21 @@ func TestUpdateUserInformationSuccess(t *testing.T) {
 		// Assert
 		assert.Equal(t, http.StatusOK, w.Code) // Expect HTTP 200 OK status
 
-		var responseDto models.UserInformationUpdateDTO
+		var responseDto models.UserInformationUpdateResponseDTO
 		err = json.Unmarshal(w.Body.Bytes(), &responseDto)
 		assert.NoError(t, err)
 
 		assert.Equal(t, request.Nickname, responseDto.Nickname)
 		assert.Equal(t, request.Status, responseDto.Status)
+		if request.Image != "" && request.Image != "null" {
+			assert.NotNil(t, responseDto.Image)
+			assert.Equal(t, "https://example.com/new_image.jpg", responseDto.Image.ImageUrl)
+		}
 		assert.Equal(t, request.Nickname, capturedUpdatedUser.Nickname)
 		assert.Equal(t, request.Status, capturedUpdatedUser.Status)
 
 		mockUserRepository.AssertExpectations(t)
+		mockImageService.AssertExpectations(t)
 	}
 }
 

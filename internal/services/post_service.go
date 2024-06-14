@@ -239,9 +239,11 @@ func (service *PostService) DeletePost(postId string, username string) (*custome
 	}
 
 	//Delete Image
-	customErr, httpCode := service.imageService.DeleteImage(post.ImageURL)
-	if customErr != nil {
-		return customErr, httpCode
+	if post.Image.ImageUrl != "" {
+		customErr, httpCode := service.imageService.DeleteImage(post.ImageURL)
+		if customErr != nil {
+			return customErr, httpCode
+		}
 	}
 
 	// Delete post

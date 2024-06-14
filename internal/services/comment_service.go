@@ -115,13 +115,17 @@ func (service *CommentService) GetCommentsByPostId(postId string, offset, limit 
 	// Prepare response
 	var commentRecords []models.CommentResponseDTO
 	for _, comment := range comments {
+		var picture models.Image
+		if comment.User.Image.ImageUrl != "" {
+			picture = comment.User.Image
+		}
 		commentRecords = append(commentRecords, models.CommentResponseDTO{
 			CommentId: comment.Id,
 			Content:   comment.Content,
 			Author: &models.AuthorDTO{
 				Username: comment.User.Username,
 				Nickname: comment.User.Nickname,
-				Picture:  &comment.User.Image,
+				Picture:  &picture,
 			},
 			CreationDate: comment.CreatedAt,
 		})

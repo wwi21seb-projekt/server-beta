@@ -458,9 +458,9 @@ func (service *UserService) UpdateUserInformation(req *models.UserInformationUpd
 		}
 
 		if req.Image != "" {
-			imageResponseDTO, err, httpStatus := service.imageService.SaveImage(req.Image)
+			imageResponseDTO, customErr, httpCode = service.imageService.SaveImage(req.Image)
 			if err != nil {
-				return nil, err, httpStatus
+				return nil, customErr, httpCode
 			}
 			imageUrl = imageResponseDTO.ImageUrl
 		}
