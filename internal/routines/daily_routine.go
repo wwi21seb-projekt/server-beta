@@ -49,9 +49,11 @@ func DeleteUnactivatedUsers(userRepo repositories.UserRepositoryInterface, image
 	for _, user := range users {
 		if user.CreatedAt.Add(7*24*time.Hour).Before(time.Now()) && user.Activated == false {
 			//Delete Profile Image
-			customErr, _ := imageService.DeleteImage(user.ImageURL)
-			if customErr != nil {
-				fmt.Println("Error deleting user's picture: ", user.Username, err)
+			if user.ImageURL != "" {
+				customErr, _ := imageService.DeleteImage(user.ImageURL)
+				if customErr != nil {
+					fmt.Println("Error deleting user's picture: ", user.Username, err)
+				}
 			} // User has not activated account within 7 days
 			err := userRepo.DeleteUserByUsername(user.Username)
 			if err != nil {
