@@ -20,19 +20,13 @@ type CommentCreateRequestDTO struct {
 }
 
 type CommentResponseDTO struct {
-	CommentId    uuid.UUID  `json:"commentId"`
-	Content      string     `json:"content"`
-	Author       *AuthorDTO `json:"author"` // AuthorDTO is defined in post.go
-	CreationDate time.Time  `json:"creationDate"`
-}
-
-type CommentPaginationDTO struct {
-	Offset  int   `json:"offset"`
-	Limit   int   `json:"limit"`
-	Records int64 `json:"records"`
+	CommentId    uuid.UUID `json:"commentId"`
+	Content      string    `json:"content"`
+	Author       *UserDTO  `json:"author"`
+	CreationDate time.Time `json:"creationDate"`
 }
 
 type CommentFeedResponseDTO struct {
-	Records    []CommentResponseDTO  `json:"records"`
-	Pagination *CommentPaginationDTO `json:"pagination"`
+	Records    []CommentResponseDTO `json:"records"`
+	Pagination *OffsetPaginationDTO `json:"pagination"`
 }

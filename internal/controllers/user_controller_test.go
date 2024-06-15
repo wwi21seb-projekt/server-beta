@@ -101,7 +101,7 @@ func TestCreateUserSuccess(t *testing.T) {
 
 	// Assert Response
 	assert.Equal(t, http.StatusCreated, w.Code) // Expect HTTP 201 Created status
-	var responseUser models.UserResponseDTO
+	var responseUser models.UserCreateResponseDTO
 	err = json.Unmarshal(w.Body.Bytes(), &responseUser)
 	assert.NoError(t, err)
 	assert.Equal(t, username, responseUser.Username)
@@ -649,7 +649,7 @@ func TestLoginSuccess(t *testing.T) {
 		Nickname:     nickname,
 		Email:        email,
 		Activated:    true,
-		CreatedAt:    time.Now(),
+		CreatedAt:    time.Now().UTC(),
 	}
 
 	userRequest := models.UserLoginRequestDTO{
@@ -831,7 +831,7 @@ func TestLoginInvalidCredentialsPasswordIncorrect(t *testing.T) {
 		Nickname:     nickname,
 		Email:        email,
 		Activated:    true,
-		CreatedAt:    time.Now(),
+		CreatedAt:    time.Now().UTC(),
 	}
 
 	userRequest := models.UserLoginRequestDTO{
@@ -906,7 +906,7 @@ func TestLoginUserNotActivated(t *testing.T) {
 		Nickname:     nickname,
 		Email:        email,
 		Activated:    false,
-		CreatedAt:    time.Now(),
+		CreatedAt:    time.Now().UTC(),
 	}
 
 	sixDigitToken := "123456"
@@ -915,7 +915,7 @@ func TestLoginUserNotActivated(t *testing.T) {
 		Username:       username,
 		User:           user,
 		Token:          sixDigitToken,
-		ExpirationTime: time.Now().Add(time.Minute * 15),
+		ExpirationTime: time.Now().UTC().Add(time.Minute * 15),
 	}
 	activationTokenList := []models.ActivationToken{activationToken}
 
@@ -993,7 +993,7 @@ func TestLoginUserNotActivatedExpiredToken(t *testing.T) {
 		Nickname:     nickname,
 		Email:        email,
 		Activated:    false,
-		CreatedAt:    time.Now(),
+		CreatedAt:    time.Now().UTC(),
 	}
 
 	sixDigitToken := "123456"
@@ -1002,7 +1002,7 @@ func TestLoginUserNotActivatedExpiredToken(t *testing.T) {
 		Username:       username,
 		User:           user,
 		Token:          sixDigitToken,
-		ExpirationTime: time.Now().Add(time.Minute * -15), // Expired token
+		ExpirationTime: time.Now().UTC().Add(time.Minute * -15), // Expired token
 	}
 	activationTokenList := []models.ActivationToken{activationToken}
 
@@ -1083,7 +1083,7 @@ func TestActivateUserSuccess(t *testing.T) {
 		Nickname:     nickname,
 		Email:        email,
 		Activated:    false,
-		CreatedAt:    time.Now(),
+		CreatedAt:    time.Now().UTC(),
 	}
 
 	updatedUser := user
@@ -1095,7 +1095,7 @@ func TestActivateUserSuccess(t *testing.T) {
 		Username:       username,
 		User:           user,
 		Token:          sixDigitToken,
-		ExpirationTime: time.Now().Add(time.Minute * 15),
+		ExpirationTime: time.Now().UTC().Add(time.Minute * 15),
 	}
 
 	activationRequest := models.UserActivationRequestDTO{
@@ -1220,7 +1220,7 @@ func TestActivateUserAlreadyReported(t *testing.T) {
 		Nickname:     nickname,
 		Email:        email,
 		Activated:    true,
-		CreatedAt:    time.Now(),
+		CreatedAt:    time.Now().UTC(),
 	}
 
 	sixDigitToken := "123456"
@@ -1355,7 +1355,7 @@ func TestActivateUserTokenNotFound(t *testing.T) {
 		Nickname:     nickname,
 		Email:        email,
 		Activated:    false,
-		CreatedAt:    time.Now(),
+		CreatedAt:    time.Now().UTC(),
 	}
 
 	sixDigitToken := "123456"
@@ -1432,7 +1432,7 @@ func TestActivateUserTokenExpired(t *testing.T) {
 		Nickname:     nickname,
 		Email:        email,
 		Activated:    false,
-		CreatedAt:    time.Now(),
+		CreatedAt:    time.Now().UTC(),
 	}
 
 	sixDigitToken := "123456"
@@ -1441,7 +1441,7 @@ func TestActivateUserTokenExpired(t *testing.T) {
 		Username:       username,
 		User:           user,
 		Token:          sixDigitToken,
-		ExpirationTime: time.Now().Add(time.Minute * -15), // Expired token
+		ExpirationTime: time.Now().UTC().Add(time.Minute * -15), // Expired token
 	}
 	activationRequest := models.UserActivationRequestDTO{
 		Token: sixDigitToken,
@@ -1519,7 +1519,7 @@ func TestResendActivationTokenSuccess(t *testing.T) {
 		Nickname:     nickname,
 		Email:        email,
 		Activated:    false,
-		CreatedAt:    time.Now(),
+		CreatedAt:    time.Now().UTC(),
 	}
 
 	// Mock expectations
@@ -1582,7 +1582,7 @@ func TestResendActivationTokenAlreadyReported(t *testing.T) {
 		Nickname:     nickname,
 		Email:        email,
 		Activated:    true,
-		CreatedAt:    time.Now(),
+		CreatedAt:    time.Now().UTC(),
 	}
 
 	// Mock expectations
@@ -1952,28 +1952,28 @@ func TestUpdateUserInformationSuccess(t *testing.T) {
 	base64String1 := base64.StdEncoding.EncodeToString(imageData1)
 	base64String2 := base64.StdEncoding.EncodeToString(imageData2)
 
-	requests := []models.UserInformationUpdateDTO{
+	requests := []models.UserInformationUpdateRequestDTO{
 		{
 			Nickname: "New Nickname",
 			Status:   "New status",
-			Image:    base64String1, // Füge hier einen Base64-String für das Bild hinzu
+			Picture:  base64String1, // Füge hier einen Base64-String für das Bild hinzu
 		},
 		// Regression test
 		// No failures when either nickname or status is empty
 		{
 			Nickname: "New Nickname",
 			Status:   "", // New status is empty/delete nickname
-			Image:    base64String2,
+			Picture:  base64String2,
 		},
 		{
 			Nickname: "", // New nickname is empty/delete nickname
 			Status:   "New status",
-			Image:    "",
+			Picture:  "",
 		},
 		{
 			Nickname: "", // New nickname is empty/delete nickname
 			Status:   "", // New status is empty/delete nickname
-			Image:    base64String2,
+			Picture:  base64String2,
 		},
 	}
 
@@ -2015,7 +2015,7 @@ func TestUpdateUserInformationSuccess(t *testing.T) {
 
 		// Mock für den ImageService
 		mockImageService.On("DeleteImage", user.ImageURL).Maybe().Return(nil, http.StatusOK)
-		mockImageService.On("SaveImage", request.Image).Maybe().Return(&models.Image{
+		mockImageService.On("SaveImage", request.Picture).Maybe().Return(&models.Image{
 			ImageUrl: "https://example.com/new_image.jpg",
 			Width:    100,
 			Height:   100,
@@ -2051,9 +2051,9 @@ func TestUpdateUserInformationSuccess(t *testing.T) {
 
 		assert.Equal(t, request.Nickname, responseDto.Nickname)
 		assert.Equal(t, request.Status, responseDto.Status)
-		if request.Image != "" && request.Image != "null" {
-			assert.NotNil(t, responseDto.Image)
-			assert.Equal(t, "https://example.com/new_image.jpg", responseDto.Image.ImageUrl)
+		if request.Picture != "" && request.Picture != "null" {
+			assert.NotNil(t, responseDto.Picture)
+			assert.Equal(t, "https://example.com/new_image.jpg", responseDto.Picture.ImageUrl)
 		}
 		assert.Equal(t, request.Nickname, capturedUpdatedUser.Nickname)
 		assert.Equal(t, request.Status, capturedUpdatedUser.Status)
@@ -2150,7 +2150,7 @@ func TestUpdateUserInformationUnauthorized(t *testing.T) {
 
 		userController := controllers.NewUserController(userService)
 
-		userRequest := models.UserInformationUpdateDTO{
+		userRequest := models.UserInformationUpdateRequestDTO{
 			Nickname: "New Nickname",
 			Status:   "New status",
 		}
@@ -2479,7 +2479,7 @@ func TestGetUserProfileSuccess(t *testing.T) {
 
 	subscription := models.Subscription{
 		Id:                uuid.New(),
-		SubscriptionDate:  time.Now(),
+		SubscriptionDate:  time.Now().UTC(),
 		FollowerUsername:  currentUsername,
 		FollowingUsername: user.Username,
 	}
@@ -2512,7 +2512,7 @@ func TestGetUserProfileSuccess(t *testing.T) {
 	assert.Equal(t, user.Username, responseDto.Username)
 	assert.Equal(t, user.Nickname, responseDto.Nickname)
 	assert.Equal(t, user.Status, responseDto.Status)
-	assert.Equal(t, user.ImageURL, responseDto.Image.ImageUrl)
+	assert.Equal(t, user.ImageURL, responseDto.Picture.ImageUrl)
 	assert.Equal(t, postCount, responseDto.Posts)
 	assert.Equal(t, followerCount, responseDto.Follower)
 	assert.Equal(t, followingCount, responseDto.Following)
@@ -2583,7 +2583,7 @@ func TestGetUserProfileSuccessNoSubscription(t *testing.T) {
 	assert.Equal(t, user.Username, responseDto.Username)
 	assert.Equal(t, user.Nickname, responseDto.Nickname)
 	assert.Equal(t, user.Status, responseDto.Status)
-	assert.Equal(t, user.ImageURL, responseDto.Image.ImageUrl)
+	assert.Equal(t, user.ImageURL, responseDto.Picture.ImageUrl)
 	assert.Equal(t, postCount, responseDto.Posts)
 	assert.Equal(t, followerCount, responseDto.Follower)
 	assert.Equal(t, followingCount, responseDto.Following)

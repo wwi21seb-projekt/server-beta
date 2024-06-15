@@ -38,7 +38,13 @@ func (repo *CommentRepository) GetCommentsByPostId(postId string, offset, limit 
 	}
 
 	// Get comments using pagination information
-	err = baseQuery.Offset(offset).Limit(limit).Order("created_at desc, id desc").Preload("User").Find(&comments).Error
+	err = baseQuery.
+		Offset(offset).
+		Limit(limit).
+		Order("created_at desc, id desc").
+		Preload("User").
+		Preload("User.Image").
+		Find(&comments).Error
 	if err != nil {
 		return nil, 0, err
 	}

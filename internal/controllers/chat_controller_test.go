@@ -17,6 +17,7 @@ import (
 	"gorm.io/gorm"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -365,6 +366,14 @@ func TestGetChatsSuccess(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	imageId := uuid.New()
+	format := "png"
+	err = os.Setenv("SERVER_URL", "https://example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	expectedUrl := os.Getenv("SERVER_URL") + "/api/images/" + imageId.String() + "." + format
+
 	chats := []models.Chat{
 		{
 			Id: uuid.New(),
@@ -372,15 +381,17 @@ func TestGetChatsSuccess(t *testing.T) {
 				{
 					Username: "testUser2",
 					Nickname: "Test User 2",
-					ImageURL: "https://example.com/testuser2.jpg",
+					ImageId:  &imageId,
 					Image: models.Image{
-						ImageUrl: "https://example.com/testuser2.jpg",
-						Width:    100,
-						Height:   100,
+						Id:     imageId,
+						Format: format,
+						Width:  100,
+						Height: 100,
+						Tag:    time.Now().UTC(),
 					},
 				},
 			},
-			CreatedAt: time.Now(),
+			CreatedAt: time.Now().UTC(),
 		},
 		{
 			Id: uuid.New(),
@@ -388,15 +399,10 @@ func TestGetChatsSuccess(t *testing.T) {
 				{
 					Username: "testUser3",
 					Nickname: "Test User 3",
-					ImageURL: "https://example.com/testuser3.jpg",
-					Image: models.Image{
-						ImageUrl: "https://example.com/testuser3.jpg",
-						Width:    100,
-						Height:   100,
-					},
+					ImageId:  nil,
 				},
 			},
-			CreatedAt: time.Now(),
+			CreatedAt: time.Now().UTC(),
 		},
 	}
 
@@ -428,7 +434,15 @@ func TestGetChatsSuccess(t *testing.T) {
 		assert.Equal(t, chat.Id.String(), response.Records[i].ChatId)
 		assert.Equal(t, chat.Users[0].Username, response.Records[i].User.Username)
 		assert.Equal(t, chat.Users[0].Nickname, response.Records[i].User.Nickname)
-		assert.Equal(t, chat.Users[0].ImageURL, response.Records[i].User.Picture.ImageUrl)
+
+		if chat.Users[0].ImageId != nil {
+			assert.Equal(t, expectedUrl, response.Records[i].User.Picture.Url)
+			assert.Equal(t, chat.Users[0].Image.Width, response.Records[i].User.Picture.Width)
+			assert.Equal(t, chat.Users[0].Image.Height, response.Records[i].User.Picture.Height)
+			assert.True(t, chat.Users[0].Image.Tag.Equal(response.Records[i].User.Picture.Tag))
+		} else {
+			assert.Nil(t, response.Records[i].User.Picture)
+		}
 	}
 
 	mockChatRepo.AssertExpectations(t)

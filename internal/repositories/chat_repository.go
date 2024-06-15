@@ -67,6 +67,6 @@ func (repo *ChatRepository) GetChatsByUsername(username string) ([]models.Chat, 
 
 func (repo *ChatRepository) GetChatById(chatId string) (models.Chat, error) {
 	var chat models.Chat
-	err := repo.DB.Where("id = ?", chatId).Preload("Users").First(&chat).Error
+	err := repo.DB.Where("id = ?", chatId).Preload("Users").Preload("Users.Image").First(&chat).Error
 	return chat, err
 }

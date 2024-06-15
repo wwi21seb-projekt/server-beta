@@ -1,9 +1,7 @@
 package utils_test
 
 import (
-	"encoding/base64"
 	"github.com/wwi21seb-projekt/server-beta/internal/utils"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -132,42 +130,6 @@ func TestValidateStatus(t *testing.T) {
 	}
 }
 
-// TestValidateImage tests the ValidateImage function using multiple image examples from the tests/resources folder
-func TestValidateImage(t *testing.T) {
-	tests := []struct {
-		name     string
-		filePath string
-		want     bool
-	}{
-		{"Valid JPEG Image", "../../tests/resources/valid.jpeg", true},
-		{"Valid WEBP Image", "../../tests/resources/valid.webp", true},
-		{"Empty JPEG Image", "../../tests/resources/empty.jpeg", false},
-		{"Empty WEBP Image", "../../tests/resources/empty.webp", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			filePath := filepath.Join(tt.filePath)
-			imageData, err := os.ReadFile(filePath)
-			if err != nil {
-				t.Fatalf("Failed to read image file: %s", err)
-			}
-
-			validator := utils.NewValidator()
-
-			base64String := base64.StdEncoding.EncodeToString(imageData)
-			if err != nil {
-				log.Fatal("Error converting image to Base64: ", err)
-			}
-			isValid, _, err := validator.ValidateImage(base64String)
-
-			if isValid != tt.want {
-				t.Errorf("ValidateImage() = %v, want %v", isValid, tt.want)
-			}
-		})
-	}
-}
-
 // TestValidateLatitude tests the ValidateLatitude function using multiple examples
 func TestValidateLatitude(t *testing.T) {
 	tests := []struct {
@@ -213,6 +175,57 @@ func TestValidateLongitude(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := validator.ValidateLongitude(tt.longitude); got != tt.want {
 				t.Errorf("ValidateLongitude() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+// TestValidateImage tests the ValidateImage function using multiple image examples from the tests/resources folder
+func TestValidateImage(t *testing.T) {
+	tests := []struct {
+		name         string
+		filePath     string
+		want         bool
+		wantedFormat string
+		wantedWidth  int
+		wantedHeight int
+	}{
+		{"Valid JPEG Picture", "../../tests/resources/valid.jpeg", true, "jpeg", 670, 444},
+		{"Valid WEBP Picture", "../../tests/resources/valid.webp", true, "webp", 670, 444},
+		{"Valid PNG Picture", "../../tests/resources/valid.png", true, "png", 204, 192},
+		{"Valid SVG Picture", "../../tests/resources/valid.svg", true, "svg", 16, 16},
+		{"Empty JPEG Picture", "../../tests/resources/empty.jpeg", false, "", 0, 0},
+		{"Empty WEBP Picture", "../../tests/resources/empty.webp", false, "", 0, 0},
+		{"Empty PNG Picture", "../../tests/resources/empty.png", false, "", 0, 0},
+		{"Empty SVG Picture", "../../tests/resources/empty.svg", false, "", 0, 0},
+		{"Malicious SVG Picture", "../../tests/resources/malicious.svg", false, "", 0, 0},
+		{"Invalid Dimensions SVG", "../../tests/resources/invalid_dimensions.svg", false, "", 0, 0},
+		{"Invalid Filetype", "../../tests/resources/invalid.txt", false, "", 0, 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			filePath := filepath.Join(tt.filePath)
+			imageData, err := os.ReadFile(filePath)
+			if err != nil {
+				t.Fatalf("Failed to read image file: %s", err)
+			}
+
+			validator := utils.NewValidator()
+
+			isValid, format, width, height := validator.ValidateImage(imageData)
+
+			if isValid != tt.want {
+				t.Errorf("ValidateImage() = %v, want %v", isValid, tt.want)
+			}
+			if format != tt.wantedFormat {
+				t.Errorf("ValidateImage() = %v, want %v", format, tt.wantedFormat)
+			}
+			if width != tt.wantedWidth {
+				t.Errorf("ValidateImage() = %v, want %v", width, tt.wantedWidth)
+			}
+			if height != tt.wantedHeight {
+				t.Errorf("ValidateImage() = %v, want %v", height, tt.wantedHeight)
 			}
 		})
 	}

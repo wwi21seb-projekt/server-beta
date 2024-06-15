@@ -209,8 +209,7 @@ func (controller *UserController) UpdateUserInformation(c *gin.Context) {
 	// Check if the keys are present in the request
 	_, nicknamePresent := requestData["nickname"]
 	_, statusPresent := requestData["status"]
-	_, imagePresent := requestData["picture"]
-	if !nicknamePresent && !statusPresent && !imagePresent {
+	if !nicknamePresent && !statusPresent {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": customerrors.BadRequest,
 		})
@@ -218,19 +217,25 @@ func (controller *UserController) UpdateUserInformation(c *gin.Context) {
 	}
 
 	// Map the data to DTO
-	var userUpdateResponseDTO models.UserInformationUpdateDTO
+	var userUpdateRequestDTO models.UserInformationUpdateRequestDTO
 	if nickname, ok := requestData["nickname"].(string); ok {
-		userUpdateResponseDTO.Nickname = nickname
+		userUpdateRequestDTO.Nickname = nickname
 	}
 	if status, ok := requestData["status"].(string); ok {
-		userUpdateResponseDTO.Status = status
+		userUpdateRequestDTO.Status = status
 	}
-	if image, ok := requestData["picture"].(string); ok {
-		userUpdateResponseDTO.Image = image
+
+	// Differentiate between nil and "" for picture
+	picture, picturePresent := requestData["picture"] // Check if picture is present null
+	pictureString, ok := picture.(string)             // convert picture to string
+	if picture == nil || !picturePresent || !ok {     // if picture was not present, not nil or not a string, set dto picture to nil
+		userUpdateRequestDTO.Picture = nil // nil is used to indicate that the picture should not be updated
+	} else {
+		userUpdateRequestDTO.Picture = &pictureString // "" is used to indicate that the picture should be removed, otherwise base64 string
 	}
 
 	// Update the user's information
-	responseDTO, customErr, status := controller.userService.UpdateUserInformation(&userUpdateResponseDTO, username.(string))
+	responseDTO, customErr, status := controller.userService.UpdateUserInformation(&userUpdateRequestDTO, username.(string))
 	if customErr != nil {
 		c.JSON(status, gin.H{
 			"error": customErr,

@@ -21,25 +21,31 @@ type SubscriptionPostRequestDTO struct {
 type SubscriptionPostResponseDTO struct {
 	SubscriptionId   uuid.UUID `json:"subscriptionId"`
 	SubscriptionDate time.Time `json:"subscriptionDate"`
-	Follower         string    `json:"username"`
+	Follower         string    `json:"follower"`
 	Following        string    `json:"following"`
 }
 
 type SubscriptionResponseDTO struct {
 	Records    []UserSubscriptionRecordDTO `json:"records"`
-	Pagination *SubscriptionPaginationDTO  `json:"pagination"`
+	Pagination *OffsetPaginationDTO        `json:"pagination"`
 }
 
 type UserSubscriptionRecordDTO struct {
-	FollowerId        *uuid.UUID `gorm:"column:follower_id" json:"followerId"`                // SubscriptionID, wenn Nutzer mir folgt - ggf. null
-	FollowingId       *uuid.UUID `gorm:"column:following_id" json:"followingId"`              // SubscriptionID, wenn ich Nutzer folge - ggf. null
-	Username          string     `gorm:"column:username" json:"username"`                     // Der Benutzername des Followers/Following
-	Nickname          string     `gorm:"column:nickname" json:"nickname"`                     // Der Spitzname des Followers/Following
-	ProfilePictureUrl string     `gorm:"column:profile_picture_url" json:"profilePictureUrl"` // Die URL des Profilbildes des Followers/Following
+	FollowerId  *uuid.UUID        `json:"followerId"`  // SubscriptionId, if user follows me - may be null
+	FollowingId *uuid.UUID        `json:"followingId"` // SubscriptionId, if I follow user - may be null
+	Username    string            `json:"username"`    // Username of follower/following
+	Nickname    string            `json:"nickname"`
+	Picture     *ImageMetadataDTO `json:"picture"`
 }
 
-type SubscriptionPaginationDTO struct {
-	Offset  int   `json:"offset"`
-	Limit   int   `json:"limit"`
-	Records int64 `json:"records"`
+type UserSubscriptionSQLRecordDTO struct { // to be used for sql query results
+	FollowerId  *uuid.UUID
+	FollowingId *uuid.UUID
+	Username    string
+	Nickname    string
+	ImageId     string
+	Format      string
+	Width       int
+	Height      int
+	Tag         time.Time
 }

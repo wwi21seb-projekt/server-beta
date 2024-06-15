@@ -15,17 +15,11 @@ type Notification struct {
 	FromUser         User      `gorm:"foreignKey:from_username;references:username"`
 }
 
-type NotificationUserDTO struct {
-	Username string `json:"username"`
-	Nickname string `json:"nickname"`
-	Picture  *Image `json:"picture"`
-}
-
 type NotificationRecordDTO struct {
-	NotificationId   string               `json:"notificationId"`
-	Timestamp        time.Time            `json:"timestamp"`
-	NotificationType string               `json:"notificationType"`
-	User             *NotificationUserDTO `json:"user"`
+	NotificationId   string    `json:"notificationId"`
+	Timestamp        time.Time `json:"timestamp"`
+	NotificationType string    `json:"notificationType"`
+	User             *UserDTO  `json:"user"`
 }
 
 type NotificationsResponseDTO struct {

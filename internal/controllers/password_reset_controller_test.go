@@ -80,7 +80,7 @@ func TestInitiatePasswordResetSuccess(t *testing.T) {
 	assert.NotEmpty(t, capturedToken.Id)
 	assert.Equal(t, username, capturedToken.Username)
 	assert.NotEmpty(t, capturedToken.Token)
-	assert.WithinDuration(t, time.Now().Add(2*time.Hour), capturedToken.ExpirationTime, time.Minute)
+	assert.WithinDuration(t, time.Now().UTC().Add(2*time.Hour), capturedToken.ExpirationTime, time.Minute)
 
 	var responseBody models.InitiatePasswordResetResponseDTO
 	err := json.Unmarshal(w.Body.Bytes(), &responseBody)
@@ -210,7 +210,7 @@ func TestResetPasswordSuccess(t *testing.T) {
 		Id:             uuid.New(),
 		Token:          token,
 		Username:       username,
-		ExpirationTime: time.Now().Add(1 * time.Hour),
+		ExpirationTime: time.Now().UTC().Add(1 * time.Hour),
 	}
 
 	// Mock expectations
@@ -362,7 +362,7 @@ func TestResetPasswordExpiredToken(t *testing.T) {
 		Id:             uuid.New(),
 		Token:          token,
 		Username:       username,
-		ExpirationTime: time.Now().Add(-24 * time.Hour), // expired token
+		ExpirationTime: time.Now().UTC().Add(-24 * time.Hour), // expired token
 	}
 
 	user := models.User{

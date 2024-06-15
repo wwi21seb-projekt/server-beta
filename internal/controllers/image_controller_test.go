@@ -16,7 +16,7 @@ import (
 	"testing"
 )
 
-// TestGetImageSuccess tests the GetImage function
+// TestGetImageSuccess tests the GetImageById function
 func TestGetImageSuccess(t *testing.T) {
 	filenames := []string{
 		"test.jpeg",
@@ -47,7 +47,7 @@ func TestGetImageSuccess(t *testing.T) {
 		// Act
 		gin.SetMode(gin.TestMode)
 		router := gin.Default()
-		router.GET("/images/:filename", imageController.GetImage)
+		router.GET("/images/:filename", imageController.GetImageById)
 		router.ServeHTTP(w, req)
 
 		// Assert
@@ -59,7 +59,7 @@ func TestGetImageSuccess(t *testing.T) {
 	}
 }
 
-// TestGetImagePathTraversal tests if the GetImage function prevents path traversal and removes relative paths
+// TestGetImagePathTraversal tests if the GetImageById function prevents path traversal and removes relative paths
 func TestGetImagePathTraversal(t *testing.T) {
 	filenames := []string{
 		"../test.jpeg",
@@ -85,18 +85,18 @@ func TestGetImagePathTraversal(t *testing.T) {
 		imageService := services.NewImageService(mockFileSystem, mockValidator)
 
 		// Act
-		imageData, err, statusCode := imageService.GetImage(filename)
+		imageData, err, statusCode := imageService.GetImageById(filename)
 
 		// Assert
 		assert.Equal(t, http.StatusNotFound, statusCode) // Expect HTTP 404 Not Found
-		assert.Equal(t, customerrors.FileNotFound, err)
+		assert.Equal(t, customerrors.ImageNotFound, err)
 		assert.Nil(t, imageData)
 
 		assert.NotContains(t, pathCaptor, "..", "Path contains directory traversal characters")
 	}
 }
 
-// TestGetImageNotFound tests if the GetImage function returns a 404 error when the image does not exist
+// TestGetImageNotFound tests if the GetImageById function returns a 404 error when the image does not exist
 func TestGetImageNotFound(t *testing.T) {
 	// Arrange
 	mockFileSystem := new(repositories.MockFileSystem)
@@ -117,7 +117,7 @@ func TestGetImageNotFound(t *testing.T) {
 	// Act
 	gin.SetMode(gin.TestMode)
 	router := gin.Default()
-	router.GET("/images/:filename", imageController.GetImage)
+	router.GET("/images/:filename", imageController.GetImageById)
 	router.ServeHTTP(w, req)
 
 	// Assert
@@ -126,7 +126,7 @@ func TestGetImageNotFound(t *testing.T) {
 	err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
 
-	expectedCustomError := customerrors.FileNotFound
+	expectedCustomError := customerrors.ImageNotFound
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 

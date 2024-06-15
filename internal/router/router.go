@@ -38,7 +38,9 @@ func SetupRouter() *gin.Engine {
 
 	// No route found
 	r.NoRoute(func(c *gin.Context) {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Page not found"})
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": customerrors.EndpointNotFound,
+		})
 	})
 
 	// Setup repositories, services, controllers
@@ -47,27 +49,26 @@ func SetupRouter() *gin.Engine {
 	postRepo := repositories.NewPostRepository(initializers.DB)
 	commentRepo := repositories.NewCommentRepository(initializers.DB)
 	hashtagRepo := repositories.NewHashtagRepository(initializers.DB)
-	fileSystem := repositories.NewFileSystem()
 	subscriptionRepo := repositories.NewSubscriptionRepository(initializers.DB)
-	locationRepo := repositories.NewLocationRepository(initializers.DB)
 	likeRepo := repositories.NewLikeRepository(initializers.DB)
 	notificationRepo := repositories.NewNotificationRepository(initializers.DB)
 	pushSubscriptionRepo := repositories.NewPushSubscriptionRepository(initializers.DB)
 	passwordResetRepo := repositories.NewPasswordResetRepository(initializers.DB)
 	chatRepo := repositories.NewChatRepository(initializers.DB)
 	messageRepo := repositories.NewMessageRepository(initializers.DB)
+	imageRepo := repositories.NewImageRepository(initializers.DB)
 
 	validator := utils.NewValidator()
 	mailService := services.NewMailService()
-	imageService := services.NewImageService(fileSystem, validator)
-	userService := services.NewUserService(userRepo, activationTokenRepo, mailService, validator, postRepo, imageService, subscriptionRepo)
+	imageService := services.NewImageService(imageRepo)
+	userService := services.NewUserService(userRepo, activationTokenRepo, mailService, validator, postRepo, imageRepo, subscriptionRepo)
 	feedService := services.NewFeedService(postRepo, userRepo, likeRepo, commentRepo)
 	likeService := services.NewLikeService(likeRepo, postRepo)
 	pushSubscriptionService := services.NewPushSubscriptionService(pushSubscriptionRepo)
 	notificationService := services.NewNotificationService(notificationRepo, pushSubscriptionService)
 	subscriptionService := services.NewSubscriptionService(subscriptionRepo, userRepo, notificationService)
 	commentService := services.NewCommentService(commentRepo, postRepo, userRepo)
-	postService := services.NewPostService(postRepo, userRepo, hashtagRepo, imageService, validator, locationRepo, likeRepo, commentRepo, notificationService)
+	postService := services.NewPostService(postRepo, userRepo, hashtagRepo, imageService, validator, likeRepo, commentRepo, notificationService)
 	passwordResetService := services.NewPasswordResetService(userRepo, passwordResetRepo, mailService, validator)
 	chatService := services.NewChatService(chatRepo, userRepo, notificationService)
 	messageService := services.NewMessageService(messageRepo, chatRepo, notificationService)
@@ -117,8 +118,8 @@ func SetupRouter() *gin.Engine {
 	api.GET("/feed", feedController.GetPostFeed)
 	api.GET("/posts", middleware.AuthorizeUser, feedController.GetPostsByHashtag)
 
-	// Image
-	api.GET("/images/:filename", imageController.GetImage)
+	// Picture
+	api.GET("/images/:imageId", imageController.GetImageById)
 
 	// Subscription
 	api.POST("/subscriptions", middleware.AuthorizeUser, subscriptionController.PostSubscription)
@@ -145,13 +146,11 @@ func SetupRouter() *gin.Engine {
 	api.POST("/chats", middleware.AuthorizeUser, chatController.CreateChat)
 	api.GET("/chats", middleware.AuthorizeUser, chatController.GetChats)
 	api.GET("/chats/:chatId", middleware.AuthorizeUser, messageController.GetMessagesByChatId)
+	api.GET("/chat", messageController.HandleWebSocket) // Websocket endpoint
 
 	// Reset Password
 	api.POST("/users/:username/reset-password", passwordResetController.InitiatePasswordReset)
 	api.PATCH("/users/:username/reset-password", passwordResetController.ResetPassword)
-
-	// WebSocket
-	api.GET("/chat", messageController.HandleWebSocket)
 
 	return r
 }

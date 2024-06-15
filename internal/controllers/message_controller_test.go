@@ -56,7 +56,7 @@ func TestGetMessagesByChatIdSuccess(t *testing.T) {
 			ChatId:    chatId,
 			Username:  currentUsername,
 			Content:   "Test message 1",
-			CreatedAt: time.Now(),
+			CreatedAt: time.Now().UTC(),
 		},
 		{
 			Id:       uuid.New(),
@@ -282,7 +282,7 @@ func TestHandleWebSocketSuccess(t *testing.T) {
 	defer func(ws *websocket.Conn) {
 		_ = ws.Close()
 	}(ws)
-	_ = ws.SetReadDeadline(time.Now().Add(10 * time.Second)) // set read deadline to avoid blocking
+	_ = ws.SetReadDeadline(time.Now().UTC().Add(10 * time.Second)) // set read deadline to avoid blocking
 
 	// Create WebSocket connection for second other user
 	url = "ws" + server.URL[4:] + "/chat?chatId=" + chat.Id.String()
@@ -292,7 +292,7 @@ func TestHandleWebSocketSuccess(t *testing.T) {
 	defer func(ws2 *websocket.Conn) {
 		_ = ws2.Close()
 	}(ws2)
-	_ = ws2.SetReadDeadline(time.Now().Add(10 * time.Second)) // set read deadline to avoid blocking
+	_ = ws2.SetReadDeadline(time.Now().UTC().Add(10 * time.Second)) // set read deadline to avoid blocking
 
 	// Wait for connections to establish
 	time.Sleep(1 * time.Second)

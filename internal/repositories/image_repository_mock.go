@@ -9,17 +9,12 @@ type MockImageRepository struct {
 	mock.Mock
 }
 
-func (m *MockImageRepository) CreateImage(image *models.Image) error {
-	args := m.Called(image)
-	return args.Error(0)
-}
-
-func (m *MockImageRepository) DeleteImage(imageUrl string) error {
-	args := m.Called(imageUrl)
-	return args.Error(0)
-}
-
-func (m *MockImageRepository) GetImageMetadata(imageUrl string) (*models.Image, error) {
-	args := m.Called(imageUrl)
+func (m *MockImageRepository) GetImageById(id string) (*models.Image, error) {
+	args := m.Called(id)
 	return args.Get(0).(*models.Image), args.Error(1)
+}
+
+func (m *MockImageRepository) DeleteImageById(id string) error {
+	args := m.Called(id)
+	return args.Error(0)
 }

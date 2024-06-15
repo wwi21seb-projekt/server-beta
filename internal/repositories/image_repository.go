@@ -6,31 +6,26 @@ import (
 )
 
 type ImageRepositoryInterface interface {
-	CreateImage(image *models.Image) error
-	DeleteImage(imageUrl string) error
-	GetImageMetadata(imageUrl string) (*models.Image, error)
+	GetImageById(id string) (*models.Image, error)
+	DeleteImageById(id string) error
 }
 
 type ImageRepository struct {
 	DB *gorm.DB
 }
 
-func (repo *ImageRepository) CreateImage(image *models.Image) error {
-	err := repo.DB.Create(image).Error
-	return err
+// NewImageRepository can be used as a constructor to create a ImageRepository "object"
+func NewImageRepository(db *gorm.DB) *ImageRepository {
+	return &ImageRepository{DB: db}
 }
 
-func (repo *ImageRepository) DeleteImage(imageUrl string) error {
-	return repo.DB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("imageUrl = ?", imageUrl).Delete(&models.Post{}).Error; err != nil {
-			return err
-		}
-		return nil
-	})
-}
-
-func (repo *ImageRepository) GetImageMetadata(imageUrl string) (*models.Image, error) {
+func (repo *ImageRepository) GetImageById(id string) (*models.Image, error) {
 	var image models.Image
-	err := repo.DB.Preload("Location").Preload("User").Preload("Image").Where("imageUrl = ?", imageUrl).First(&image).Error
+	err := repo.DB.Where("id = ?", id).First(&image).Error
 	return &image, err
+}
+
+func (repo *ImageRepository) DeleteImageById(id string) error {
+	err := repo.DB.Where("id = ?", id).Delete(&models.Image{}).Error
+	return err
 }

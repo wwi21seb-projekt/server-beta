@@ -372,7 +372,7 @@ func TestDeleteSubscriptionSuccess(t *testing.T) {
 
 	subscription := models.Subscription{
 		Id:                uuid.New(),
-		SubscriptionDate:  time.Now(),
+		SubscriptionDate:  time.Now().UTC(),
 		FollowerUsername:  currentUsername,
 		FollowingUsername: "testUser2",
 	}
@@ -507,7 +507,7 @@ func TestDeleteSubscriptionForbidden(t *testing.T) {
 
 	subscription := models.Subscription{
 		Id:                uuid.New(),
-		SubscriptionDate:  time.Now(),
+		SubscriptionDate:  time.Now().UTC(),
 		FollowerUsername:  "testUser2",
 		FollowingUsername: "testUser3",
 	}

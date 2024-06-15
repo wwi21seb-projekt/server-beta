@@ -55,7 +55,7 @@ func TestCreatePostWithLocationSuccess(t *testing.T) {
 		Nickname:     "testNickname",
 		Email:        "test@domain.com",
 		PasswordHash: "passwordHash",
-		CreatedAt:    time.Now().Add(time.Hour * -24),
+		CreatedAt:    time.Now().UTC().Add(time.Hour * -24),
 		Activated:    true,
 	}
 	authenticationToken, err := utils.GenerateAccessToken(user.Username)
@@ -129,7 +129,7 @@ func TestCreatePostWithLocationSuccess(t *testing.T) {
 	assert.Equal(t, *postCreateRequestDTO.Location.Accuracy, capturedLocation.Accuracy)
 	assert.Equal(t, capturedLocation.Id, *capturedPost.LocationId)
 	assert.NotEmpty(t, capturedPost.CreatedAt)
-	assert.Empty(t, capturedPost.ImageURL)
+	assert.Empty(t, capturedPost.ImageId)
 	assert.Equal(t, capturedPost.Hashtags[0].Id, expectedHashtagOne.Id)
 	assert.Equal(t, capturedPost.Hashtags[0].Name, expectedHashtagOne.Name)
 	assert.Equal(t, capturedPost.Hashtags[1].Id, expectedHashtagTwo.Id)
@@ -181,7 +181,7 @@ func TestCreatePostWithLocationZeroValues(t *testing.T) {
 		Nickname:     "testNickname",
 		Email:        "test@domain.com",
 		PasswordHash: "passwordHash",
-		CreatedAt:    time.Now().Add(time.Hour * -24),
+		CreatedAt:    time.Now().UTC().Add(time.Hour * -24),
 		Activated:    true,
 	}
 	authenticationToken, err := utils.GenerateAccessToken(user.Username)
@@ -255,7 +255,7 @@ func TestCreatePostWithLocationZeroValues(t *testing.T) {
 	assert.Equal(t, *postCreateRequestDTO.Location.Accuracy, capturedLocation.Accuracy)
 	assert.Equal(t, capturedLocation.Id, *capturedPost.LocationId)
 	assert.NotEmpty(t, capturedPost.CreatedAt)
-	assert.Empty(t, capturedPost.ImageURL)
+	assert.Empty(t, capturedPost.ImageId)
 	assert.Equal(t, capturedPost.Hashtags[0].Id, expectedHashtagOne.Id)
 	assert.Equal(t, capturedPost.Hashtags[0].Name, expectedHashtagOne.Name)
 	assert.Equal(t, capturedPost.Hashtags[1].Id, expectedHashtagTwo.Id)
@@ -306,7 +306,7 @@ func TestCreatePostWithoutLocationSuccess(t *testing.T) {
 		Nickname:     "testNickname",
 		Email:        "test@domain.com",
 		PasswordHash: "passwordHash",
-		CreatedAt:    time.Now().Add(time.Hour * -24),
+		CreatedAt:    time.Now().UTC().Add(time.Hour * -24),
 		Activated:    true,
 	}
 	authenticationToken, err := utils.GenerateAccessToken(user.Username)
@@ -364,7 +364,7 @@ func TestCreatePostWithoutLocationSuccess(t *testing.T) {
 	assert.Equal(t, postCreateRequestDTO.Content, capturedPost.Content)
 	assert.Nil(t, capturedPost.LocationId)
 	assert.NotEmpty(t, capturedPost.CreatedAt)
-	assert.Empty(t, capturedPost.ImageURL)
+	assert.Empty(t, capturedPost.ImageId)
 	assert.Equal(t, capturedPost.Hashtags[0].Id, expectedHashtagOne.Id)
 	assert.Equal(t, capturedPost.Hashtags[0].Name, expectedHashtagOne.Name)
 	assert.Equal(t, capturedPost.Hashtags[1].Id, expectedHashtagTwo.Id)
@@ -432,7 +432,7 @@ func TestCreatePostWithRepostSuccess(t *testing.T) {
 		Username:   originalUser.Username,
 		User:       originalUser,
 		Content:    "This is the original post.",
-		CreatedAt:  time.Now().Add(time.Hour * -24),
+		CreatedAt:  time.Now().UTC().Add(time.Hour * -24),
 		LocationId: nil,
 		RepostId:   nil,
 	}
@@ -498,7 +498,7 @@ func TestCreatePostWithRepostSuccess(t *testing.T) {
 	assert.Equal(t, postCreateRequestDTO.Content, capturedPost.Content)
 	assert.Nil(t, capturedPost.LocationId)
 	assert.NotEmpty(t, capturedPost.CreatedAt)
-	assert.Empty(t, capturedPost.ImageURL)
+	assert.Empty(t, capturedPost.ImageId)
 	assert.Equal(t, capturedPost.RepostId, &originalPost.Id)
 
 	assert.Equal(t, user.Username, responsePost.Author.Username)
@@ -645,7 +645,7 @@ func TestCreatePostRepostOfRepost(t *testing.T) {
 		Id:         uuid.New(),
 		Username:   "originalUser",
 		Content:    "This is the original post.",
-		CreatedAt:  time.Now().Add(time.Hour * -24),
+		CreatedAt:  time.Now().UTC().Add(time.Hour * -24),
 		LocationId: nil,
 		RepostId:   &tempId,
 	}

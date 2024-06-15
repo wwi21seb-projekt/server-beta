@@ -2,8 +2,7 @@ package utils
 
 import (
 	"bytes"
-	"encoding/base64"
-	"errors"
+	"encoding/xml"
 	"github.com/truemail-rb/truemail-go"
 	"golang.org/x/image/webp"
 	"image"
@@ -12,7 +11,7 @@ import (
 	_ "image/png"
 	"os"
 	"regexp"
-	"strings"
+	"strconv"
 	"unicode"
 )
 
@@ -23,9 +22,9 @@ type ValidatorInterface interface {
 	ValidateEmailExistance(email string) bool
 	ValidatePassword(password string) bool
 	ValidateStatus(status string) bool
-	ValidateImage(imageData string) (bool, string, error)
 	ValidateLatitude(latitude float64) bool
 	ValidateLongitude(longitude float64) bool
+	ValidateImage(imageData []byte) (bool, string, int, int)
 }
 
 type Validator struct {
@@ -102,51 +101,6 @@ func (v *Validator) ValidateStatus(status string) bool {
 	return len(status) <= 128
 }
 
-// ValidateImage validates if an image is correct file type and can be decoded, additionally returns file format
-func (v *Validator) ValidateImage(base64String string) (bool, string, error) {
-	// Decode the Base64 string
-	imageData, err := base64.StdEncoding.DecodeString(base64String)
-	if err != nil {
-		return false, "", err
-	}
-
-	// Detect image type by checking magic numbers
-	var contentType string
-	if bytes.HasPrefix(imageData, []byte{0xff, 0xd8, 0xff}) {
-		contentType = "image/jpeg"
-	} else if bytes.HasPrefix(imageData, []byte{'R', 'I', 'F', 'F'}) && bytes.Contains(imageData[:16], []byte{'W', 'E', 'B', 'P'}) {
-		contentType = "image/webp"
-	} else if bytes.HasPrefix(imageData, []byte{0x89, 'P', 'N', 'G', '\r', '\n', 0x1a, '\n'}) {
-		contentType = "image/png"
-	} else if bytes.HasPrefix(imageData, []byte{'G', 'I', 'F'}) {
-		contentType = "image/gif"
-	} else if bytes.HasPrefix(imageData, []byte{'<', 's', 'v', 'g'}) || bytes.HasPrefix(imageData, []byte{'<', '?', 'x', 'm', 'l'}) {
-		contentType = "image/svg+xml"
-	} else {
-		return false, "", errors.New("unknown image format")
-	}
-
-	// Then check if image can be decoded if it's not SVG
-	if contentType != "image/svg+xml" {
-		var err error
-		if contentType == "image/webp" {
-			_, err = webp.Decode(bytes.NewReader(imageData))
-		} else {
-			_, _, err = image.Decode(bytes.NewReader(imageData))
-		}
-		if err != nil {
-			return false, "", err
-		}
-	} else {
-		// Additional SVG validation can be added here if needed
-		if !strings.Contains(string(imageData), "<svg") {
-			return false, "", errors.New("invalid SVG content")
-		}
-	}
-
-	return true, contentType, nil
-}
-
 // ValidateLatitude validates if latitude is in valid range
 func (v *Validator) ValidateLatitude(latitude float64) bool {
 	return latitude >= -90 && latitude <= 90
@@ -155,4 +109,60 @@ func (v *Validator) ValidateLatitude(latitude float64) bool {
 // ValidateLongitude validates if longitude is in valid range
 func (v *Validator) ValidateLongitude(longitude float64) bool {
 	return longitude >= -180 && longitude <= 180
+}
+
+// ValidateImage validates if an image is correct file type and can be "opened", additionally returns file format, width and height
+func (v *Validator) ValidateImage(imageData []byte) (bool, string, int, int) {
+	// If file size is larger than 10 MB, return false
+	if len(imageData) > 10*1024*1024 { // 10 MB
+		return false, "", 0, 0
+	}
+
+	// Decode to validate image: png, jpeg
+	img, format, err := image.DecodeConfig(bytes.NewReader(imageData))
+	if err == nil && (format == "png" || format == "jpeg") {
+		return true, format, img.Width, img.Height
+	}
+
+	// Decode to validate image: webp
+	img, err = webp.DecodeConfig(bytes.NewReader(imageData))
+	if err == nil {
+		return true, "webp", img.Width, img.Height
+	}
+
+	// Decode to validate image: svg
+	if bytes.HasPrefix(imageData, []byte("<svg")) && bytes.HasSuffix(imageData, []byte("</svg>")) {
+		// Check for disallowed elements or attributes
+		if bytes.Contains(imageData, []byte("<script")) || // Check for <script> tags
+			bytes.Contains(imageData, []byte("onload=")) || // Check for onload event
+			bytes.Contains(imageData, []byte("onclick=")) || // Check for onclick event
+			bytes.Contains(imageData, []byte("onmouseover=")) || // Check for onmouseover event
+			bytes.Contains(imageData, []byte("data:")) { // Check for data URIs
+			return false, "", 0, 0
+		}
+
+		// Decode svg to get width and height
+		type SVG struct {
+			XMLName xml.Name `xml:"svg"`
+			Width   string   `xml:"width,attr"`
+			Height  string   `xml:"height,attr"`
+		}
+		var svg SVG
+		decoder := xml.NewDecoder(bytes.NewReader(imageData))
+		if err := decoder.Decode(&svg); err != nil {
+			return false, "", 0, 0
+		}
+		// Convert width and height to integers
+		// If conversion return 0, return false
+		width, _ := strconv.Atoi(svg.Width)
+		height, _ := strconv.Atoi(svg.Height)
+		if width == 0 || height == 0 {
+			return false, "", 0, 0
+		}
+
+		return true, "svg", width, height
+	}
+
+	// If none of the above conditions are met, return false
+	return false, "", 0, 0
 }

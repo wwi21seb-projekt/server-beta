@@ -51,14 +51,14 @@ func TestGetNotificationsSuccess(t *testing.T) {
 			FromUser:         otherUser,
 			ForUsername:      currentUsername,
 			NotificationType: "follow",
-			Timestamp:        time.Now(),
+			Timestamp:        time.Now().UTC(),
 		},
 		{
 			Id:               uuid.New(),
 			FromUser:         otherUser,
 			ForUsername:      currentUsername,
 			NotificationType: "repost",
-			Timestamp:        time.Now(),
+			Timestamp:        time.Now().UTC(),
 		},
 	}
 

@@ -297,7 +297,7 @@ func TestGetCommentsByPostIdSuccess(t *testing.T) {
 				},
 			},
 			Content:   "Test comment 1",
-			CreatedAt: time.Now(),
+			CreatedAt: time.Now().UTC(),
 		},
 		{
 			Id:       uuid.New(),
@@ -314,7 +314,7 @@ func TestGetCommentsByPostIdSuccess(t *testing.T) {
 				},
 			},
 			Content:   "Test comment 2",
-			CreatedAt: time.Now(),
+			CreatedAt: time.Now().UTC(),
 		},
 	}
 

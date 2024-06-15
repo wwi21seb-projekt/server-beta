@@ -49,7 +49,7 @@ func TestGetPostsByUsernameSuccess(t *testing.T) {
 			Id:         uuid.New(),
 			Username:   user.Username,
 			Content:    "Test Post 1",
-			CreatedAt:  time.Now(),
+			CreatedAt:  time.Now().UTC(),
 			LocationId: &locationId,
 			Location: models.Location{
 				Longitude: 11.1,
@@ -61,7 +61,7 @@ func TestGetPostsByUsernameSuccess(t *testing.T) {
 			Id:         uuid.New(),
 			Username:   user.Username,
 			Content:    "Test Post 2",
-			CreatedAt:  time.Now().Add(-1 * time.Hour),
+			CreatedAt:  time.Now().UTC().Add(-1 * time.Hour),
 			LocationId: nil,
 			Location:   models.Location{},
 		},
@@ -270,8 +270,8 @@ func TestGetGlobalPostFeedSuccess(t *testing.T) {
 			Username:  "someUserTest",
 			User:      models.User{},
 			Content:   "This is the last post",
-			ImageURL:  "",
-			CreatedAt: time.Now().Add(time.Hour * -1),
+			ImageId:   "",
+			CreatedAt: time.Now().UTC().Add(time.Hour * -1),
 		}
 
 		locationId := uuid.New()
@@ -285,8 +285,8 @@ func TestGetGlobalPostFeedSuccess(t *testing.T) {
 					ImageURL: "",
 				},
 				Content:    "This is the next post",
-				ImageURL:   "",
-				CreatedAt:  time.Now().Add(time.Hour * -2),
+				ImageId:    "",
+				CreatedAt:  time.Now().UTC().Add(time.Hour * -2),
 				LocationId: &locationId,
 				Location: models.Location{
 					Longitude: 11.1,
@@ -303,8 +303,8 @@ func TestGetGlobalPostFeedSuccess(t *testing.T) {
 					ImageURL: "",
 				},
 				Content:   "This is another next post",
-				ImageURL:  "",
-				CreatedAt: time.Now().Add(time.Hour * -3),
+				ImageId:   "",
+				CreatedAt: time.Now().UTC().Add(time.Hour * -3),
 			},
 		}
 		limit := 2
@@ -358,7 +358,7 @@ func TestGetGlobalPostFeedSuccess(t *testing.T) {
 		assert.Equal(t, lastPost.Id, capturedLastPost.Id)
 		assert.Equal(t, lastPost.Username, capturedLastPost.Username)
 		assert.Equal(t, lastPost.Content, capturedLastPost.Content)
-		assert.Equal(t, lastPost.ImageURL, capturedLastPost.ImageURL)
+		assert.Equal(t, lastPost.ImageId, capturedLastPost.ImageId)
 		assert.True(t, lastPost.CreatedAt.Equal(capturedLastPost.CreatedAt))
 		assert.Equal(t, lastPost.Hashtags, capturedLastPost.Hashtags)
 
@@ -460,8 +460,8 @@ func TestGetPersonalPostFeedSuccess(t *testing.T) {
 		Username:  "someUserTest",
 		User:      models.User{},
 		Content:   "This is the last post",
-		ImageURL:  "",
-		CreatedAt: time.Now().Add(time.Hour * -1),
+		ImageId:   "",
+		CreatedAt: time.Now().UTC().Add(time.Hour * -1),
 	}
 
 	currentUsername := "thisUser"
@@ -481,8 +481,8 @@ func TestGetPersonalPostFeedSuccess(t *testing.T) {
 				ImageURL: "",
 			},
 			Content:    "This is the next post",
-			ImageURL:   "",
-			CreatedAt:  time.Now().Add(time.Hour * -2),
+			ImageId:    "",
+			CreatedAt:  time.Now().UTC().Add(time.Hour * -2),
 			LocationId: &locationId,
 			Location: models.Location{
 				Longitude: 11.1,
@@ -499,8 +499,8 @@ func TestGetPersonalPostFeedSuccess(t *testing.T) {
 				ImageURL: "",
 			},
 			Content:   "This is another next post",
-			ImageURL:  "",
-			CreatedAt: time.Now().Add(time.Hour * -3),
+			ImageId:   "",
+			CreatedAt: time.Now().UTC().Add(time.Hour * -3),
 		},
 	}
 	limit := 2
@@ -549,7 +549,7 @@ func TestGetPersonalPostFeedSuccess(t *testing.T) {
 	assert.Equal(t, lastPost.Id, capturedLastPost.Id)
 	assert.Equal(t, lastPost.Username, capturedLastPost.Username)
 	assert.Equal(t, lastPost.Content, capturedLastPost.Content)
-	assert.Equal(t, lastPost.ImageURL, capturedLastPost.ImageURL)
+	assert.Equal(t, lastPost.ImageId, capturedLastPost.ImageId)
 	assert.True(t, lastPost.CreatedAt.Equal(capturedLastPost.CreatedAt))
 	assert.Equal(t, lastPost.Hashtags, capturedLastPost.Hashtags)
 
@@ -711,7 +711,7 @@ func TestGetPostsByHashtagSuccess(t *testing.T) {
 				ImageURL: "",
 			},
 			Content:    "Test #Post 2",
-			CreatedAt:  time.Now(),
+			CreatedAt:  time.Now().UTC(),
 			LocationId: &locationId,
 			Location: models.Location{
 				Longitude: 11.1,
@@ -728,7 +728,7 @@ func TestGetPostsByHashtagSuccess(t *testing.T) {
 				ImageURL: "",
 			},
 			Content:   "Test #Post 3",
-			CreatedAt: time.Now().Add(-1 * time.Hour),
+			CreatedAt: time.Now().UTC().Add(-1 * time.Hour),
 		},
 	}
 
@@ -744,8 +744,8 @@ func TestGetPostsByHashtagSuccess(t *testing.T) {
 		Id:        uuid.New(),
 		Username:  "testUser",
 		Content:   "Test #Post 1",
-		ImageURL:  "",
-		CreatedAt: time.Now().Add(-2 * time.Hour),
+		ImageId:   "",
+		CreatedAt: time.Now().UTC().Add(-2 * time.Hour),
 	}
 
 	// Mock expectations
@@ -792,7 +792,7 @@ func TestGetPostsByHashtagSuccess(t *testing.T) {
 	assert.Equal(t, lastPost.Id, capturedLastPost.Id)
 	assert.Equal(t, lastPost.Username, capturedLastPost.Username)
 	assert.Equal(t, lastPost.Content, capturedLastPost.Content)
-	assert.Equal(t, lastPost.ImageURL, capturedLastPost.ImageURL)
+	assert.Equal(t, lastPost.ImageId, capturedLastPost.ImageId)
 	assert.True(t, lastPost.CreatedAt.Equal(capturedLastPost.CreatedAt))
 	assert.Equal(t, lastPost.Hashtags, capturedLastPost.Hashtags)
 
