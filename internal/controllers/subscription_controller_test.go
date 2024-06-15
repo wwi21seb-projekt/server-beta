@@ -637,7 +637,7 @@ func TestGetSubscriptionsFollowingSuccess(t *testing.T) {
 
 	id1 := uuid.New()
 	id2 := uuid.New()
-	foundSubscriptions := []models.UserSubscriptionRecordDTO{
+	foundSubscriptions := []models.UserSubscriptionSQLRecordDTO{
 		{
 			FollowerId:  &id1,
 			FollowingId: nil,
