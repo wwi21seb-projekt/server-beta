@@ -1,9 +1,9 @@
-package routines
+package routines_test
 
 import (
 	"github.com/wwi21seb-projekt/server-beta/internal/models"
 	"github.com/wwi21seb-projekt/server-beta/internal/repositories"
-	"github.com/wwi21seb-projekt/server-beta/internal/services"
+	"github.com/wwi21seb-projekt/server-beta/internal/routines"
 	"testing"
 	"time"
 )
@@ -13,7 +13,6 @@ func TestDeleteUnactivatedUsersSuccess(t *testing.T) {
 
 	// Arrange
 	mockUserRepo := new(repositories.MockUserRepository)
-	mockImageService := new(services.MockImageService) // Mock für den ImageService
 
 	unactivatedUsers := []models.User{
 		{
@@ -33,7 +32,7 @@ func TestDeleteUnactivatedUsersSuccess(t *testing.T) {
 	mockUserRepo.On("DeleteUserByUsername", "test2").Return(nil)
 
 	// Act
-	DeleteUnactivatedUsers(mockUserRepo, mockImageService)
+	routines.DeleteUnactivatedUsers(mockUserRepo)
 
 	// Assert
 	mockUserRepo.AssertExpectations(t)
