@@ -68,7 +68,7 @@ func SetupRouter() *gin.Engine {
 	notificationService := services.NewNotificationService(notificationRepo, pushSubscriptionService)
 	subscriptionService := services.NewSubscriptionService(subscriptionRepo, userRepo, notificationService)
 	commentService := services.NewCommentService(commentRepo, postRepo, userRepo)
-	postService := services.NewPostService(postRepo, userRepo, hashtagRepo, imageService, validator, likeRepo, commentRepo, notificationService)
+	postService := services.NewPostService(postRepo, userRepo, hashtagRepo, validator, likeRepo, commentRepo, notificationService)
 	passwordResetService := services.NewPasswordResetService(userRepo, passwordResetRepo, mailService, validator)
 	chatService := services.NewChatService(chatRepo, userRepo, notificationService)
 	messageService := services.NewMessageService(messageRepo, chatRepo, notificationService)
