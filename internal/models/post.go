@@ -20,10 +20,10 @@ type Post struct {
 }
 
 type PostCreateRequestDTO struct {
-	Content  string       `json:"content"`
-	Picture  string       `json:"picture"`
-	Location *LocationDTO `json:"location"`
-	RepostId string       `json:"repostedPostId"`
+	Content        string       `json:"content"`
+	Picture        string       `json:"picture"`
+	Location       *LocationDTO `json:"location"`
+	RepostedPostId string       `json:"repostedPostId"`
 }
 
 type PostResponseDTO struct {

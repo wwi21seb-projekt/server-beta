@@ -46,12 +46,9 @@ func (service *NotificationService) CreateNotification(notificationType string, 
 	}
 	err := service.notificationRepository.CreateNotification(&newNotification)
 
-	// Get just created notification from database to retrieve user image metadata
+	// Get just created notification from database to get user metadata
 	createdNotification, err := service.notificationRepository.GetNotificationById(newNotification.Id.String())
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return err
-		}
 		return err
 	}
 

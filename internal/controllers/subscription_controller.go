@@ -82,7 +82,7 @@ func (controller *SubscriptionController) DeleteSubscription(c *gin.Context) {
 func (controller *SubscriptionController) GetSubscriptions(c *gin.Context) {
 
 	// Read information from url
-	ftype := c.DefaultQuery("type", "followers")
+	queryType := c.DefaultQuery("type", "followers")
 	limitStr := c.DefaultQuery("limit", "10")
 	offsetStr := c.DefaultQuery("offset", "0")
 	username := c.Param("username")
@@ -97,8 +97,8 @@ func (controller *SubscriptionController) GetSubscriptions(c *gin.Context) {
 		offset = 0
 	}
 
-	if ftype != "followers" && ftype != "following" {
-		ftype = "followers" // set default value
+	if queryType != "followers" && queryType != "following" {
+		queryType = "followers" // set default value
 	}
 
 	// Get current user from middleware
@@ -111,7 +111,7 @@ func (controller *SubscriptionController) GetSubscriptions(c *gin.Context) {
 	}
 
 	// Search user
-	subscriptionsDto, serviceErr, httpStatus := controller.subscriptionService.GetSubscriptions(ftype, limit, offset, username, currentUsername.(string))
+	subscriptionsDto, serviceErr, httpStatus := controller.subscriptionService.GetSubscriptions(queryType, limit, offset, username, currentUsername.(string))
 	if serviceErr != nil {
 		c.JSON(httpStatus, gin.H{
 			"error": serviceErr,

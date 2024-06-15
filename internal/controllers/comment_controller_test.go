@@ -18,6 +18,7 @@ import (
 	"gorm.io/gorm"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
 )
@@ -32,20 +33,30 @@ func TestCreateCommentSuccess(t *testing.T) {
 	commentService := services.NewCommentService(mockCommentRepository, mockPostRepository, mockUserRepository)
 	commentController := controllers.NewCommentController(commentService)
 
-	testUsername := "testuser"
+	testUsername := "testUser"
 	authenticationToken, err := utils.GenerateAccessToken(testUsername)
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	imageId := uuid.New()
+	imageFormat := "png"
+	err = os.Setenv("SERVER_URL", "https://example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	expectedImageUrl := os.Getenv("SERVER_URL") + "/api/images/" + imageId.String() + "." + imageFormat
+
 	user := models.User{
 		Username: testUsername,
 		Nickname: "test user",
-		ImageURL: "https://example.com/profile.jpg",
+		ImageId:  &imageId,
 		Image: models.Image{
-			ImageUrl: "https://example.com/profile.jpg",
-			Width:    100,
-			Height:   101,
+			Id:     imageId,
+			Format: imageFormat,
+			Width:  100,
+			Height: 100,
+			Tag:    time.Now().UTC(),
 		},
 	}
 
@@ -100,7 +111,12 @@ func TestCreateCommentSuccess(t *testing.T) {
 	assert.True(t, capturedComment.CreatedAt.Equal(responseComment.CreationDate))
 	assert.Equal(t, user.Username, responseComment.Author.Username)
 	assert.Equal(t, user.Nickname, responseComment.Author.Nickname)
-	assert.Equal(t, user.ImageURL, responseComment.Author.Picture.ImageUrl)
+
+	assert.NotNil(t, responseComment.Author.Picture)
+	assert.Equal(t, expectedImageUrl, responseComment.Author.Picture.Url)
+	assert.Equal(t, user.Image.Width, responseComment.Author.Picture.Width)
+	assert.Equal(t, user.Image.Height, responseComment.Author.Picture.Height)
+	assert.Equal(t, user.Image.Tag, responseComment.Author.Picture.Tag)
 
 	mockCommentRepository.AssertExpectations(t)
 	mockPostRepository.AssertExpectations(t)
@@ -125,7 +141,7 @@ func TestCreateCommentBadRequest(t *testing.T) {
 		commentService := services.NewCommentService(mockCommentRepository, mockPostRepository, mockUserRepository)
 		commentController := controllers.NewCommentController(commentService)
 
-		testUsername := "testuser"
+		testUsername := "testUser"
 		authenticationToken, err := utils.GenerateAccessToken(testUsername)
 		if err != nil {
 			t.Fatal(err)
@@ -215,7 +231,7 @@ func TestCreateCommentPostNotFound(t *testing.T) {
 	commentService := services.NewCommentService(mockCommentRepository, mockPostRepository, mockUserRepository)
 	commentController := controllers.NewCommentController(commentService)
 
-	testUsername := "testuser"
+	testUsername := "testUser"
 	authenticationToken, err := utils.GenerateAccessToken(testUsername)
 	if err != nil {
 		t.Fatal(err)
@@ -273,10 +289,18 @@ func TestGetCommentsByPostIdSuccess(t *testing.T) {
 	commentService := services.NewCommentService(mockCommentRepository, mockPostRepository, mockUserRepository)
 	commentController := controllers.NewCommentController(commentService)
 
-	authenticationToken, err := utils.GenerateAccessToken("myuser")
+	authenticationToken, err := utils.GenerateAccessToken("myUser")
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	imageId := uuid.New()
+	imageFormat := "png"
+	err = os.Setenv("SERVER_URL", "https://example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	expectedImageUrl := os.Getenv("SERVER_URL") + "/api/images/" + imageId.String() + "." + imageFormat
 
 	post := models.Post{
 		Id: uuid.New(),
@@ -285,15 +309,17 @@ func TestGetCommentsByPostIdSuccess(t *testing.T) {
 		{
 			Id:       uuid.New(),
 			PostID:   post.Id,
-			Username: "testuser",
+			Username: "testUser",
 			User: models.User{
-				Username: "testuser",
+				Username: "testUser",
 				Nickname: "test user",
-				ImageURL: "https://example.com/profile.jpg",
+				ImageId:  &imageId,
 				Image: models.Image{
-					ImageUrl: "https://example.com/profile.jpg",
-					Width:    100,
-					Height:   101,
+					Id:     imageId,
+					Format: imageFormat,
+					Width:  100,
+					Height: 100,
+					Tag:    time.Now().UTC(),
 				},
 			},
 			Content:   "Test comment 1",
@@ -302,16 +328,10 @@ func TestGetCommentsByPostIdSuccess(t *testing.T) {
 		{
 			Id:       uuid.New(),
 			PostID:   post.Id,
-			Username: "testuser2",
+			Username: "testUser2",
 			User: models.User{
-				Username: "testuser2",
+				Username: "testUser2",
 				Nickname: "test user 2",
-				ImageURL: "https://example.com/profile2.jpg",
-				Image: models.Image{
-					ImageUrl: "https://example.com/profile2.jpg",
-					Width:    100,
-					Height:   101,
-				},
 			},
 			Content:   "Test comment 2",
 			CreatedAt: time.Now().UTC(),
@@ -359,7 +379,16 @@ func TestGetCommentsByPostIdSuccess(t *testing.T) {
 		assert.True(t, comment.CreatedAt.Equal(responseList.Records[i].CreationDate))
 		assert.Equal(t, comment.User.Username, responseList.Records[i].Author.Username)
 		assert.Equal(t, comment.User.Nickname, responseList.Records[i].Author.Nickname)
-		assert.Equal(t, comment.User.ImageURL, responseList.Records[i].Author.Picture.ImageUrl)
+
+		if comment.User.ImageId != nil {
+			assert.NotNil(t, responseList.Records[i].Author.Picture)
+			assert.Equal(t, expectedImageUrl, responseList.Records[i].Author.Picture.Url)
+			assert.Equal(t, comment.User.Image.Width, responseList.Records[i].Author.Picture.Width)
+			assert.Equal(t, comment.User.Image.Height, responseList.Records[i].Author.Picture.Height)
+			assert.Equal(t, comment.User.Image.Tag, responseList.Records[i].Author.Picture.Tag)
+		} else {
+			assert.Nil(t, responseList.Records[i].Author.Picture)
+		}
 	}
 
 	mockCommentRepository.AssertExpectations(t)
@@ -418,7 +447,7 @@ func TestGetCommentsByPostIdPostNotFound(t *testing.T) {
 	commentService := services.NewCommentService(mockCommentRepository, mockPostRepository, mockUserRepository)
 	commentController := controllers.NewCommentController(commentService)
 
-	authenticationToken, err := utils.GenerateAccessToken("myuser")
+	authenticationToken, err := utils.GenerateAccessToken("myUser")
 	if err != nil {
 		t.Fatal(err)
 	}

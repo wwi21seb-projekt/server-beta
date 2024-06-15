@@ -68,6 +68,7 @@ func TestCreateChatSuccess(t *testing.T) {
 		Run(func(args mock.Arguments) {
 			capturedNotification = args.Get(0).(*models.Notification)
 		}).Return(nil)
+	mockNotificationRepo.On("GetNotificationById", mock.AnythingOfType("string")).Return(models.Notification{}, nil)
 	mockPushSubscriptionRepo.On("GetPushSubscriptionsByUsername", otherUser.Username).Return([]models.PushSubscription{}, nil)
 
 	// Setup HTTP request
@@ -367,12 +368,12 @@ func TestGetChatsSuccess(t *testing.T) {
 	}
 
 	imageId := uuid.New()
-	format := "png"
+	imageFormat := "png"
 	err = os.Setenv("SERVER_URL", "https://example.com")
 	if err != nil {
 		t.Fatal(err)
 	}
-	expectedUrl := os.Getenv("SERVER_URL") + "/api/images/" + imageId.String() + "." + format
+	expectedImageUrl := os.Getenv("SERVER_URL") + "/api/images/" + imageId.String() + "." + imageFormat
 
 	chats := []models.Chat{
 		{
@@ -384,9 +385,9 @@ func TestGetChatsSuccess(t *testing.T) {
 					ImageId:  &imageId,
 					Image: models.Image{
 						Id:     imageId,
-						Format: format,
+						Format: imageFormat,
 						Width:  100,
-						Height: 100,
+						Height: 200,
 						Tag:    time.Now().UTC(),
 					},
 				},
@@ -399,7 +400,6 @@ func TestGetChatsSuccess(t *testing.T) {
 				{
 					Username: "testUser3",
 					Nickname: "Test User 3",
-					ImageId:  nil,
 				},
 			},
 			CreatedAt: time.Now().UTC(),
@@ -436,7 +436,8 @@ func TestGetChatsSuccess(t *testing.T) {
 		assert.Equal(t, chat.Users[0].Nickname, response.Records[i].User.Nickname)
 
 		if chat.Users[0].ImageId != nil {
-			assert.Equal(t, expectedUrl, response.Records[i].User.Picture.Url)
+			assert.NotNil(t, response.Records[i].User.Picture)
+			assert.Equal(t, expectedImageUrl, response.Records[i].User.Picture.Url)
 			assert.Equal(t, chat.Users[0].Image.Width, response.Records[i].User.Picture.Width)
 			assert.Equal(t, chat.Users[0].Image.Height, response.Records[i].User.Picture.Height)
 			assert.True(t, chat.Users[0].Image.Tag.Equal(response.Records[i].User.Picture.Tag))

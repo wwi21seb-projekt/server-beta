@@ -37,11 +37,9 @@ func TestGetNotificationsSuccess(t *testing.T) {
 	otherUser := models.User{
 		Username: "test2",
 		Nickname: "nick",
-		ImageURL: "img.png",
 		Image: models.Image{
-			ImageUrl: "img.png",
-			Width:    100,
-			Height:   101,
+			Width:  100,
+			Height: 101,
 		},
 	}
 
@@ -93,7 +91,6 @@ func TestGetNotificationsSuccess(t *testing.T) {
 		assert.Equal(t, notification.NotificationType, responseDto.Records[i].NotificationType)
 		assert.Equal(t, notification.FromUsername, responseDto.Records[i].User.Username)
 		assert.Equal(t, notification.FromUser.Nickname, responseDto.Records[i].User.Nickname)
-		assert.Equal(t, notification.FromUser.ImageURL, responseDto.Records[i].User.Picture.ImageUrl)
 		assert.True(t, notification.Timestamp.Equal(responseDto.Records[i].Timestamp))
 	}
 }

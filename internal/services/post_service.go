@@ -27,7 +27,6 @@ type PostService struct {
 	hashtagRepo         repositories.HashtagRepositoryInterface
 	imageService        ImageServiceInterface
 	validator           utils.ValidatorInterface
-	locationRepo        repositories.LocationRepositoryInterface
 	likeRepo            repositories.LikeRepositoryInterface
 	commentRepo         repositories.CommentRepositoryInterface
 	policy              *bluemonday.Policy
@@ -38,12 +37,11 @@ type PostService struct {
 func NewPostService(postRepo repositories.PostRepositoryInterface,
 	userRepo repositories.UserRepositoryInterface,
 	hashtagRepo repositories.HashtagRepositoryInterface,
-	imageService ImageServiceInterface,
 	validator utils.ValidatorInterface,
 	likeRepo repositories.LikeRepositoryInterface,
 	commentRepo repositories.CommentRepositoryInterface,
 	notificationService NotificationServiceInterface) *PostService {
-	return &PostService{postRepo: postRepo, userRepo: userRepo, hashtagRepo: hashtagRepo, imageService: imageService, validator: validator, likeRepo: likeRepo, commentRepo: commentRepo, policy: bluemonday.UGCPolicy(), notificationService: notificationService}
+	return &PostService{postRepo: postRepo, userRepo: userRepo, hashtagRepo: hashtagRepo, validator: validator, likeRepo: likeRepo, commentRepo: commentRepo, policy: bluemonday.UGCPolicy(), notificationService: notificationService}
 }
 
 func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, username string) (*models.PostResponseDTO, *customerrors.CustomError, int) {
@@ -55,8 +53,8 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, usernam
 	// Get repost if a repost id is given
 	var repostDto *models.PostResponseDTO
 	var repostId *uuid.UUID
-	if req.RepostId != "" {
-		repost, err := service.postRepo.GetPostById(req.RepostId)
+	if req.RepostedPostId != "" {
+		repost, err := service.postRepo.GetPostById(req.RepostedPostId)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return nil, customerrors.PostNotFound, http.StatusNotFound
@@ -98,7 +96,7 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, usernam
 	if len(req.Content) > 256 {
 		return nil, customerrors.BadRequest, http.StatusBadRequest
 	}
-	if len(req.Content) <= 0 && req.Picture == "" && req.RepostId == "" { // either content, repostId or image is required
+	if len(req.Content) <= 0 && req.Picture == "" && req.RepostedPostId == "" { // either content, repostId or image is required
 		return nil, customerrors.BadRequest, http.StatusBadRequest // location is neither necessary nor sufficient
 	}
 	if !utf8.ValidString(req.Content) {

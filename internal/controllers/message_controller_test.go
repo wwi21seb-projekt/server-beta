@@ -262,6 +262,7 @@ func TestHandleWebSocketSuccess(t *testing.T) {
 		Run(func(args mock.Arguments) {
 			capturedNotification = args.Get(0).(*models.Notification)
 		}).Return(nil)
+	mockNotificationRepository.On("GetNotificationById", mock.AnythingOfType("string")).Return(models.Notification{}, nil)
 	mockPushSubscriptionRepository.On("GetPushSubscriptionsByUsername", otherUsername).Return([]models.PushSubscription{}, nil)
 
 	// Create test server
