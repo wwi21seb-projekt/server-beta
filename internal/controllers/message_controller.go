@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
@@ -87,10 +88,7 @@ func (controller *MessageController) HandleWebSocket(c *gin.Context) {
 	if err != nil {
 		return // return if connection could not be established
 	}
-	defer func(conn *websocket.Conn) {
-		_ = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
-		_ = conn.Close() // close connection when function terminates
-	}(conn)
+	defer closeWebsocket(conn) // close connection when function terminates
 
 	// Using Sec-WebSocket-Protocol header for JWT authentication because browsers do not allow custom headers
 	// So middleware was not called and the JWT token needs to be verified here
@@ -112,13 +110,21 @@ func (controller *MessageController) HandleWebSocket(c *gin.Context) {
 	controller.addConnection(currentUsername, chatId, conn)
 	defer controller.removeConnection(currentUsername, chatId, conn) // remove connection when function terminates
 
+	fmt.Println("New connection for", currentUsername, "in chat", chatId)
+
 	for {
 		// Read message from client
-		_, message, err := conn.ReadMessage()
+		messageType, message, err := conn.ReadMessage()
 		if err != nil {
+			if websocket.IsUnexpectedCloseError(err) {
+				fmt.Println("Received close message for", currentUsername, "in chat", chatId)
+				return
+			}
+			fmt.Println("Error reading message", err, "for user", currentUsername, "in chat", chatId)
 			sendError(conn, customerrors.BadRequest)
 			continue // continue to listen for more messages
 		}
+		fmt.Println("Message received from", currentUsername, "in chat", chatId, ":", string(message), messageType)
 
 		// Bind message to DTO
 		var req models.MessageCreateRequestDTO
@@ -157,9 +163,20 @@ func sendError(connection *websocket.Conn, customErr *customerrors.CustomError) 
 		"error": customErr,
 	})
 	err := connection.WriteMessage(websocket.TextMessage, errMessage)
-	if err != nil {
-		_ = connection.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
-		_ = connection.Close() // close connection if sending failed
+	if err != nil && websocket.IsUnexpectedCloseError(err) {
+		closeWebsocket(connection) // close connection if sending failed
+	}
+}
+
+// closeWebsocket closes a websocket connection
+func closeWebsocket(conn *websocket.Conn) {
+	err := conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+	if err != nil && websocket.IsUnexpectedCloseError(err) {
+		fmt.Println("Error sending closing message:", err)
+	}
+	err = conn.Close()
+	if err != nil && websocket.IsUnexpectedCloseError(err) {
+		fmt.Println("Error closing connection:", err)
 	}
 }
 
@@ -186,9 +203,14 @@ func (controller *MessageController) removeConnection(username string, chatId st
 	connections := controller.connections[chatId][username]
 	for i, c := range connections {
 		if c == conn {
+			fmt.Println("Removed connection for", username, "in chat", chatId)
 			controller.connections[chatId][username] = append(connections[:i], connections[i+1:]...)
 			break
 		}
+	}
+	// Delete username from connections[chatId] if username has no other connections left
+	if len(controller.connections[chatId][username]) == 0 {
+		delete(controller.connections[chatId], username)
 	}
 }
 

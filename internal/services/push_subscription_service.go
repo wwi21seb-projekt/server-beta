@@ -132,6 +132,7 @@ func (service *PushSubscriptionService) SendPushMessages(notificationObject *mod
 
 	// Send push messages
 	for _, pushSubscription := range pushSubscriptions {
+		fmt.Println("Sending notification via push sub to", pushSubscription.Username, ":", notificationDataString)
 		if pushSubscription.Type == "web" {
 			go service.sendWebPushNotification(&pushSubscription, notificationDataString) // send push message in background
 			continue
