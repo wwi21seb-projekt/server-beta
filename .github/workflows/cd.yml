@@ -1,9 +1,7 @@
 name: Continuous Deployment
 
-on:
-  push:
-    branches:
-      - main
+on: [pull_request]
+
 
 jobs:
   deploy:

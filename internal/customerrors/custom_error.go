@@ -2,7 +2,7 @@ package customerrors
 
 import "fmt"
 
-// CustomError can be used to create custom customerrors
+// CustomError can be used to create custom errors
 type CustomError struct {
 	Message string `json:"message"`
 	Code    string `json:"code"`
@@ -23,6 +23,10 @@ type ErrorResponse struct {
 
 // Custom error constants
 var (
+	EndpointNotFound = &CustomError{
+		Message: "The endpoint was not found. Please check the endpoint and try again.",
+		Code:    "ERR-000",
+	}
 	BadRequest = &CustomError{
 		Message: "The request body is invalid. Please check the request body and try again.",
 		Code:    "ERR-001",
@@ -118,12 +122,12 @@ var (
 	DeleteNotificationForbidden = &CustomError{
 		Message: "You can only delete your own notifications.",
 		Code:    "ERR-024",
-  }
+	}
 	PasswordResetTokenInvalid = &CustomError{
 		Message: "The password reset token is invalid or has expired. Please request a new token and try again.",
 		Code:    "ERR-025",
 	}
-  ChatAlreadyExists = &CustomError{
+	ChatAlreadyExists = &CustomError{
 		Message: "The chat already exists. Please check the username and try again.",
 		Code:    "ERR-026",
 	}
@@ -131,12 +135,8 @@ var (
 		Message: "The chat was not found. Please check the chat ID and try again.",
 		Code:    "ERR-027",
 	}
-	FileNotFound = &CustomError{
-		Message: "",
-		Code:    "",
-	}
-	FileTooLarge = &CustomError{
-		Message: "file too large: to be defined",
-		Code:    "",
+	ImageNotFound = &CustomError{
+		Message: "The image was not found. Please check the image URL and try again.",
+		Code:    "ERR-028",
 	}
 )

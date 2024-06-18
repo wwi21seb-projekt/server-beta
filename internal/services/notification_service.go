@@ -6,6 +6,7 @@ import (
 	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
 	"github.com/wwi21seb-projekt/server-beta/internal/models"
 	"github.com/wwi21seb-projekt/server-beta/internal/repositories"
+	"github.com/wwi21seb-projekt/server-beta/internal/utils"
 	"gorm.io/gorm"
 	"net/http"
 	"time"
@@ -31,6 +32,10 @@ func NewNotificationService(
 
 // CreateNotification is a service function that creates a notification and pushes it to client if push service is registered
 func (service *NotificationService) CreateNotification(notificationType string, forUsername string, fromUsername string) error {
+	if forUsername == fromUsername { // do not create notification if user is the same
+		return nil
+	}
+
 	// Create notification and save to database
 	newNotification := models.Notification{
 		Id:               uuid.New(),
@@ -41,15 +46,30 @@ func (service *NotificationService) CreateNotification(notificationType string, 
 	}
 	err := service.notificationRepository.CreateNotification(&newNotification)
 
+	// Get just created notification from database to get user metadata
+	createdNotification, err := service.notificationRepository.GetNotificationById(newNotification.Id.String())
+	if err != nil {
+		return err
+	}
+
 	// Send push message to client if push service is registered
+	var fromUserImageDto *models.ImageMetadataDTO
+	if createdNotification.FromUser.ImageId != nil {
+		fromUserImageDto = &models.ImageMetadataDTO{
+			Url:    utils.FormatImageUrl(createdNotification.FromUser.ImageId.String(), createdNotification.FromUser.Image.Format),
+			Width:  createdNotification.FromUser.Image.Width,
+			Height: createdNotification.FromUser.Image.Height,
+			Tag:    createdNotification.FromUser.Image.Tag,
+		}
+	}
 	notificationDto := models.NotificationRecordDTO{
-		NotificationId:   newNotification.Id.String(),
-		Timestamp:        newNotification.Timestamp,
-		NotificationType: newNotification.NotificationType,
-		User: &models.NotificationUserDTO{
-			Username:          newNotification.FromUsername,
-			Nickname:          newNotification.FromUser.Nickname,
-			ProfilePictureUrl: newNotification.FromUser.ProfilePictureUrl,
+		NotificationId:   createdNotification.Id.String(),
+		Timestamp:        createdNotification.Timestamp,
+		NotificationType: createdNotification.NotificationType,
+		User: &models.UserDTO{
+			Username: createdNotification.FromUsername,
+			Nickname: createdNotification.FromUser.Nickname,
+			Picture:  fromUserImageDto,
 		},
 	}
 	service.PushSubscriptionService.SendPushMessages(&notificationDto, forUsername) // send push message in background
@@ -68,14 +88,23 @@ func (service *NotificationService) GetNotifications(username string) (*models.N
 	// Create response dto
 	notificationResponseDTOs := make([]models.NotificationRecordDTO, 0)
 	for _, notification := range notifications {
+		var userImageDto *models.ImageMetadataDTO
+		if notification.FromUser.ImageId != nil {
+			userImageDto = &models.ImageMetadataDTO{
+				Url:    utils.FormatImageUrl(notification.FromUser.ImageId.String(), notification.FromUser.Image.Format),
+				Width:  notification.FromUser.Image.Width,
+				Height: notification.FromUser.Image.Height,
+				Tag:    notification.FromUser.Image.Tag,
+			}
+		}
 		notificationResponseDTO := models.NotificationRecordDTO{
 			NotificationId:   notification.Id.String(),
 			Timestamp:        notification.Timestamp,
 			NotificationType: notification.NotificationType,
-			User: &models.NotificationUserDTO{
-				Username:          notification.FromUsername,
-				Nickname:          notification.FromUser.Nickname,
-				ProfilePictureUrl: notification.FromUser.ProfilePictureUrl,
+			User: &models.UserDTO{
+				Username: notification.FromUsername,
+				Nickname: notification.FromUser.Nickname,
+				Picture:  userImageDto,
 			},
 		}
 		notificationResponseDTOs = append(notificationResponseDTOs, notificationResponseDTO)

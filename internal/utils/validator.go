@@ -2,12 +2,16 @@ package utils
 
 import (
 	"bytes"
+	"encoding/xml"
 	"github.com/truemail-rb/truemail-go"
-	_ "golang.org/x/image/webp" // Needs to be imported for webp decoding, but is used implicitly
+	"golang.org/x/image/webp"
 	"image"
+	_ "image/gif"
+	_ "image/jpeg"
+	_ "image/png"
 	"os"
 	"regexp"
-	"strings"
+	"strconv"
 	"unicode"
 )
 
@@ -18,9 +22,9 @@ type ValidatorInterface interface {
 	ValidateEmailExistance(email string) bool
 	ValidatePassword(password string) bool
 	ValidateStatus(status string) bool
-	ValidateImage(imageData []byte, contentType string) bool
 	ValidateLatitude(latitude float64) bool
 	ValidateLongitude(longitude float64) bool
+	ValidateImage(imageData []byte) (bool, string, int, int)
 }
 
 type Validator struct {
@@ -97,35 +101,6 @@ func (v *Validator) ValidateStatus(status string) bool {
 	return len(status) <= 128
 }
 
-// ValidateImage validates if an image is correct file type and can be decoded, additionally returns file format
-func (v *Validator) ValidateImage(imageData []byte, contentType string) bool {
-	// First check magic numbers of image data
-	if contentType == "image/jpeg" {
-		if !bytes.HasPrefix(imageData, []byte{0xff, 0xd8, 0xff}) {
-			return false
-		}
-	} else if contentType == "image/webp" {
-		if !bytes.HasPrefix(imageData, []byte{'R', 'I', 'F', 'F'}) || !bytes.Contains(imageData[:16], []byte{'W', 'E', 'B', 'P'}) {
-			return false
-		}
-	} else {
-		return false
-	}
-
-	// Then check if image can be decoded
-	_, fileFormat, err := image.Decode(bytes.NewReader(imageData))
-	if err != nil {
-		return false
-	}
-
-	// Check if file format matches content type
-	if !strings.Contains(contentType, fileFormat) {
-		return false
-	}
-
-	return true
-}
-
 // ValidateLatitude validates if latitude is in valid range
 func (v *Validator) ValidateLatitude(latitude float64) bool {
 	return latitude >= -90 && latitude <= 90
@@ -134,4 +109,60 @@ func (v *Validator) ValidateLatitude(latitude float64) bool {
 // ValidateLongitude validates if longitude is in valid range
 func (v *Validator) ValidateLongitude(longitude float64) bool {
 	return longitude >= -180 && longitude <= 180
+}
+
+// ValidateImage validates if an image is correct file type and can be "opened", additionally returns file format, width and height
+func (v *Validator) ValidateImage(imageData []byte) (bool, string, int, int) {
+	// If file size is larger than 10 MB, return false
+	if len(imageData) > 10*1024*1024 { // 10 MB
+		return false, "", 0, 0
+	}
+
+	// Decode to validate image: png, jpeg
+	img, format, err := image.DecodeConfig(bytes.NewReader(imageData))
+	if err == nil && (format == "png" || format == "jpeg") {
+		return true, format, img.Width, img.Height
+	}
+
+	// Decode to validate image: webp
+	img, err = webp.DecodeConfig(bytes.NewReader(imageData))
+	if err == nil {
+		return true, "webp", img.Width, img.Height
+	}
+
+	// Decode to validate image: svg
+	if bytes.HasPrefix(imageData, []byte("<svg")) && bytes.HasSuffix(imageData, []byte("</svg>")) {
+		// Check for disallowed elements or attributes
+		if bytes.Contains(imageData, []byte("<script")) || // Check for <script> tags
+			bytes.Contains(imageData, []byte("onload=")) || // Check for onload event
+			bytes.Contains(imageData, []byte("onclick=")) || // Check for onclick event
+			bytes.Contains(imageData, []byte("onmouseover=")) || // Check for onmouseover event
+			bytes.Contains(imageData, []byte("data:")) { // Check for data URIs
+			return false, "", 0, 0
+		}
+
+		// Decode svg to get width and height
+		type SVG struct {
+			XMLName xml.Name `xml:"svg"`
+			Width   string   `xml:"width,attr"`
+			Height  string   `xml:"height,attr"`
+		}
+		var svg SVG
+		decoder := xml.NewDecoder(bytes.NewReader(imageData))
+		if err := decoder.Decode(&svg); err != nil {
+			return false, "", 0, 0
+		}
+		// Convert width and height to integers
+		// If conversion return 0, return false
+		width, _ := strconv.Atoi(svg.Width)
+		height, _ := strconv.Atoi(svg.Height)
+		if width == 0 || height == 0 {
+			return false, "", 0, 0
+		}
+
+		return true, "svg", width, height
+	}
+
+	// If none of the above conditions are met, return false
+	return false, "", 0, 0
 }

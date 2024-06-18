@@ -2,12 +2,13 @@ package controllers
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
 	"github.com/wwi21seb-projekt/server-beta/internal/services"
-	"strings"
+	"net/http"
 )
 
 type ImageControllerInterface interface {
-	GetImage(c *gin.Context)
+	GetImageById(c *gin.Context)
 }
 
 type ImageController struct {
@@ -19,14 +20,14 @@ func NewImageController(imageService services.ImageServiceInterface) *ImageContr
 	return &ImageController{imageService: imageService}
 }
 
-// GetImage is a controller function that returns an image from the file system and can be called from the router
-func (controller *ImageController) GetImage(c *gin.Context) {
+// GetImageById is a controller function that returns an image from the database and can be called from the router
+func (controller *ImageController) GetImageById(c *gin.Context) {
 
 	// Read image name from request
-	filename := c.Param("filename")
+	imageId := c.Param("imageId")
 
 	// Get image from service
-	image, serviceErr, httpStatus := controller.imageService.GetImage(filename)
+	imageDto, serviceErr, httpStatus := controller.imageService.GetImageById(imageId)
 	if serviceErr != nil {
 		c.JSON(httpStatus, gin.H{
 			"error": serviceErr,
@@ -34,14 +35,25 @@ func (controller *ImageController) GetImage(c *gin.Context) {
 		return
 	}
 
-	// Respond based on file type
-	if strings.HasSuffix(filename, ".jpeg") {
-		c.Data(httpStatus, "image/jpeg", image)
+	var contentType string
+	switch {
+	case imageDto.Format == "jpeg" || imageDto.Format == "jpg":
+		contentType = "image/jpeg"
+	case imageDto.Format == "png":
+		contentType = "image/png"
+	case imageDto.Format == "webp":
+		contentType = "image/webp"
+	case imageDto.Format == "svg":
+		contentType = "image/svg+xml"
+	default: // If the image format is not supported, return not found error
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": customerrors.ImageNotFound,
+		})
 		return
 	}
 
-	if strings.HasSuffix(filename, ".webp") {
-		c.Data(httpStatus, "image/webp", image)
-		return
-	}
+	c.Header("Content-Type", contentType)
+
+	// Respond based on file type
+	c.Data(httpStatus, contentType, imageDto.Data)
 }

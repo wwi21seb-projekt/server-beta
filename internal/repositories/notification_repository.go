@@ -32,13 +32,18 @@ func (repo *NotificationRepository) GetNotificationsByUsername(username string) 
 		Where("for_username = ?", username).
 		Order("timestamp desc").
 		Preload("FromUser").
+		Preload("FromUser.Image").
 		Find(&notifications).Error
 	return notifications, err
 }
 
 func (repo *NotificationRepository) GetNotificationById(notificationId string) (models.Notification, error) {
 	var notification models.Notification
-	err := repo.DB.Where("id = ?", notificationId).First(&notification).Error
+	err := repo.DB.
+		Where("id = ?", notificationId).
+		First(&notification).
+		Preload("FromUser").
+		Preload("FromUser.Image").Error
 	return notification, err
 }
 

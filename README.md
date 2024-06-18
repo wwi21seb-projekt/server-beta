@@ -39,7 +39,6 @@ The user needs to have PostgreSQL installed and running. Additionally, the user 
 | EMAIL_PASSWORD    | Password for the email address                                                   |
 | VAPID_PRIVATE_KEY | VAPID private key for web push notifications                                     |
 | VAPID_PUBLIC_KEY  | VAPID public key for web push notifications                                      |
-| IMAGES_PATH       | Path to the directory where images are stored                                    |
 | GIN_MODE          | Mode of the application (e.g., debug, release)                                   |
 
 

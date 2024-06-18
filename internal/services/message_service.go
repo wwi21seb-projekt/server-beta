@@ -84,7 +84,7 @@ func (service *MessageService) GetMessagesByChatId(chatId, currentUsername strin
 
 	response := models.MessagesResponseDTO{
 		Records: records,
-		Pagination: &models.MessagePaginationDTO{
+		Pagination: &models.OffsetPaginationDTO{
 			Offset:  offset,
 			Limit:   limit,
 			Records: totalCount,

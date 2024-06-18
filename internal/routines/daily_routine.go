@@ -42,7 +42,8 @@ func DeleteUnactivatedUsers(userRepo repositories.UserRepositoryInterface) {
 	// Delete users
 	counter := 0
 	for _, user := range users {
-		if user.CreatedAt.Add(7*24*time.Hour).Before(time.Now()) && user.Activated == false { // User has not activated account within 7 days
+		if user.CreatedAt.Add(7*24*time.Hour).Before(time.Now()) && user.Activated == false {
+			// User has not activated account within 7 days
 			err := userRepo.DeleteUserByUsername(user.Username)
 			if err != nil {
 				fmt.Println("Error deleting user: ", user.Username, err)

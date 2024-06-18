@@ -17,6 +17,7 @@ import (
 	"gorm.io/gorm"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
 )
@@ -37,11 +38,33 @@ func TestGetPostsByUsernameSuccess(t *testing.T) {
 	)
 	feedController := controllers.NewFeedController(feedService)
 
+	err := os.Setenv("SERVER_URL", "https://example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	userImage := models.Image{
+		Id:     uuid.New(),
+		Format: "png",
+		Width:  100,
+		Height: 200,
+		Tag:    time.Now().UTC(),
+	}
 	user := models.User{
 		Username: "testUser",
 		Nickname: "testNickname",
 		Email:    "test@example.com",
+		ImageId:  &userImage.Id,
+		Image:    userImage,
 	}
+
+	postImage := models.Image{
+		Id:     uuid.New(),
+		Format: "jpg",
+		Width:  300,
+		Height: 400,
+		Tag:    time.Now().UTC(),
+	}
+	expectedPostImageUrl := os.Getenv("SERVER_URL") + "/api/images/" + postImage.Id.String() + "." + postImage.Format
 
 	locationId := uuid.New()
 	posts := []models.Post{
@@ -49,19 +72,21 @@ func TestGetPostsByUsernameSuccess(t *testing.T) {
 			Id:         uuid.New(),
 			Username:   user.Username,
 			Content:    "Test Post 1",
-			CreatedAt:  time.Now(),
+			CreatedAt:  time.Now().UTC(),
 			LocationId: &locationId,
 			Location: models.Location{
 				Longitude: 11.1,
 				Latitude:  22.2,
 				Accuracy:  50,
 			},
+			ImageId: &postImage.Id,
+			Image:   postImage,
 		},
 		{
 			Id:         uuid.New(),
 			Username:   user.Username,
 			Content:    "Test Post 2",
-			CreatedAt:  time.Now().Add(-1 * time.Hour),
+			CreatedAt:  time.Now().UTC().Add(-1 * time.Hour),
 			LocationId: nil,
 			Location:   models.Location{},
 		},
@@ -123,6 +148,11 @@ func TestGetPostsByUsernameSuccess(t *testing.T) {
 	assert.Equal(t, posts[0].Location.Latitude, *response.Records[0].Location.Latitude)
 	assert.Equal(t, posts[0].Location.Longitude, *response.Records[0].Location.Longitude)
 	assert.Equal(t, posts[0].Location.Accuracy, *response.Records[0].Location.Accuracy)
+	assert.NotNil(t, response.Records[0].Picture)
+	assert.Equal(t, expectedPostImageUrl, response.Records[0].Picture.Url)
+	assert.Equal(t, posts[0].Image.Width, response.Records[0].Picture.Width)
+	assert.Equal(t, posts[0].Image.Height, response.Records[0].Picture.Height)
+	assert.Equal(t, posts[0].Image.Tag, response.Records[0].Picture.Tag)
 
 	assert.Equal(t, posts[1].Id.String(), response.Records[1].PostId)
 	assert.Equal(t, posts[1].Content, response.Records[1].Content)
@@ -131,6 +161,7 @@ func TestGetPostsByUsernameSuccess(t *testing.T) {
 	assert.Equal(t, secondPostLikes, response.Records[1].Likes)
 	assert.Equal(t, true, response.Records[1].Liked)
 	assert.Nil(t, response.Records[1].Location)
+	assert.Nil(t, response.Records[1].Picture)
 
 	assert.Equal(t, offset, response.Pagination.Offset)
 	assert.Equal(t, limit, response.Pagination.Limit)
@@ -270,8 +301,7 @@ func TestGetGlobalPostFeedSuccess(t *testing.T) {
 			Username:  "someUserTest",
 			User:      models.User{},
 			Content:   "This is the last post",
-			ImageUrl:  "",
-			CreatedAt: time.Now().Add(time.Hour * -1),
+			CreatedAt: time.Now().UTC().Add(time.Hour * -1),
 		}
 
 		locationId := uuid.New()
@@ -280,13 +310,11 @@ func TestGetGlobalPostFeedSuccess(t *testing.T) {
 				Id:       uuid.New(),
 				Username: "someOtherUsername",
 				User: models.User{
-					Username:          "someOtherUsername",
-					Nickname:          "someOtherNickname",
-					ProfilePictureUrl: "",
+					Username: "someOtherUsername",
+					Nickname: "someOtherNickname",
 				},
 				Content:    "This is the next post",
-				ImageUrl:   "",
-				CreatedAt:  time.Now().Add(time.Hour * -2),
+				CreatedAt:  time.Now().UTC().Add(time.Hour * -2),
 				LocationId: &locationId,
 				Location: models.Location{
 					Longitude: 11.1,
@@ -298,13 +326,11 @@ func TestGetGlobalPostFeedSuccess(t *testing.T) {
 				Id:       uuid.New(),
 				Username: "anotherTestUsername",
 				User: models.User{
-					Username:          "anotherTestUsername",
-					Nickname:          "anotherTestNickname",
-					ProfilePictureUrl: "",
+					Username: "anotherTestUsername",
+					Nickname: "anotherTestNickname",
 				},
 				Content:   "This is another next post",
-				ImageUrl:  "",
-				CreatedAt: time.Now().Add(time.Hour * -3),
+				CreatedAt: time.Now().UTC().Add(time.Hour * -3),
 			},
 		}
 		limit := 2
@@ -358,7 +384,7 @@ func TestGetGlobalPostFeedSuccess(t *testing.T) {
 		assert.Equal(t, lastPost.Id, capturedLastPost.Id)
 		assert.Equal(t, lastPost.Username, capturedLastPost.Username)
 		assert.Equal(t, lastPost.Content, capturedLastPost.Content)
-		assert.Equal(t, lastPost.ImageUrl, capturedLastPost.ImageUrl)
+		assert.Equal(t, lastPost.ImageId, capturedLastPost.ImageId)
 		assert.True(t, lastPost.CreatedAt.Equal(capturedLastPost.CreatedAt))
 		assert.Equal(t, lastPost.Hashtags, capturedLastPost.Hashtags)
 
@@ -460,8 +486,7 @@ func TestGetPersonalPostFeedSuccess(t *testing.T) {
 		Username:  "someUserTest",
 		User:      models.User{},
 		Content:   "This is the last post",
-		ImageUrl:  "",
-		CreatedAt: time.Now().Add(time.Hour * -1),
+		CreatedAt: time.Now().UTC().Add(time.Hour * -1),
 	}
 
 	currentUsername := "thisUser"
@@ -476,13 +501,11 @@ func TestGetPersonalPostFeedSuccess(t *testing.T) {
 			Id:       uuid.New(),
 			Username: "someOtherUsername",
 			User: models.User{
-				Username:          "someOtherUsername",
-				Nickname:          "someOtherNickname",
-				ProfilePictureUrl: "",
+				Username: "someOtherUsername",
+				Nickname: "someOtherNickname",
 			},
 			Content:    "This is the next post",
-			ImageUrl:   "",
-			CreatedAt:  time.Now().Add(time.Hour * -2),
+			CreatedAt:  time.Now().UTC().Add(time.Hour * -2),
 			LocationId: &locationId,
 			Location: models.Location{
 				Longitude: 11.1,
@@ -494,13 +517,11 @@ func TestGetPersonalPostFeedSuccess(t *testing.T) {
 			Id:       uuid.New(),
 			Username: "anotherTestUsername",
 			User: models.User{
-				Username:          "anotherTestUsername",
-				Nickname:          "anotherTestNickname",
-				ProfilePictureUrl: "",
+				Username: "anotherTestUsername",
+				Nickname: "anotherTestNickname",
 			},
 			Content:   "This is another next post",
-			ImageUrl:  "",
-			CreatedAt: time.Now().Add(time.Hour * -3),
+			CreatedAt: time.Now().UTC().Add(time.Hour * -3),
 		},
 	}
 	limit := 2
@@ -549,7 +570,7 @@ func TestGetPersonalPostFeedSuccess(t *testing.T) {
 	assert.Equal(t, lastPost.Id, capturedLastPost.Id)
 	assert.Equal(t, lastPost.Username, capturedLastPost.Username)
 	assert.Equal(t, lastPost.Content, capturedLastPost.Content)
-	assert.Equal(t, lastPost.ImageUrl, capturedLastPost.ImageUrl)
+	assert.Equal(t, lastPost.ImageId, capturedLastPost.ImageId)
 	assert.True(t, lastPost.CreatedAt.Equal(capturedLastPost.CreatedAt))
 	assert.Equal(t, lastPost.Hashtags, capturedLastPost.Hashtags)
 
@@ -706,12 +727,11 @@ func TestGetPostsByHashtagSuccess(t *testing.T) {
 			Id:       uuid.New(),
 			Username: "testUser",
 			User: models.User{
-				Username:          "testUser",
-				Nickname:          "testNickname",
-				ProfilePictureUrl: "",
+				Username: "testUser",
+				Nickname: "testNickname",
 			},
 			Content:    "Test #Post 2",
-			CreatedAt:  time.Now(),
+			CreatedAt:  time.Now().UTC(),
 			LocationId: &locationId,
 			Location: models.Location{
 				Longitude: 11.1,
@@ -723,12 +743,11 @@ func TestGetPostsByHashtagSuccess(t *testing.T) {
 			Id:       uuid.New(),
 			Username: "testUser",
 			User: models.User{
-				Username:          "testUser",
-				Nickname:          "testNickname",
-				ProfilePictureUrl: "",
+				Username: "testUser",
+				Nickname: "testNickname",
 			},
 			Content:   "Test #Post 3",
-			CreatedAt: time.Now().Add(-1 * time.Hour),
+			CreatedAt: time.Now().UTC().Add(-1 * time.Hour),
 		},
 	}
 
@@ -744,8 +763,7 @@ func TestGetPostsByHashtagSuccess(t *testing.T) {
 		Id:        uuid.New(),
 		Username:  "testUser",
 		Content:   "Test #Post 1",
-		ImageUrl:  "",
-		CreatedAt: time.Now().Add(-2 * time.Hour),
+		CreatedAt: time.Now().UTC().Add(-2 * time.Hour),
 	}
 
 	// Mock expectations
@@ -792,14 +810,13 @@ func TestGetPostsByHashtagSuccess(t *testing.T) {
 	assert.Equal(t, lastPost.Id, capturedLastPost.Id)
 	assert.Equal(t, lastPost.Username, capturedLastPost.Username)
 	assert.Equal(t, lastPost.Content, capturedLastPost.Content)
-	assert.Equal(t, lastPost.ImageUrl, capturedLastPost.ImageUrl)
+	assert.Equal(t, lastPost.ImageId, capturedLastPost.ImageId)
 	assert.True(t, lastPost.CreatedAt.Equal(capturedLastPost.CreatedAt))
 	assert.Equal(t, lastPost.Hashtags, capturedLastPost.Hashtags)
 
 	assert.Equal(t, posts[0].Id, responsePostFeed.Records[0].PostId)
 	assert.Equal(t, posts[0].Username, responsePostFeed.Records[0].Author.Username)
 	assert.Equal(t, posts[0].User.Nickname, responsePostFeed.Records[0].Author.Nickname)
-	assert.Equal(t, posts[0].User.ProfilePictureUrl, responsePostFeed.Records[0].Author.ProfilePictureUrl)
 	assert.Equal(t, posts[0].Content, responsePostFeed.Records[0].Content)
 	assert.True(t, posts[0].CreatedAt.Equal(responsePostFeed.Records[0].CreationDate))
 	assert.Equal(t, firstPostComments, responsePostFeed.Records[0].Comments)
@@ -813,7 +830,6 @@ func TestGetPostsByHashtagSuccess(t *testing.T) {
 	assert.Equal(t, posts[1].Id, responsePostFeed.Records[1].PostId)
 	assert.Equal(t, posts[1].Username, responsePostFeed.Records[1].Author.Username)
 	assert.Equal(t, posts[1].User.Nickname, responsePostFeed.Records[1].Author.Nickname)
-	assert.Equal(t, posts[1].User.ProfilePictureUrl, responsePostFeed.Records[1].Author.ProfilePictureUrl)
 	assert.Equal(t, posts[1].Content, responsePostFeed.Records[1].Content)
 	assert.True(t, posts[1].CreatedAt.Equal(responsePostFeed.Records[1].CreationDate))
 	assert.Equal(t, secondPostComments, responsePostFeed.Records[1].Comments)

@@ -34,12 +34,12 @@ func (m *MockSubscriptionRepository) GetSubscriptionCountByUsername(username str
 	return args.Get(0).(int64), args.Get(1).(int64), args.Error(2)
 }
 
-func (m *MockSubscriptionRepository) GetFollowers(limit int, offset int, username string, currentUsername string) ([]models.UserSubscriptionRecordDTO, int64, error) {
+func (m *MockSubscriptionRepository) GetFollowers(limit int, offset int, username string, currentUsername string) ([]models.UserSubscriptionSQLRecordDTO, int64, error) {
 	args := m.Called(limit, offset, username, currentUsername)
-	return args.Get(0).([]models.UserSubscriptionRecordDTO), args.Get(1).(int64), args.Error(2)
+	return args.Get(0).([]models.UserSubscriptionSQLRecordDTO), args.Get(1).(int64), args.Error(2)
 }
 
-func (m *MockSubscriptionRepository) GetFollowings(limit int, offset int, username string, currentUsername string) ([]models.UserSubscriptionRecordDTO, int64, error) {
+func (m *MockSubscriptionRepository) GetFollowings(limit int, offset int, username string, currentUsername string) ([]models.UserSubscriptionSQLRecordDTO, int64, error) {
 	args := m.Called(limit, offset, username, currentUsername)
-	return args.Get(0).([]models.UserSubscriptionRecordDTO), args.Get(1).(int64), args.Error(2)
+	return args.Get(0).([]models.UserSubscriptionSQLRecordDTO), args.Get(1).(int64), args.Error(2)
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
 	"github.com/wwi21seb-projekt/server-beta/internal/models"
 	"github.com/wwi21seb-projekt/server-beta/internal/repositories"
+	"github.com/wwi21seb-projekt/server-beta/internal/utils"
 	"gorm.io/gorm"
 	"net/http"
 	"strings"
@@ -80,13 +81,22 @@ func (service *CommentService) CreateComment(req *models.CommentCreateRequestDTO
 	}
 
 	// Prepare response
+	var authorImageDto *models.ImageMetadataDTO
+	if user.ImageId != nil {
+		authorImageDto = &models.ImageMetadataDTO{ // if user has a profile picture, create image dto
+			Url:    utils.FormatImageUrl(user.Image.Id.String(), user.Image.Format),
+			Width:  user.Image.Width,
+			Height: user.Image.Height,
+			Tag:    user.Image.Tag,
+		}
+	}
 	responseDto := &models.CommentResponseDTO{
 		CommentId: comment.Id,
 		Content:   comment.Content,
-		Author: &models.AuthorDTO{
-			Username:          user.Username,
-			Nickname:          user.Nickname,
-			ProfilePictureUrl: user.ProfilePictureUrl,
+		Author: &models.UserDTO{
+			Username: user.Username,
+			Nickname: user.Nickname,
+			Picture:  authorImageDto,
 		},
 		CreationDate: comment.CreatedAt,
 	}
@@ -115,19 +125,28 @@ func (service *CommentService) GetCommentsByPostId(postId string, offset, limit 
 	// Prepare response
 	var commentRecords []models.CommentResponseDTO
 	for _, comment := range comments {
+		var authorImageDto *models.ImageMetadataDTO
+		if comment.User.ImageId != nil { // if user has a profile picture, create image dto
+			authorImageDto = &models.ImageMetadataDTO{
+				Url:    utils.FormatImageUrl(comment.User.Image.Id.String(), comment.User.Image.Format),
+				Width:  comment.User.Image.Width,
+				Height: comment.User.Image.Height,
+				Tag:    comment.User.Image.Tag,
+			}
+		}
 		commentRecords = append(commentRecords, models.CommentResponseDTO{
 			CommentId: comment.Id,
 			Content:   comment.Content,
-			Author: &models.AuthorDTO{
-				Username:          comment.User.Username,
-				Nickname:          comment.User.Nickname,
-				ProfilePictureUrl: comment.User.ProfilePictureUrl,
+			Author: &models.UserDTO{
+				Username: comment.User.Username,
+				Nickname: comment.User.Nickname,
+				Picture:  authorImageDto,
 			},
 			CreationDate: comment.CreatedAt,
 		})
 	}
 
-	paginationDto := &models.CommentPaginationDTO{
+	paginationDto := &models.OffsetPaginationDTO{
 		Offset:  offset,
 		Limit:   limit,
 		Records: count,

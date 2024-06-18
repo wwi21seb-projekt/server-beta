@@ -35,9 +35,12 @@ func TestGetNotificationsSuccess(t *testing.T) {
 	}
 
 	otherUser := models.User{
-		Username:          "test2",
-		Nickname:          "nick",
-		ProfilePictureUrl: "img.png",
+		Username: "test2",
+		Nickname: "nick",
+		Image: models.Image{
+			Width:  100,
+			Height: 101,
+		},
 	}
 
 	foundNotifications := []models.Notification{
@@ -46,14 +49,14 @@ func TestGetNotificationsSuccess(t *testing.T) {
 			FromUser:         otherUser,
 			ForUsername:      currentUsername,
 			NotificationType: "follow",
-			Timestamp:        time.Now(),
+			Timestamp:        time.Now().UTC(),
 		},
 		{
 			Id:               uuid.New(),
 			FromUser:         otherUser,
 			ForUsername:      currentUsername,
 			NotificationType: "repost",
-			Timestamp:        time.Now(),
+			Timestamp:        time.Now().UTC(),
 		},
 	}
 
@@ -88,7 +91,6 @@ func TestGetNotificationsSuccess(t *testing.T) {
 		assert.Equal(t, notification.NotificationType, responseDto.Records[i].NotificationType)
 		assert.Equal(t, notification.FromUsername, responseDto.Records[i].User.Username)
 		assert.Equal(t, notification.FromUser.Nickname, responseDto.Records[i].User.Nickname)
-		assert.Equal(t, notification.FromUser.ProfilePictureUrl, responseDto.Records[i].User.ProfilePictureUrl)
 		assert.True(t, notification.Timestamp.Equal(responseDto.Records[i].Timestamp))
 	}
 }
