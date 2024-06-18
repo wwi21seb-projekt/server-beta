@@ -130,6 +130,7 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, usernam
 	var location *models.Location
 	if req.Location != nil { // if location is present, create location object and save it
 		// Check if coordinates are in valid range
+		// Accuracy is bound to unsigned int, so no extra validation needed
 		if !service.validator.ValidateLongitude(*req.Location.Longitude) || !service.validator.ValidateLatitude(*req.Location.Latitude) {
 			return nil, customerrors.BadRequest, http.StatusBadRequest
 		}

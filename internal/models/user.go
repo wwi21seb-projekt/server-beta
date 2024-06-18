@@ -35,7 +35,7 @@ type UserCreateRequestDTO struct {
 type UserCreateResponseDTO struct {
 	Username string            `json:"username"`
 	Nickname string            `json:"nickname"`
-	Picture  *ImageMetadataDTO `json:"picture"`
+	Picture  *ImageMetadataDTO `json:"profilePicture"`
 	Email    string            `json:"email"`
 }
 
