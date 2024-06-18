@@ -95,8 +95,8 @@ func (service *UserService) CreateUser(req models.UserCreateRequestDTO) (*models
 	// Validate and create image object
 	var image *models.Image
 	var imageId *uuid.UUID
-	if req.Picture != "" {
-		imageBytes, err := base64.StdEncoding.DecodeString(req.Picture)
+	if req.ProfilePicture != "" {
+		imageBytes, err := base64.StdEncoding.DecodeString(req.ProfilePicture)
 		if err != nil {
 			return nil, customerrors.BadRequest, http.StatusBadRequest
 		}

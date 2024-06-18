@@ -118,7 +118,7 @@ func SetupRouter() *gin.Engine {
 	api.GET("/feed", feedController.GetPostFeed)
 	api.GET("/posts", middleware.AuthorizeUser, feedController.GetPostsByHashtag)
 
-	// Picture
+	// ProfilePicture
 	api.GET("/images/:imageId", imageController.GetImageById)
 
 	// Subscription

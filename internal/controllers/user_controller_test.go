@@ -1965,12 +1965,12 @@ package controllers_test
 //		{
 //			Nickname: "", // New nickname is empty/delete nickname
 //			Status:   "New status",
-//			Picture:  "",
+//			ProfilePicture:  "",
 //		},
 //		{
 //			Nickname: "", // New nickname is empty/delete nickname
 //			Status:   "", // New status is empty/delete nickname
-//			Picture:  base64String2,
+//			ProfilePicture:  base64String2,
 //		},
 //	}
 //
@@ -2010,7 +2010,7 @@ package controllers_test
 //
 //		// Mock für den ImageService
 //		mockImageService.On("DeleteImage", user.ImageURL).Maybe().Return(nil, http.StatusOK)
-//		mockImageService.On("SaveImage", request.Picture).Maybe().Return(&models.Image{
+//		mockImageService.On("SaveImage", request.ProfilePicture).Maybe().Return(&models.Image{
 //			ImageUrl: "https://example.com/new_image.jpg",
 //			Width:    100,
 //			Height:   100,
@@ -2046,9 +2046,9 @@ package controllers_test
 //
 //		assert.Equal(t, request.Nickname, responseDto.Nickname)
 //		assert.Equal(t, request.Status, responseDto.Status)
-//		if request.Picture != "" && request.Picture != "null" {
-//			assert.NotNil(t, responseDto.Picture)
-//			assert.Equal(t, "https://example.com/new_image.jpg", responseDto.Picture.ImageUrl)
+//		if request.ProfilePicture != "" && request.ProfilePicture != "null" {
+//			assert.NotNil(t, responseDto.ProfilePicture)
+//			assert.Equal(t, "https://example.com/new_image.jpg", responseDto.ProfilePicture.ImageUrl)
 //		}
 //		assert.Equal(t, request.Nickname, capturedUpdatedUser.Nickname)
 //		assert.Equal(t, request.Status, capturedUpdatedUser.Status)
@@ -2507,7 +2507,7 @@ package controllers_test
 //	assert.Equal(t, user.Username, responseDto.Username)
 //	assert.Equal(t, user.Nickname, responseDto.Nickname)
 //	assert.Equal(t, user.Status, responseDto.Status)
-//	assert.Equal(t, user.ImageURL, responseDto.Picture.ImageUrl)
+//	assert.Equal(t, user.ImageURL, responseDto.ProfilePicture.ImageUrl)
 //	assert.Equal(t, postCount, responseDto.Posts)
 //	assert.Equal(t, followerCount, responseDto.Follower)
 //	assert.Equal(t, followingCount, responseDto.Following)
@@ -2578,7 +2578,7 @@ package controllers_test
 //	assert.Equal(t, user.Username, responseDto.Username)
 //	assert.Equal(t, user.Nickname, responseDto.Nickname)
 //	assert.Equal(t, user.Status, responseDto.Status)
-//	assert.Equal(t, user.ImageURL, responseDto.Picture.ImageUrl)
+//	assert.Equal(t, user.ImageURL, responseDto.ProfilePicture.ImageUrl)
 //	assert.Equal(t, postCount, responseDto.Posts)
 //	assert.Equal(t, followerCount, responseDto.Follower)
 //	assert.Equal(t, followingCount, responseDto.Following)

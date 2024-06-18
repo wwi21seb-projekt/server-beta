@@ -25,17 +25,17 @@ type UserDTO struct { // General dto for user, also used as author dto
 }
 
 type UserCreateRequestDTO struct {
-	Username string `json:"username" binding:"required"`
-	Password string `json:"password" binding:"required"`
-	Nickname string `json:"nickname"`
-	Picture  string `json:"picture"`
-	Email    string `json:"email" binding:"required"`
+	Username       string `json:"username" binding:"required"`
+	Password       string `json:"password" binding:"required"`
+	Nickname       string `json:"nickname"`
+	ProfilePicture string `json:"profilePicture"`
+	Email          string `json:"email" binding:"required"`
 }
 
 type UserCreateResponseDTO struct {
 	Username string            `json:"username"`
 	Nickname string            `json:"nickname"`
-	Picture  *ImageMetadataDTO `json:"profilePicture"`
+	Picture  *ImageMetadataDTO `json:"picture"`
 	Email    string            `json:"email"`
 }
 
