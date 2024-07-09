@@ -1,6 +1,7 @@
-package utils
+package utils_test
 
 import (
+	"github.com/wwi21seb-projekt/server-beta/internal/utils"
 	"reflect"
 	"testing"
 )
@@ -40,7 +41,7 @@ func TestExtractHashtags(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := ExtractHashtags(tt.text)
+			result := utils.ExtractHashtags(tt.text)
 
 			// Test if both slices are empty
 			if len(result) == 0 && len(tt.expected) == 0 {

@@ -61,7 +61,7 @@ func (controller *MessageController) GetMessagesByChatId(c *gin.Context) {
 	currentUsername, exists := c.Get("username")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": customerrors.UserUnauthorized,
+			"error": customerrors.Unauthorized,
 		})
 		return
 	}
@@ -95,7 +95,7 @@ func (controller *MessageController) HandleWebSocket(c *gin.Context) {
 	jwtToken := c.GetHeader("Sec-WebSocket-Protocol") // agreed on no Bearer prefix
 	currentUsername, isRefreshToken, err := utils.VerifyJWTToken(jwtToken)
 	if isRefreshToken || err != nil { // if token is a refresh token or invalid, return Unauthorized error
-		sendError(conn, customerrors.UserUnauthorized)
+		sendError(conn, customerrors.Unauthorized)
 		return // return and close connection
 	}
 
@@ -114,17 +114,14 @@ func (controller *MessageController) HandleWebSocket(c *gin.Context) {
 
 	for {
 		// Read message from client
-		messageType, message, err := conn.ReadMessage()
+		_, message, err := conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err) {
-				fmt.Println("Received close message for", currentUsername, "in chat", chatId)
 				return
 			}
-			fmt.Println("Error reading message", err, "for user", currentUsername, "in chat", chatId)
 			sendError(conn, customerrors.BadRequest)
 			continue // continue to listen for more messages
 		}
-		fmt.Println("Message received from", currentUsername, "in chat", chatId, ":", string(message), messageType)
 
 		// Bind message to DTO
 		var req models.MessageCreateRequestDTO

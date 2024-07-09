@@ -19,6 +19,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -129,7 +130,7 @@ func TestCreateCommentBadRequest(t *testing.T) {
 		`{}`,                          // Empty body
 		`{"invalid": "Test comment"}`, // invalid field
 		`{"content": ""}`,             // Empty content
-		`{"content": "` + string(make([]rune, 129)) + `"}`, // Content exceeds 128 characters
+		`{"content": "` + strings.Repeat("A", 300) + `"}`, // Content exceeds 128 characters
 	}
 
 	for _, body := range invalidBodies {
@@ -212,7 +213,7 @@ func TestCreateCommentUnauthorized(t *testing.T) {
 	err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
 
-	expectedCustomError := customerrors.UserUnauthorized
+	expectedCustomError := customerrors.Unauthorized
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
@@ -428,7 +429,7 @@ func TestGetCommentsByPostIdUnauthorized(t *testing.T) {
 	err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
 
-	expectedCustomError := customerrors.UserUnauthorized
+	expectedCustomError := customerrors.Unauthorized
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 

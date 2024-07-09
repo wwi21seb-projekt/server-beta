@@ -305,7 +305,7 @@ func (service *UserService) ActivateUser(username string, token string) (*models
 	activationToken, err := service.activationTokenRepo.FindActivationToken(username, token)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, customerrors.InvalidToken, http.StatusNotFound
+			return nil, customerrors.InvalidToken, http.StatusUnauthorized
 		}
 		return nil, customerrors.DatabaseError, http.StatusInternalServerError
 	}
@@ -487,7 +487,7 @@ func (service *UserService) UpdateUserInformation(req *models.UserInformationUpd
 	user, err := service.userRepo.FindUserByUsername(currentUsername)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, customerrors.UserUnauthorized, http.StatusUnauthorized
+			return nil, customerrors.Unauthorized, http.StatusUnauthorized
 		}
 		return nil, customerrors.DatabaseError, http.StatusInternalServerError
 	}

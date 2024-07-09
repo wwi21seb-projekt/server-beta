@@ -43,12 +43,34 @@ func TestGetPostsByUsernameSuccess(t *testing.T) {
 		t.Fatal(err)
 	}
 	userImage := models.Image{
-		Id:     uuid.New(),
-		Format: "png",
-		Width:  100,
-		Height: 200,
-		Tag:    time.Now().UTC(),
+		Id:        uuid.New(),
+		Format:    "png",
+		Width:     100,
+		Height:    200,
+		Tag:       time.Now().UTC(),
+		ImageData: []byte("some image data"),
 	}
+	//expectedUserImageUrl := os.Getenv("SERVER_URL") + "/api/images/" + userImage.Id.String() + "." + userImage.Format
+
+	postImage := models.Image{
+		Id:        uuid.New(),
+		Format:    "jpeg",
+		Width:     300,
+		Height:    400,
+		Tag:       time.Now().UTC(),
+		ImageData: []byte("some image other data"),
+	}
+	expectedPostImageUrl := os.Getenv("SERVER_URL") + "/api/images/" + postImage.Id.String() + "." + postImage.Format
+
+	originalPostImage := models.Image{
+		Id:        uuid.New(),
+		Format:    "webp",
+		Width:     500,
+		Height:    600,
+		ImageData: []byte("some image other data 2"),
+	}
+	expectedOriginalPostImageUrl := os.Getenv("SERVER_URL") + "/api/images/" + originalPostImage.Id.String() + "." + originalPostImage.Format
+
 	user := models.User{
 		Username: "testUser",
 		Nickname: "testNickname",
@@ -57,19 +79,27 @@ func TestGetPostsByUsernameSuccess(t *testing.T) {
 		Image:    userImage,
 	}
 
-	postImage := models.Image{
-		Id:     uuid.New(),
-		Format: "jpg",
-		Width:  300,
-		Height: 400,
-		Tag:    time.Now().UTC(),
+	originalPostLocation := models.Location{
+		Id:        uuid.New(),
+		Longitude: 4,
+		Latitude:  5,
 	}
-	expectedPostImageUrl := os.Getenv("SERVER_URL") + "/api/images/" + postImage.Id.String() + "." + postImage.Format
+	originalPost := models.Post{
+		Id:         uuid.New(),
+		Username:   user.Username,
+		User:       user,
+		Content:    "This is a original post",
+		CreatedAt:  time.Now().UTC().Add(time.Hour * -1),
+		ImageId:    &originalPostImage.Id,
+		Image:      originalPostImage,
+		LocationId: &originalPostLocation.Id,
+		Location:   originalPostLocation,
+	}
 
 	locationId := uuid.New()
 	posts := []models.Post{
 		{
-			Id:         uuid.New(),
+			Id:         uuid.New(), // first post has image, location and is a repost
 			Username:   user.Username,
 			Content:    "Test Post 1",
 			CreatedAt:  time.Now().UTC(),
@@ -79,8 +109,9 @@ func TestGetPostsByUsernameSuccess(t *testing.T) {
 				Latitude:  22.2,
 				Accuracy:  50,
 			},
-			ImageId: &postImage.Id,
-			Image:   postImage,
+			ImageId:  &postImage.Id,
+			Image:    postImage,
+			RepostId: &originalPost.Id,
 		},
 		{
 			Id:         uuid.New(),
@@ -105,18 +136,25 @@ func TestGetPostsByUsernameSuccess(t *testing.T) {
 	mockUserRepository.On("FindUserByUsername", user.Username).Return(&user, nil) // User found successfully
 	mockPostRepository.On("GetPostsByUsername", user.Username, 0, 10).Return(posts, int64(len(posts)), nil)
 
+	mockPostRepository.On("GetPostById", originalPost.Id.String()).Return(originalPost, nil)
+
 	firstPostLikes := int64(0)
 	secondPostLikes := int64(10)
+	originalPostLikes := int64(20)
 	mockLikeRepository.On("CountLikes", posts[0].Id.String()).Return(firstPostLikes, nil)
 	mockLikeRepository.On("CountLikes", posts[1].Id.String()).Return(secondPostLikes, nil)
+	mockLikeRepository.On("CountLikes", originalPost.Id.String()).Return(originalPostLikes, nil)
 
-	mockLikeRepository.On("FindLike", posts[0].Id.String(), currentUsername).Return(&models.Like{}, gorm.ErrRecordNotFound) // First post not liked by current user
-	mockLikeRepository.On("FindLike", posts[1].Id.String(), currentUsername).Return(&models.Like{}, nil)                    // Second post liked by current user
+	mockLikeRepository.On("FindLike", posts[0].Id.String(), currentUsername).Return(&models.Like{}, gorm.ErrRecordNotFound)     // First post not liked by current user
+	mockLikeRepository.On("FindLike", posts[1].Id.String(), currentUsername).Return(&models.Like{}, nil)                        // Second post liked by current user
+	mockLikeRepository.On("FindLike", originalPost.Id.String(), currentUsername).Return(&models.Like{}, gorm.ErrRecordNotFound) // Original post not liked by current user
 
-	firstPostComments := int64(0)
+	firstPostComments := int64(25)
 	secondPostComments := int64(5)
+	originalPostComments := int64(15)
 	mockCommentRepository.On("CountComments", posts[0].Id.String()).Return(firstPostComments, nil)
 	mockCommentRepository.On("CountComments", posts[1].Id.String()).Return(secondPostComments, nil)
+	mockCommentRepository.On("CountComments", originalPost.Id.String()).Return(originalPostComments, nil)
 
 	// Setup HTTP request
 	url := "/users/" + user.Username + "/feed?offset=" + fmt.Sprint(offset) + "&limit=" + fmt.Sprint(limit)
@@ -138,6 +176,7 @@ func TestGetPostsByUsernameSuccess(t *testing.T) {
 	err = json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(t, err)
 
+	// Assert first post in response body
 	assert.Equal(t, posts[0].Id.String(), response.Records[0].PostId)
 	assert.Equal(t, posts[0].Content, response.Records[0].Content)
 	assert.True(t, posts[0].CreatedAt.Equal(response.Records[0].CreationDate))
@@ -154,6 +193,26 @@ func TestGetPostsByUsernameSuccess(t *testing.T) {
 	assert.Equal(t, posts[0].Image.Height, response.Records[0].Picture.Height)
 	assert.Equal(t, posts[0].Image.Tag, response.Records[0].Picture.Tag)
 
+	// Assert original post of first post in response body
+	assert.NotNil(t, response.Records[0].Repost)
+	repost := response.Records[0].Repost
+	assert.Equal(t, originalPost.Id.String(), repost.PostId.String())
+	assert.Equal(t, originalPost.Content, repost.Content)
+	assert.True(t, originalPost.CreatedAt.Equal(repost.CreationDate))
+	assert.Equal(t, originalPostComments, repost.Comments)
+	assert.Equal(t, originalPostLikes, repost.Likes)
+	assert.Equal(t, false, repost.Liked)
+	assert.NotNil(t, repost.Location)
+	assert.Equal(t, originalPostLocation.Latitude, *repost.Location.Latitude)
+	assert.Equal(t, originalPostLocation.Longitude, *repost.Location.Longitude)
+	assert.Equal(t, originalPostLocation.Accuracy, *repost.Location.Accuracy)
+	assert.NotNil(t, repost.Picture)
+	assert.Equal(t, originalPostImage.Width, repost.Picture.Width)
+	assert.Equal(t, originalPostImage.Height, repost.Picture.Height)
+	assert.Equal(t, originalPostImage.Tag, repost.Picture.Tag)
+	assert.Equal(t, expectedOriginalPostImageUrl, repost.Picture.Url)
+
+	// Assert second post in response body
 	assert.Equal(t, posts[1].Id.String(), response.Records[1].PostId)
 	assert.Equal(t, posts[1].Content, response.Records[1].Content)
 	assert.True(t, posts[1].CreatedAt.Equal(response.Records[1].CreationDate))
@@ -214,7 +273,7 @@ func TestGetPostsByUsernameUnauthorized(t *testing.T) {
 		err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
 		assert.NoError(t, err)
 
-		expectedCustomError := customerrors.UserUnauthorized
+		expectedCustomError := customerrors.Unauthorized
 		assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 		assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 	}
@@ -697,7 +756,7 @@ func TestGetPersonalPostFeedUnauthorized(t *testing.T) {
 		err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
 		assert.NoError(t, err)
 
-		expectedCustomError := customerrors.UserUnauthorized
+		expectedCustomError := customerrors.Unauthorized
 		assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 		assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
@@ -891,7 +950,7 @@ func TestGetPostsByHashtagUnauthorized(t *testing.T) {
 		err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
 		assert.NoError(t, err)
 
-		expectedCustomError := customerrors.UserUnauthorized
+		expectedCustomError := customerrors.Unauthorized
 		assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 		assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 	}

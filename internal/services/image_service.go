@@ -35,11 +35,11 @@ func (service *ImageService) GetImageById(imageId string) (*models.ImageDTO, *cu
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, customerrors.ImageNotFound, http.StatusNotFound
 		}
-		return nil, customerrors.InternalServerError, http.StatusInternalServerError
+		return nil, customerrors.DatabaseError, http.StatusInternalServerError
 	}
 
 	// Check if the format of the image is the same as the requested format
-	if image.Format != imageIdSeperated[1] {
+	if len(imageIdSeperated) != 2 || image.Format != imageIdSeperated[1] {
 		return nil, customerrors.ImageNotFound, http.StatusNotFound
 	}
 

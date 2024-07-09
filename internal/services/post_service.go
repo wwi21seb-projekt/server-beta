@@ -147,7 +147,7 @@ func (service *PostService) CreatePost(req *models.PostCreateRequestDTO, usernam
 	user, err := service.userRepo.FindUserByUsername(username)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, customerrors.UserUnauthorized, http.StatusUnauthorized // not reachable, because of JWT middleware
+			return nil, customerrors.Unauthorized, http.StatusUnauthorized // not reachable, because of JWT middleware
 		}
 		return nil, customerrors.DatabaseError, http.StatusInternalServerError
 	}
@@ -271,7 +271,7 @@ func (service *PostService) DeletePost(postId string, username string) (*custome
 
 	// Check if the requesting user is the author of the post
 	if post.Username != username {
-		return customerrors.PostDeleteForbidden, http.StatusForbidden
+		return customerrors.DeletePostForbidden, http.StatusForbidden
 	}
 
 	// Delete post

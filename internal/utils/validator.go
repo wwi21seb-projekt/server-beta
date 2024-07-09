@@ -2,7 +2,6 @@ package utils
 
 import (
 	"bytes"
-	"encoding/xml"
 	"github.com/truemail-rb/truemail-go"
 	"golang.org/x/image/webp"
 	"image"
@@ -11,7 +10,6 @@ import (
 	_ "image/png"
 	"os"
 	"regexp"
-	"strconv"
 	"unicode"
 )
 
@@ -128,39 +126,6 @@ func (v *Validator) ValidateImage(imageData []byte) (bool, string, int, int) {
 	img, err = webp.DecodeConfig(bytes.NewReader(imageData))
 	if err == nil {
 		return true, "webp", img.Width, img.Height
-	}
-
-	// Decode to validate image: svg
-	if bytes.HasPrefix(imageData, []byte("<svg")) && bytes.HasSuffix(imageData, []byte("</svg>")) {
-		// Check for disallowed elements or attributes
-		if bytes.Contains(imageData, []byte("<script")) || // Check for <script> tags
-			bytes.Contains(imageData, []byte("onload=")) || // Check for onload event
-			bytes.Contains(imageData, []byte("onclick=")) || // Check for onclick event
-			bytes.Contains(imageData, []byte("onmouseover=")) || // Check for onmouseover event
-			bytes.Contains(imageData, []byte("data:")) { // Check for data URIs
-			return false, "", 0, 0
-		}
-
-		// Decode svg to get width and height
-		type SVG struct {
-			XMLName xml.Name `xml:"svg"`
-			Width   string   `xml:"width,attr"`
-			Height  string   `xml:"height,attr"`
-		}
-		var svg SVG
-		decoder := xml.NewDecoder(bytes.NewReader(imageData))
-		if err := decoder.Decode(&svg); err != nil {
-			return false, "", 0, 0
-		}
-		// Convert width and height to integers
-		// If conversion return 0, return false
-		width, _ := strconv.Atoi(svg.Width)
-		height, _ := strconv.Atoi(svg.Height)
-		if width == 0 || height == 0 {
-			return false, "", 0, 0
-		}
-
-		return true, "svg", width, height
 	}
 
 	// If none of the above conditions are met, return false

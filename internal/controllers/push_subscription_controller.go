@@ -28,7 +28,7 @@ func (controller *PushSubscriptionController) GetVapidKey(c *gin.Context) {
 	_, exists := c.Get("username")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": customerrors.UserUnauthorized,
+			"error": customerrors.Unauthorized,
 		})
 		return
 	}
@@ -51,7 +51,7 @@ func (controller *PushSubscriptionController) CreatePushSubscription(c *gin.Cont
 	// Get username from request that was set in middleware
 	username, exists := c.Get("username")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, customerrors.UserUnauthorized)
+		c.JSON(http.StatusUnauthorized, customerrors.Unauthorized)
 		return
 	}
 

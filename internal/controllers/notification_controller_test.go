@@ -121,7 +121,7 @@ func TestGetNotificationsUnauthorized(t *testing.T) {
 	err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
 
-	expectedCustomError := customerrors.UserUnauthorized
+	expectedCustomError := customerrors.Unauthorized
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
@@ -199,7 +199,7 @@ func TestDeleteNotificationByIdUnauthorized(t *testing.T) {
 	err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
 
-	expectedCustomError := customerrors.UserUnauthorized
+	expectedCustomError := customerrors.Unauthorized
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 }

@@ -142,7 +142,7 @@ func TestGetMessagesByChatIdUnauthorized(t *testing.T) {
 	err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
 
-	expectedCustomError := customerrors.UserUnauthorized
+	expectedCustomError := customerrors.Unauthorized
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
@@ -474,7 +474,7 @@ func TestHandleWebSocketUnauthorized(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Assert
-	expectedCustomError := customerrors.UserUnauthorized
+	expectedCustomError := customerrors.Unauthorized
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
@@ -738,7 +738,7 @@ func TestHandleWebSocketGetNotificationsAfterClosing(t *testing.T) {
 }
 
 // Regression Test
-// TestHandleWebSocketGetNotificationsForOtherChats test the HandleWebSocket function if it sends notifications for a while a user is connected to other chats
+// TestHandleWebSocketGetNotificationsForOtherChats test the HandleWebSocket function if it sends notifications for a chat while the user is connected to other chats
 func TestHandleWebSocketGetNotificationsForOtherChats(t *testing.T) {
 	// Arrange
 	mockChatRepository := new(repositories.MockChatRepository)

@@ -27,7 +27,7 @@ func (controller *LikeController) PostLike(c *gin.Context) {
 	username, exists := c.Get("username")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": customerrors.UserUnauthorized,
+			"error": customerrors.Unauthorized,
 		})
 		return
 	}
@@ -53,7 +53,7 @@ func (controller *LikeController) DeleteLike(c *gin.Context) {
 	username, exists := c.Get("username")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": customerrors.UserUnauthorized,
+			"error": customerrors.Unauthorized,
 		})
 		return
 	}

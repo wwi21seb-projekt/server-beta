@@ -9,7 +9,7 @@ import (
 
 // generateJWTToken generates new jwt token with user id claim
 func generateJWTToken(username string, expirationTime time.Time, isRefreshToken bool) (string, error) {
-	issuedAtTime := time.Now()
+	issuedAtTime := time.Now().UTC()
 
 	claims := &jwt.MapClaims{
 		"username": username,
@@ -54,9 +54,16 @@ func VerifyJWTToken(tokenString string) (string, bool, error) {
 	}
 
 	claims, ok := token.Claims.(jwt.MapClaims)
-	if !ok || float64(time.Now().Unix()) > claims["exp"].(float64) {
-		return "", false, fmt.Errorf("expired or invalid token")
+	if !ok {
+		return "", false, fmt.Errorf("invalid token")
 	}
+
+	// jwt.Parse already checks for expiration
+	// next lines are not needed
+	//if float64(time.Now().UTC().Unix()) > claims["exp"].(float64) {
+	//	fmt.Println("expired token")
+	//	return "", false, fmt.Errorf("expired or invalid token")
+	//}
 
 	username, ok := claims["username"].(string)
 	if !ok {

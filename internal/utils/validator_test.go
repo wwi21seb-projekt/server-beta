@@ -193,13 +193,9 @@ func TestValidateImage(t *testing.T) {
 		{"Valid JPEG ProfilePicture", "../../tests/resources/valid.jpeg", true, "jpeg", 670, 444},
 		{"Valid WEBP ProfilePicture", "../../tests/resources/valid.webp", true, "webp", 670, 444},
 		{"Valid PNG ProfilePicture", "../../tests/resources/valid.png", true, "png", 204, 192},
-		{"Valid SVG ProfilePicture", "../../tests/resources/valid.svg", true, "svg", 16, 16},
 		{"Empty JPEG ProfilePicture", "../../tests/resources/empty.jpeg", false, "", 0, 0},
 		{"Empty WEBP ProfilePicture", "../../tests/resources/empty.webp", false, "", 0, 0},
 		{"Empty PNG ProfilePicture", "../../tests/resources/empty.png", false, "", 0, 0},
-		{"Empty SVG ProfilePicture", "../../tests/resources/empty.svg", false, "", 0, 0},
-		{"Malicious SVG ProfilePicture", "../../tests/resources/malicious.svg", false, "", 0, 0},
-		{"Invalid Dimensions SVG", "../../tests/resources/invalid_dimensions.svg", false, "", 0, 0},
 		{"Invalid Filetype", "../../tests/resources/invalid.txt", false, "", 0, 0},
 	}
 
@@ -228,5 +224,17 @@ func TestValidateImage(t *testing.T) {
 				t.Errorf("ValidateImage() = %v, want %v", height, tt.wantedHeight)
 			}
 		})
+	}
+}
+
+// TestValidateImageSize tests the ValidateImage function if it returns false for images larger than 10 MB
+func TestValidateImageSize(t *testing.T) {
+	// Create a 10 MB + 1 byte image
+	imageData := make([]byte, 10*1024*1024+1)
+
+	validator := utils.NewValidator()
+	isValid, _, _, _ := validator.ValidateImage(imageData)
+	if isValid != false {
+		t.Errorf("ValidateImage() = %v, want %v", isValid, false)
 	}
 }

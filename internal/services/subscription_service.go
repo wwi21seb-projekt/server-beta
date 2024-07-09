@@ -35,7 +35,7 @@ func (service *SubscriptionService) PostSubscription(req *models.SubscriptionPos
 
 	// Check if user wants to follow himself
 	if req.Following == currentUsername {
-		return nil, customerrors.SelfFollow, http.StatusNotAcceptable
+		return nil, customerrors.SubscriptionSelfFollow, http.StatusNotAcceptable
 	}
 
 	// Check if user exists
@@ -95,7 +95,7 @@ func (service *SubscriptionService) DeleteSubscription(subscriptionId string, cu
 
 	// Check if user is authorized to delete subscription
 	if subscription.FollowerUsername != currentUsername {
-		return customerrors.SubscriptionDeleteNotAuthorized, http.StatusForbidden
+		return customerrors.UnsubscribeForbidden, http.StatusForbidden
 	}
 
 	// Delete subscription

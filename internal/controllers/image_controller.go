@@ -43,8 +43,6 @@ func (controller *ImageController) GetImageById(c *gin.Context) {
 		contentType = "image/png"
 	case imageDto.Format == "webp":
 		contentType = "image/webp"
-	case imageDto.Format == "svg":
-		contentType = "image/svg+xml"
 	default: // If the image format is not supported, return not found error
 		c.JSON(http.StatusNotFound, gin.H{
 			"error": customerrors.ImageNotFound,

@@ -42,14 +42,8 @@ func (service *CommentService) CreateComment(req *models.CommentCreateRequestDTO
 		return nil, customerrors.BadRequest, http.StatusBadRequest
 	}
 
-	// Post ID must be a valid UUID, otherwise post does not exist
-	postIdUUID, err := uuid.Parse(postId)
-	if err != nil {
-		return nil, customerrors.PostNotFound, http.StatusNotFound
-	}
-
 	// Check if post exists
-	_, err = service.postRepo.GetPostById(postId)
+	post, err := service.postRepo.GetPostById(postId)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, customerrors.PostNotFound, http.StatusNotFound
@@ -61,7 +55,7 @@ func (service *CommentService) CreateComment(req *models.CommentCreateRequestDTO
 	user, err := service.userRepo.FindUserByUsername(currentUsername)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, customerrors.UserUnauthorized, http.StatusUnauthorized // not reachable, because of JWT middleware
+			return nil, customerrors.Unauthorized, http.StatusUnauthorized // not reachable, because of JWT middleware
 		}
 		return nil, customerrors.DatabaseError, http.StatusInternalServerError
 	}
@@ -69,7 +63,7 @@ func (service *CommentService) CreateComment(req *models.CommentCreateRequestDTO
 	// Create comment
 	comment := &models.Comment{
 		Id:        uuid.New(),
-		PostID:    postIdUUID,
+		PostID:    post.Id,
 		Username:  currentUsername,
 		Content:   req.Content,
 		CreatedAt: time.Now(),

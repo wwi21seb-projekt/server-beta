@@ -48,7 +48,7 @@ func (service *FeedService) GetPostsByUsername(username string, offset, limit in
 	}
 
 	// Create response dto and return
-	postDtos := []models.UserFeedRecordDTO{} // no empty slice declaration using array literal (suggested by Goland) because it would be nil when marshalled to json instead of []
+	postDtos := make([]models.UserFeedRecordDTO, 0)
 	for _, post := range posts {
 		likedByCurrentUser, likeCount, commentCount, err := service.getLikeAndCommentInformationByPost(post, currentUsername)
 		if err != nil {
@@ -361,7 +361,7 @@ func (service *FeedService) getRepostResponseDto(post models.Post, currentUserna
 	repost, err := service.postRepo.GetPostById(post.RepostId.String())
 	if err != nil {
 
-		// If repost is not found because it may have been deleted, return repost dto with only the repost id
+		// If repost is not found because it may have been deleted, return empty repost dto with only the repost id
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			repostDto = &models.PostResponseDTO{
 				PostId: *post.RepostId,

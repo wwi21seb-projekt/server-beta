@@ -29,7 +29,7 @@ func (controller *CommentController) CreateComment(c *gin.Context) {
 	username, exists := c.Get("username")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": customerrors.UserUnauthorized,
+			"error": customerrors.Unauthorized,
 		})
 		return
 	}
@@ -80,7 +80,7 @@ func (controller *CommentController) GetCommentsByPostId(c *gin.Context) {
 	_, exists := c.Get("username")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": customerrors.UserUnauthorized,
+			"error": customerrors.Unauthorized,
 		})
 		return
 	}

@@ -190,7 +190,7 @@ func TestPostSubscriptionUnauthorized(t *testing.T) {
 		err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
 		assert.NoError(t, err)
 
-		expectedCustomError := customerrors.UserUnauthorized
+		expectedCustomError := customerrors.Unauthorized
 		assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 		assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
@@ -348,7 +348,7 @@ func TestPostSubscriptionSelfFollow(t *testing.T) {
 	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
 
-	expectedCustomError := customerrors.SelfFollow
+	expectedCustomError := customerrors.SubscriptionSelfFollow
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
@@ -435,7 +435,7 @@ func TestDeleteSubscriptionUnauthorized(t *testing.T) {
 		err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
 		assert.NoError(t, err)
 
-		expectedCustomError := customerrors.UserUnauthorized
+		expectedCustomError := customerrors.Unauthorized
 		assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 		assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
@@ -491,7 +491,7 @@ func TestDeleteSubscriptionNotFound(t *testing.T) {
 	mockUserRepo.AssertExpectations(t)
 }
 
-// TestDeleteSubscriptionForbidden tests if DeleteSubscription returns 403-PostDeleteForbidden when user tries to delete a subscription of another user
+// TestDeleteSubscriptionForbidden tests if DeleteSubscription returns 403-DeletePostForbidden when user tries to delete a subscription of another user
 func TestDeleteSubscriptionForbidden(t *testing.T) {
 	// Arrange
 	mockSubscriptionRepo := new(repositories.MockSubscriptionRepository)
@@ -529,13 +529,13 @@ func TestDeleteSubscriptionForbidden(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	// Assert
-	assert.Equal(t, http.StatusForbidden, w.Code) // Expect HTTP 403 PostDeleteForbidden status
+	assert.Equal(t, http.StatusForbidden, w.Code) // Expect HTTP 403 DeletePostForbidden status
 
 	var errorResponse customerrors.ErrorResponse
 	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
 
-	expectedCustomError := customerrors.SubscriptionDeleteNotAuthorized
+	expectedCustomError := customerrors.UnsubscribeForbidden
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
@@ -787,7 +787,7 @@ func TestGetSubscriptionsUnauthorized(t *testing.T) {
 		err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
 		assert.NoError(t, err)
 
-		expectedCustomError := customerrors.UserUnauthorized
+		expectedCustomError := customerrors.Unauthorized
 		assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 		assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 

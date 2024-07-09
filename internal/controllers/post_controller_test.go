@@ -452,8 +452,9 @@ func TestCreatePostWithImage(t *testing.T) {
 	assert.Nil(t, capturedPost.RepostId)
 	assert.NotEmpty(t, capturedPost.CreatedAt)
 	assert.NotEmpty(t, capturedPost.ImageId.String())
-	assert.NotEmpty(t, capturedPost.Image.Height)
-	assert.NotEmpty(t, capturedPost.Image.Width)
+	assert.Equal(t, 444, capturedPost.Image.Height)
+	assert.Equal(t, 670, capturedPost.Image.Width)
+	assert.Equal(t, imageData, capturedPost.Image.ImageData)
 	assert.Equal(t, "jpeg", capturedPost.Image.Format)
 	assert.NotEmpty(t, capturedPost.Image.Tag)
 
@@ -881,7 +882,7 @@ func TestCreatePostUnauthorized(t *testing.T) {
 		err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
 		assert.NoError(t, err)
 
-		expectedCustomError := customerrors.UserUnauthorized
+		expectedCustomError := customerrors.Unauthorized
 		assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 		assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
@@ -957,7 +958,7 @@ func TestDeletePostUnauthorized(t *testing.T) {
 	err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
 
-	expectedCustomError := customerrors.UserUnauthorized
+	expectedCustomError := customerrors.Unauthorized
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 

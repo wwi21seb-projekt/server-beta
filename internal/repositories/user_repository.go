@@ -151,7 +151,7 @@ func (repo *UserRepository) DeleteUserByUsername(username string) error {
 		}
 
 		// Delete token
-		if err := tx.Where("username = ?", username).Delete(&models.ActivationToken{}).Error; err != nil {
+		if err := tx.Where("username_fk = ?", username).Delete(&models.ActivationToken{}).Error; err != nil {
 			if !errors.Is(err, gorm.ErrRecordNotFound) {
 				return err
 			}

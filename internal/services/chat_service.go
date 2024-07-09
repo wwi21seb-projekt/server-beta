@@ -66,7 +66,7 @@ func (service *ChatService) CreateChat(req *models.ChatCreateRequestDTO, current
 	currentUser, err := service.userRepo.FindUserByUsername(currentUsername)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, customerrors.UserUnauthorized, http.StatusUnauthorized
+			return nil, customerrors.Unauthorized, http.StatusUnauthorized
 		}
 		return nil, customerrors.DatabaseError, http.StatusInternalServerError
 	}
