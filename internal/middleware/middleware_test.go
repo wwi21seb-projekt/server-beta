@@ -1,10 +1,11 @@
-package middleware
+package middleware_test
 
 import (
 	"encoding/json"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
+	"github.com/wwi21seb-projekt/server-beta/internal/middleware"
 	"github.com/wwi21seb-projekt/server-beta/internal/utils"
 	"net/http"
 	"net/http/httptest"
@@ -20,7 +21,7 @@ func TestAuthorizeUserSuccess(t *testing.T) {
 
 	gin.SetMode(gin.TestMode)
 	router := gin.Default()
-	router.GET("/test", AuthorizeUser, func(c *gin.Context) {
+	router.GET("/test", middleware.AuthorizeUser, func(c *gin.Context) {
 		extractedUsername, _ := c.Get("username")
 		c.String(http.StatusOK, extractedUsername.(string))
 	})
@@ -52,7 +53,7 @@ func TestAuthorizeUserUnauthorized(t *testing.T) {
 		// Setup
 		gin.SetMode(gin.TestMode)
 		router := gin.Default()
-		router.GET("/test", AuthorizeUser, func(c *gin.Context) {
+		router.GET("/test", middleware.AuthorizeUser, func(c *gin.Context) {
 			extractedUsername, _ := c.Get("username")
 			c.String(http.StatusOK, extractedUsername.(string))
 		})
@@ -71,7 +72,7 @@ func TestAuthorizeUserUnauthorized(t *testing.T) {
 		err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
 		assert.NoError(t, err)
 
-		expectedCustomError := customerrors.UserUnauthorized
+		expectedCustomError := customerrors.Unauthorized
 		assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 		assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 	}
@@ -89,7 +90,7 @@ func TestGetLoggedInUsernameSuccess(t *testing.T) {
 	c.Request.Header.Set("Authorization", "Bearer "+validToken)
 
 	// Act and assert
-	username, ok := GetLoggedInUsername(c)
+	username, ok := middleware.GetLoggedInUsername(c)
 	assert.True(t, ok)
 	assert.Equal(t, testUsername, username)
 }
@@ -107,7 +108,7 @@ func TestGetLoggedInUsernameInvalidToken(t *testing.T) {
 		c.Request.Header.Set("Authorization", "Bearer "+token)
 
 		// Act and assert
-		username, ok := GetLoggedInUsername(c)
+		username, ok := middleware.GetLoggedInUsername(c)
 		assert.False(t, ok)
 		assert.Equal(t, "", username)
 	}

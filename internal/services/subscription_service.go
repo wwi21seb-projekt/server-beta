@@ -6,6 +6,7 @@ import (
 	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
 	"github.com/wwi21seb-projekt/server-beta/internal/models"
 	"github.com/wwi21seb-projekt/server-beta/internal/repositories"
+	"github.com/wwi21seb-projekt/server-beta/internal/utils"
 	"gorm.io/gorm"
 	"net/http"
 	"time"
@@ -14,7 +15,7 @@ import (
 type SubscriptionServiceInterface interface {
 	PostSubscription(req *models.SubscriptionPostRequestDTO, currentUsername string) (*models.SubscriptionPostResponseDTO, *customerrors.CustomError, int)
 	DeleteSubscription(subscriptionId string, currentUsername string) (*customerrors.CustomError, int)
-	GetSubscriptions(ftype string, limit int, offset int, username string, currentUsername string) (*models.SubscriptionResponseDTO, *customerrors.CustomError, int)
+	GetSubscriptions(queryType string, limit int, offset int, username string, currentUsername string) (*models.SubscriptionResponseDTO, *customerrors.CustomError, int)
 }
 
 type SubscriptionService struct {
@@ -34,7 +35,7 @@ func (service *SubscriptionService) PostSubscription(req *models.SubscriptionPos
 
 	// Check if user wants to follow himself
 	if req.Following == currentUsername {
-		return nil, customerrors.SelfFollow, http.StatusNotAcceptable
+		return nil, customerrors.SubscriptionSelfFollow, http.StatusNotAcceptable
 	}
 
 	// Check if user exists
@@ -94,7 +95,7 @@ func (service *SubscriptionService) DeleteSubscription(subscriptionId string, cu
 
 	// Check if user is authorized to delete subscription
 	if subscription.FollowerUsername != currentUsername {
-		return customerrors.SubscriptionDeleteNotAuthorized, http.StatusForbidden
+		return customerrors.UnsubscribeForbidden, http.StatusForbidden
 	}
 
 	// Delete subscription
@@ -106,9 +107,9 @@ func (service *SubscriptionService) DeleteSubscription(subscriptionId string, cu
 	return nil, http.StatusNoContent
 }
 
-func (service *SubscriptionService) GetSubscriptions(ftype string, limit int, offset int, username string, currentUsername string) (*models.SubscriptionResponseDTO, *customerrors.CustomError, int) {
+func (service *SubscriptionService) GetSubscriptions(queryType string, limit int, offset int, username string, currentUsername string) (*models.SubscriptionResponseDTO, *customerrors.CustomError, int) {
 
-	var records []models.UserSubscriptionRecordDTO
+	var sqlRecords []models.UserSubscriptionSQLRecordDTO
 	var totalRecordsCount int64
 	var err error
 	var _ *models.User
@@ -122,32 +123,51 @@ func (service *SubscriptionService) GetSubscriptions(ftype string, limit int, of
 	}
 
 	// Check if following or followers was requested
-	if ftype == "following" {
+	if queryType == "following" {
 		// Get list of users that the user follows
-		records, totalRecordsCount, err = service.subscriptionRepo.GetFollowings(limit, offset, username, currentUsername)
+		sqlRecords, totalRecordsCount, err = service.subscriptionRepo.GetFollowings(limit, offset, username, currentUsername)
 		if err != nil {
 			return nil, customerrors.DatabaseError, http.StatusInternalServerError
 		}
 
-	} else if ftype == "followers" {
+	} else if queryType == "followers" {
 		// Get list of users that follow the user
-		records, totalRecordsCount, err = service.subscriptionRepo.GetFollowers(limit, offset, username, currentUsername)
+		sqlRecords, totalRecordsCount, err = service.subscriptionRepo.GetFollowers(limit, offset, username, currentUsername)
 		if err != nil {
 			return nil, customerrors.DatabaseError, http.StatusInternalServerError
 		}
 	}
 
 	// Create response
+	records := make([]models.UserSubscriptionRecordDTO, 0)
+
+	for _, sqlRecord := range sqlRecords {
+		var imageDto *models.ImageMetadataDTO
+		if sqlRecord.ImageId != "" { // create metadata dto only if image exists
+			imageDto = &models.ImageMetadataDTO{
+				Url:    utils.FormatImageUrl(sqlRecord.ImageId, sqlRecord.Format),
+				Width:  sqlRecord.Width,
+				Height: sqlRecord.Height,
+				Tag:    sqlRecord.Tag,
+			}
+		}
+		record := models.UserSubscriptionRecordDTO{
+			FollowerId:  sqlRecord.FollowerId,
+			FollowingId: sqlRecord.FollowingId,
+			Username:    sqlRecord.Username,
+			Nickname:    sqlRecord.Nickname,
+			Picture:     imageDto,
+		}
+		records = append(records, record)
+	}
+
 	response := &models.SubscriptionResponseDTO{
-		Records: []models.UserSubscriptionRecordDTO{},
-		Pagination: &models.SubscriptionPaginationDTO{
+		Records: records,
+		Pagination: &models.OffsetPaginationDTO{
 			Offset:  offset,
 			Limit:   limit,
 			Records: totalRecordsCount,
 		},
-	}
-	if records != nil { // If records are nil, return empty array
-		response.Records = records
 	}
 
 	return response, nil, http.StatusOK

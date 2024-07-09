@@ -59,6 +59,7 @@ func (repo *ChatRepository) GetChatsByUsername(username string) ([]models.Chat, 
 		Joins("LEFT JOIN (?) as latest_messages ON chats.id = latest_messages.chat_id", subQuery).
 		Where("chat_users.user_username = ?", username).
 		Preload("Users").
+		Preload("Users.Image").
 		Order("latest_messages.last_message_date DESC"). // Order chats by latest message date
 		Find(&chats).Error
 	return chats, err
@@ -66,6 +67,6 @@ func (repo *ChatRepository) GetChatsByUsername(username string) ([]models.Chat, 
 
 func (repo *ChatRepository) GetChatById(chatId string) (models.Chat, error) {
 	var chat models.Chat
-	err := repo.DB.Where("id = ?", chatId).Preload("Users").First(&chat).Error
+	err := repo.DB.Where("id = ?", chatId).Preload("Users").Preload("Users.Image").First(&chat).Error
 	return chat, err
 }

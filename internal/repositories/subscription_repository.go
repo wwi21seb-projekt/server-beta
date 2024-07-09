@@ -11,8 +11,8 @@ type SubscriptionRepositoryInterface interface {
 	GetSubscriptionByUsernames(follower, following string) (*models.Subscription, error)
 	GetSubscriptionById(subscriptionId string) (*models.Subscription, error)
 	GetSubscriptionCountByUsername(username string) (int64, int64, error)
-	GetFollowers(limit int, offset int, username string, currentUsername string) ([]models.UserSubscriptionRecordDTO, int64, error)
-	GetFollowings(limit int, offset int, username string, currentUsername string) ([]models.UserSubscriptionRecordDTO, int64, error)
+	GetFollowers(limit int, offset int, username string, currentUsername string) ([]models.UserSubscriptionSQLRecordDTO, int64, error)
+	GetFollowings(limit int, offset int, username string, currentUsername string) ([]models.UserSubscriptionSQLRecordDTO, int64, error)
 }
 
 type SubscriptionRepository struct {
@@ -64,16 +64,17 @@ func (repo *SubscriptionRepository) GetSubscriptionCountByUsername(username stri
 }
 
 // GetFollowers returns the followers of a user
-func (repo *SubscriptionRepository) GetFollowers(limit int, offset int, username string, currentUsername string) ([]models.UserSubscriptionRecordDTO, int64, error) {
-	var followers []models.UserSubscriptionRecordDTO
+func (repo *SubscriptionRepository) GetFollowers(limit int, offset int, username string, currentUsername string) ([]models.UserSubscriptionSQLRecordDTO, int64, error) {
+	var followers []models.UserSubscriptionSQLRecordDTO
 	var count int64
 
 	baseQuery := repo.DB.Table("users").
-		Select("userToCurrentUserSub.id as follower_id, currentUserToUserSub.id as following_id, users.username as username, users.nickname as nickname, users.profile_picture_url as profile_picture_url").
-		Joins("INNER JOIN subscriptions on users.username = subscriptions.follower"). // join users table with subscriptions
+		Select("userToCurrentUserSub.id as follower_id, currentUserToUserSub.id as following_id, users.username as username, users.nickname as nickname, images.id as image_id, images.format as format, images.width as width, images.height as height, images.tag as tag").
+		Joins("INNER JOIN subscriptions on users.username = subscriptions.follower").                                                                                                        // join users table with subscriptions
 		Joins("LEFT OUTER JOIN (SELECT * FROM subscriptions WHERE subscriptions.following = ?) AS userToCurrentUserSub ON users.username = userToCurrentUserSub.follower", currentUsername). // see if the user in the list is following the current user
 		Joins("LEFT OUTER JOIN (SELECT * FROM subscriptions WHERE subscriptions.follower = ?) AS currentUserToUserSub ON users.username = currentUserToUserSub.following", currentUsername). // see if current user is following the user in the list
-		Where("subscriptions.following = ?", username) // get only subscriptions where the user is being followed
+		Joins("LEFT OUTER JOIN images ON users.image_id = images.id").                                                                                                                       // Join with image table to get image attributes
+		Where("subscriptions.following = ?", username)                                                                                                                                       // get only subscription where the user is followed
 
 	// Count results
 	err := baseQuery.Count(&count).Error
@@ -91,16 +92,17 @@ func (repo *SubscriptionRepository) GetFollowers(limit int, offset int, username
 }
 
 // GetFollowings returns the users a given user is following
-func (repo *SubscriptionRepository) GetFollowings(limit int, offset int, username string, currentUsername string) ([]models.UserSubscriptionRecordDTO, int64, error) {
-	var followings []models.UserSubscriptionRecordDTO
+func (repo *SubscriptionRepository) GetFollowings(limit int, offset int, username string, currentUsername string) ([]models.UserSubscriptionSQLRecordDTO, int64, error) {
+	var followings []models.UserSubscriptionSQLRecordDTO
 	var count int64
 
 	baseQuery := repo.DB.Table("users").
-		Select("userToCurrentUserSub.id as follower_id, currentUserToUserSub.id as following_id, users.username as username, users.nickname as nickname, users.profile_picture_url as profile_picture_url").
-		Joins("INNER JOIN subscriptions on users.username = subscriptions.following"). // join users table with subscriptions
+		Select("userToCurrentUserSub.id as follower_id, currentUserToUserSub.id as following_id, users.username as username, users.nickname as nickname, images.id as image_id, images.format as format, images.width as width, images.height as height, images.tag as tag").
+		Joins("INNER JOIN subscriptions on users.username = subscriptions.following").                                                                                                       // join users table with subscriptions
 		Joins("LEFT OUTER JOIN (SELECT * FROM subscriptions WHERE subscriptions.following = ?) AS userToCurrentUserSub ON users.username = userToCurrentUserSub.follower", currentUsername). // see if the user in the list is following the current user
 		Joins("LEFT OUTER JOIN (SELECT * FROM subscriptions WHERE subscriptions.follower = ?) AS currentUserToUserSub ON users.username = currentUserToUserSub.following", currentUsername). // see if current user is following the user in the list
-		Where("subscriptions.follower = ?", username) // get only subscription where the user follows someone
+		Joins("LEFT OUTER JOIN images ON users.image_id = images.id").                                                                                                                       // Join with image table to get image attributes
+		Where("subscriptions.follower = ?", username)                                                                                                                                        // get only subscription where the user follows someone
 
 	// Count results
 	err := baseQuery.Count(&count).Error

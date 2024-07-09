@@ -21,15 +21,9 @@ type MessageRecordDTO struct {
 	CreationDate time.Time `json:"creationDate"`
 }
 
-type MessagePaginationDTO struct {
-	Offset  int   `json:"offset"`
-	Limit   int   `json:"limit"`
-	Records int64 `json:"records"`
-}
-
 type MessagesResponseDTO struct {
-	Records    []MessageRecordDTO    `json:"records"`
-	Pagination *MessagePaginationDTO `json:"pagination"`
+	Records    []MessageRecordDTO   `json:"records"`
+	Pagination *OffsetPaginationDTO `json:"pagination"`
 }
 
 type MessageCreateRequestDTO struct {

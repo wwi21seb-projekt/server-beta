@@ -31,7 +31,7 @@ func NewUserRepository(db *gorm.DB) *UserRepository {
 
 func (repo *UserRepository) FindUserByUsername(username string) (*models.User, error) {
 	var user models.User
-	err := repo.DB.Where("username = ?", username).First(&user).Error
+	err := repo.DB.Where("username = ?", username).Preload("Image").First(&user).Error
 	return &user, err
 }
 
@@ -70,8 +70,22 @@ func (repo *UserRepository) CheckUsernameExistsForUpdate(username string, tx *go
 }
 
 func (repo *UserRepository) UpdateUser(user *models.User) error {
-	err := repo.DB.Save(&user).Error
-	return err
+	return repo.DB.Transaction(func(tx *gorm.DB) error {
+		err := tx.Save(user).Error
+		if err != nil {
+			return err
+		}
+
+		// Update image if user has a profile picture
+		if user.ImageId != nil {
+			err = tx.Save(&user.Image).Error
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
 }
 
 func (repo *UserRepository) SearchUser(username string, limit int, offset int, currentUsername string) ([]models.User, int64, error) {
@@ -92,7 +106,7 @@ func (repo *UserRepository) SearchUser(username string, limit int, offset int, c
 	}
 
 	// Get users
-	err = query.Limit(limit).Offset(offset).Find(&users).Error
+	err = query.Limit(limit).Offset(offset).Preload("Image").Find(&users).Error
 	if err != nil {
 		return nil, 0, err
 	}
@@ -102,15 +116,32 @@ func (repo *UserRepository) SearchUser(username string, limit int, offset int, c
 
 func (repo *UserRepository) GetUnactivatedUsers() ([]models.User, error) {
 	var users []models.User
-	err := repo.DB.Where("activated = ?", false).Find(&users).Error
+	err := repo.DB.Where("activated = ?", false).Preload("Image").Find(&users).Error
 	return users, err
 }
 
 func (repo *UserRepository) DeleteUserByUsername(username string) error {
-	// This function deletes a user and related subscription, messages and activation tokens
+	// This function deletes a user with profile picture and related subscription, messages and activation tokens
 	// It is only used for unactivated users that do not have any posts or comments, etc.
 	// If this function should also be used for activated users, additional deletions are required
 	return repo.DB.Transaction(func(tx *gorm.DB) error {
+		// Find user by username to get image_id
+		var user models.User
+		if err := tx.Where("username = ?", username).First(&user).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil // User not found, nothing to delete
+			}
+			return err
+		}
+
+		// Delete user's profile picture if image_id is not nil
+		if user.ImageId != nil {
+			if err := tx.Where("id = ?", user.ImageId.String()).Delete(&models.Image{}).Error; err != nil {
+				if !errors.Is(err, gorm.ErrRecordNotFound) {
+					return err
+				}
+			}
+		}
 
 		// Delete subscriptions (user can already be followed by others even when he is not activated yet)
 		if err := tx.Where("following = ? OR follower = ?", username, username).Delete(&models.Subscription{}).Error; err != nil {
@@ -120,11 +151,12 @@ func (repo *UserRepository) DeleteUserByUsername(username string) error {
 		}
 
 		// Delete token
-		if err := tx.Where("username = ?", username).Delete(&models.ActivationToken{}).Error; err != nil {
+		if err := tx.Where("username_fk = ?", username).Delete(&models.ActivationToken{}).Error; err != nil {
 			if !errors.Is(err, gorm.ErrRecordNotFound) {
 				return err
 			}
 		}
+
 		// Delete messages
 		if err := tx.Where("username_fk = ?", username).Delete(&models.Message{}).Error; err != nil {
 			if !errors.Is(err, gorm.ErrRecordNotFound) {

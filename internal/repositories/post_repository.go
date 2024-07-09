@@ -51,7 +51,13 @@ func (repo *PostRepository) GetPostsByUsername(username string, offset, limit in
 	}
 
 	// Get posts using pagination information
-	err = baseQuery.Offset(offset).Limit(limit).Order("created_at desc, id desc").Preload("Location").Find(&posts).Error
+	err = baseQuery.
+		Offset(offset).
+		Limit(limit).
+		Order("created_at desc, id desc").
+		Preload("Image").
+		Preload("Location").
+		Find(&posts).Error
 	if err != nil {
 		return nil, 0, err
 	}
@@ -61,7 +67,12 @@ func (repo *PostRepository) GetPostsByUsername(username string, offset, limit in
 
 func (repo *PostRepository) GetPostById(postId string) (models.Post, error) {
 	var post models.Post
-	err := repo.DB.Preload("Location").Preload("User").Where("id = ?", postId).First(&post).Error
+	err := repo.DB.Model(&models.Post{}).
+		Preload("Location").
+		Preload("Image").
+		Preload("User").
+		Preload("User.Image").
+		Where("id = ?", postId).First(&post).Error
 	return post, err
 }
 
@@ -86,8 +97,10 @@ func (repo *PostRepository) GetPostsGlobalFeed(lastPost *models.Post, limit int)
 	err = baseQuery.
 		Order("created_at desc, id desc").
 		Limit(limit).
-		Preload("User").
 		Preload("Location").
+		Preload("Image").
+		Preload("User").
+		Preload("User.Image").
 		Find(&posts).Error
 	if err != nil {
 		return nil, 0, err
@@ -118,8 +131,10 @@ func (repo *PostRepository) GetPostsPersonalFeed(username string, lastPost *mode
 	// Posts subset based on pagination
 	err = baseQuery.Order("created_at desc, posts.id desc").
 		Limit(limit).
-		Preload("User").
 		Preload("Location").
+		Preload("Image").
+		Preload("User").
+		Preload("User.Image").
 		Find(&posts).Error
 	if err != nil {
 		return nil, 0, err
@@ -139,12 +154,12 @@ func (repo *PostRepository) DeletePostById(postId string) error {
 
 		// Delete comments
 		if err := tx.Where("post_id = ?", post.Id).Delete(&models.Comment{}).Error; err != nil {
-      if !errors.Is(err, gorm.ErrRecordNotFound) {
+			if !errors.Is(err, gorm.ErrRecordNotFound) {
 				return err
 			}
 		}
 
-    // Delete likes
+		// Delete likes
 		if err := tx.Where("post_id = ?", postId).Delete(&models.Like{}).Error; err != nil {
 			if !errors.Is(err, gorm.ErrRecordNotFound) {
 				return err
@@ -165,6 +180,12 @@ func (repo *PostRepository) DeletePostById(postId string) error {
 
 		// Delete location
 		if err := tx.Where("id = ?", post.LocationId).Delete(&models.Location{}).Error; err != nil {
+			if !errors.Is(err, gorm.ErrRecordNotFound) {
+				return err
+			}
+		}
+		// Delete image
+		if err := tx.Where("id = ?", post.ImageId).Delete(&models.Image{}).Error; err != nil {
 			if !errors.Is(err, gorm.ErrRecordNotFound) {
 				return err
 			}
@@ -199,7 +220,9 @@ func (repo *PostRepository) GetPostsByHashtag(hashtag string, lastPost *models.P
 		Order("posts.created_at desc, posts.id desc").
 		Limit(limit).
 		Preload("Location").
+		Preload("Image").
 		Preload("User").
+		Preload("User.Image").
 		Find(&posts).Error
 	if err != nil {
 		return nil, 0, err

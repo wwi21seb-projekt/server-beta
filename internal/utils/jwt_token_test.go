@@ -1,8 +1,11 @@
 package utils_test
 
 import (
+	"github.com/golang-jwt/jwt"
 	"github.com/wwi21seb-projekt/server-beta/internal/utils"
+	"os"
 	"testing"
+	"time"
 )
 
 // TestGenerateAccessToken tests the GenerateAccessToken function if it returns a token
@@ -71,4 +74,62 @@ func TestVerifyJWTTokenRefresh(t *testing.T) {
 	if err == nil {
 		t.Error("Expected error verifying invalid token, got nil")
 	}
+}
+
+func TestVerifyJWTTokenInvalid(t *testing.T) {
+	err := os.Setenv("JWT_SECRET", "secret")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Unexpected signing method
+	claims := &jwt.MapClaims{
+		"username": "testUser",
+		"exp":      time.Now().Add(time.Hour).Unix(),
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodNone, claims)
+	tokenString, _ := token.SignedString([]byte("secret"))
+
+	_, _, err = utils.VerifyJWTToken(tokenString)
+	if err == nil {
+		t.Error("Expected error verifying invalid token, got nil")
+	}
+
+	// Expired token
+	claims = &jwt.MapClaims{
+		"exp": time.Now().Add(-1 * time.Hour).Unix(),
+	}
+	token = jwt.NewWithClaims(jwt.SigningMethodHS512, claims)
+	tokenString, _ = token.SignedString([]byte("secret"))
+
+	_, _, err = utils.VerifyJWTToken(tokenString)
+	if err == nil {
+		t.Error("Expected error verifying invalid token, got nil")
+	}
+
+	// No username claim
+	claims = &jwt.MapClaims{
+		"exp": time.Now().Add(time.Hour).Unix(),
+	}
+	token = jwt.NewWithClaims(jwt.SigningMethodHS512, claims)
+	tokenString, _ = token.SignedString([]byte("secret"))
+
+	_, _, err = utils.VerifyJWTToken(tokenString)
+	if err == nil {
+		t.Error("Expected error verifying invalid token, got nil")
+	}
+
+	// No refresh claim
+	claims = &jwt.MapClaims{
+		"username": "testUser",
+		"exp":      time.Now().Add(time.Hour).Unix(),
+	}
+	token = jwt.NewWithClaims(jwt.SigningMethodHS512, claims)
+	tokenString, _ = token.SignedString([]byte("secret"))
+
+	_, _, err = utils.VerifyJWTToken(tokenString)
+	if err == nil {
+		t.Error("Expected error verifying invalid token, got nil")
+	}
+
 }

@@ -53,13 +53,14 @@ func TestPostSubscriptionSuccess(t *testing.T) {
 		Run(func(args mock.Arguments) {
 			capturedSubscription = *args.Get(0).(*models.Subscription) // Save argument to captor
 		}).Return(nil) // Expect subscription to be created
-	mockPushSubscriptionRepo.On("GetPushSubscriptionsByUsername", subscriptionCreateRequest.Following).Return([]models.PushSubscription{}, nil) // Expect no push subscriptions to be found)
+	mockPushSubscriptionRepo.On("GetPushSubscriptionsByUsername", subscriptionCreateRequest.Following).Return([]models.PushSubscription{}, nil) // Expect no push subscriptions to be found
 
 	var capturedNotification models.Notification
 	mockNotificationRepo.On("CreateNotification", mock.AnythingOfType("*models.Notification")).
 		Run(func(args mock.Arguments) {
 			capturedNotification = *args.Get(0).(*models.Notification)
 		}).Return(nil)
+	mockNotificationRepo.On("GetNotificationById", mock.AnythingOfType("string")).Return(models.Notification{}, nil)
 
 	// Setup HTTP request and recorder
 	requestBody, err := json.Marshal(subscriptionCreateRequest)
@@ -189,7 +190,7 @@ func TestPostSubscriptionUnauthorized(t *testing.T) {
 		err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
 		assert.NoError(t, err)
 
-		expectedCustomError := customerrors.UserUnauthorized
+		expectedCustomError := customerrors.Unauthorized
 		assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 		assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
@@ -347,7 +348,7 @@ func TestPostSubscriptionSelfFollow(t *testing.T) {
 	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
 
-	expectedCustomError := customerrors.SelfFollow
+	expectedCustomError := customerrors.SubscriptionSelfFollow
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
@@ -372,7 +373,7 @@ func TestDeleteSubscriptionSuccess(t *testing.T) {
 
 	subscription := models.Subscription{
 		Id:                uuid.New(),
-		SubscriptionDate:  time.Now(),
+		SubscriptionDate:  time.Now().UTC(),
 		FollowerUsername:  currentUsername,
 		FollowingUsername: "testUser2",
 	}
@@ -434,7 +435,7 @@ func TestDeleteSubscriptionUnauthorized(t *testing.T) {
 		err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
 		assert.NoError(t, err)
 
-		expectedCustomError := customerrors.UserUnauthorized
+		expectedCustomError := customerrors.Unauthorized
 		assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 		assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
@@ -490,7 +491,7 @@ func TestDeleteSubscriptionNotFound(t *testing.T) {
 	mockUserRepo.AssertExpectations(t)
 }
 
-// TestDeleteSubscriptionForbidden tests if DeleteSubscription returns 403-PostDeleteForbidden when user tries to delete a subscription of another user
+// TestDeleteSubscriptionForbidden tests if DeleteSubscription returns 403-DeletePostForbidden when user tries to delete a subscription of another user
 func TestDeleteSubscriptionForbidden(t *testing.T) {
 	// Arrange
 	mockSubscriptionRepo := new(repositories.MockSubscriptionRepository)
@@ -507,7 +508,7 @@ func TestDeleteSubscriptionForbidden(t *testing.T) {
 
 	subscription := models.Subscription{
 		Id:                uuid.New(),
-		SubscriptionDate:  time.Now(),
+		SubscriptionDate:  time.Now().UTC(),
 		FollowerUsername:  "testUser2",
 		FollowingUsername: "testUser3",
 	}
@@ -528,13 +529,13 @@ func TestDeleteSubscriptionForbidden(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	// Assert
-	assert.Equal(t, http.StatusForbidden, w.Code) // Expect HTTP 403 PostDeleteForbidden status
+	assert.Equal(t, http.StatusForbidden, w.Code) // Expect HTTP 403 DeletePostForbidden status
 
 	var errorResponse customerrors.ErrorResponse
 	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
 
-	expectedCustomError := customerrors.SubscriptionDeleteNotAuthorized
+	expectedCustomError := customerrors.UnsubscribeForbidden
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
@@ -560,34 +561,32 @@ func TestGetSubscriptionsFollowerSuccess(t *testing.T) {
 
 	id1 := uuid.New()
 	id2 := uuid.New()
-	foundSubscriptions := []models.UserSubscriptionRecordDTO{
+	foundSubscriptions := []models.UserSubscriptionSQLRecordDTO{
 		{
-			FollowerId:        &id1,
-			FollowingId:       nil,
-			Username:          "test2",
-			Nickname:          "Some nickname",
-			ProfilePictureUrl: "",
+			FollowerId:  &id1,
+			FollowingId: nil,
+			Username:    "test2",
+			Nickname:    "Some nickname",
 		},
 		{
-			FollowerId:        nil,
-			FollowingId:       &id2,
-			Username:          "test3",
-			Nickname:          "Some second nickname",
-			ProfilePictureUrl: "",
+			FollowerId:  nil,
+			FollowingId: &id2,
+			Username:    "test3",
+			Nickname:    "Some second nickname",
 		},
 	}
 
-	ftype := "followers"
+	queryType := "followers"
 	limit := 10
 	offset := 0
 	searchName := "searchName"
 
-	// Mock Erwartungen
+	// Mock expectations
 	mockUserRepo.On("FindUserByUsername", searchName).Return(&models.User{}, nil)
 	mockSubscriptionRepo.On("GetFollowers", limit, offset, searchName, currentUsername).Return(foundSubscriptions, int64(len(foundSubscriptions)), nil)
 
 	// Setup HTTP request und recorder
-	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/subscriptions/%s?type=%s&limit=%d&offset=%d", searchName, ftype, limit, offset), nil)
+	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/subscriptions/%s?type=%s&limit=%d&offset=%d", searchName, queryType, limit, offset), nil)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", authenticationToken))
 	w := httptest.NewRecorder()
@@ -599,7 +598,7 @@ func TestGetSubscriptionsFollowerSuccess(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	// Assert Response
-	assert.Equal(t, http.StatusOK, w.Code) // Erwarte HTTP 200 OK Status
+	assert.Equal(t, http.StatusOK, w.Code) // Expect HTTP 200 OK Status
 	var responseDto models.SubscriptionResponseDTO
 	err = json.Unmarshal(w.Body.Bytes(), &responseDto)
 	assert.NoError(t, err)
@@ -610,7 +609,6 @@ func TestGetSubscriptionsFollowerSuccess(t *testing.T) {
 		assert.Equal(t, follower.FollowerId, responseDto.Records[i].FollowerId)
 		assert.Equal(t, follower.Username, responseDto.Records[i].Username)
 		assert.Equal(t, follower.Nickname, responseDto.Records[i].Nickname)
-		assert.Equal(t, follower.ProfilePictureUrl, responseDto.Records[i].ProfilePictureUrl)
 	}
 
 	assert.Equal(t, limit, responseDto.Pagination.Limit)
@@ -639,34 +637,32 @@ func TestGetSubscriptionsFollowingSuccess(t *testing.T) {
 
 	id1 := uuid.New()
 	id2 := uuid.New()
-	foundSubscriptions := []models.UserSubscriptionRecordDTO{
+	foundSubscriptions := []models.UserSubscriptionSQLRecordDTO{
 		{
-			FollowerId:        &id1,
-			FollowingId:       nil,
-			Username:          "test2",
-			Nickname:          "Some nickname",
-			ProfilePictureUrl: "",
+			FollowerId:  &id1,
+			FollowingId: nil,
+			Username:    "test2",
+			Nickname:    "Some nickname",
 		},
 		{
-			FollowerId:        nil,
-			FollowingId:       &id2,
-			Username:          "test3",
-			Nickname:          "Some second nickname",
-			ProfilePictureUrl: "",
+			FollowerId:  nil,
+			FollowingId: &id2,
+			Username:    "test3",
+			Nickname:    "Some second nickname",
 		},
 	}
 
-	ftype := "following"
+	queryType := "following"
 	limit := 10
 	offset := 0
 	searchName := "searchName"
 
-	// Mock Erwartungen
+	// Mock expectations
 	mockUserRepo.On("FindUserByUsername", searchName).Return(&models.User{}, nil)
 	mockSubscriptionRepo.On("GetFollowings", limit, offset, searchName, currentUsername).Return(foundSubscriptions, int64(len(foundSubscriptions)), nil)
 
 	// Setup HTTP request und recorder
-	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/subscriptions/%s?type=%s&limit=%d&offset=%d", searchName, ftype, limit, offset), nil)
+	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/subscriptions/%s?type=%s&limit=%d&offset=%d", searchName, queryType, limit, offset), nil)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", authenticationToken))
 	w := httptest.NewRecorder()
@@ -678,7 +674,7 @@ func TestGetSubscriptionsFollowingSuccess(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	// Assert Response
-	assert.Equal(t, http.StatusOK, w.Code) // Erwarte HTTP 200 OK Status
+	assert.Equal(t, http.StatusOK, w.Code) // Expect HTTP 200 OK Status
 	var responseDto models.SubscriptionResponseDTO
 	err = json.Unmarshal(w.Body.Bytes(), &responseDto)
 	assert.NoError(t, err)
@@ -689,7 +685,6 @@ func TestGetSubscriptionsFollowingSuccess(t *testing.T) {
 		assert.Equal(t, follower.FollowerId, responseDto.Records[i].FollowerId)
 		assert.Equal(t, follower.Username, responseDto.Records[i].Username)
 		assert.Equal(t, follower.Nickname, responseDto.Records[i].Nickname)
-		assert.Equal(t, follower.ProfilePictureUrl, responseDto.Records[i].ProfilePictureUrl)
 	}
 
 	assert.Equal(t, limit, responseDto.Pagination.Limit)
@@ -710,7 +705,7 @@ func TestGetSubscriptionsUserNotFound(t *testing.T) {
 	subscriptionService := services.NewSubscriptionService(mockSubscriptionRepo, mockUserRepo, nil)
 	subscriptionController := controllers.NewSubscriptionController(subscriptionService)
 
-	ftype := "followingss"
+	queryType := "followings"
 	limit := 10
 	offset := 0
 
@@ -726,7 +721,7 @@ func TestGetSubscriptionsUserNotFound(t *testing.T) {
 	mockUserRepo.On("FindUserByUsername", queryUsername).Return(&models.User{}, gorm.ErrRecordNotFound)
 
 	// Setup HTTP request und recorder
-	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/subscriptions/%s?type=%s&limit=%d&offset=%d", queryUsername, ftype, limit, offset), nil)
+	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/subscriptions/%s?type=%s&limit=%d&offset=%d", queryUsername, queryType, limit, offset), nil)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", authenticationToken))
 	w := httptest.NewRecorder()
@@ -755,7 +750,7 @@ func TestGetSubscriptionsUserNotFound(t *testing.T) {
 // TestGetSubscriptionsUnauthorized tests if GetSubscriptions returns 401-Unauthorized when user is not authenticated
 func TestGetSubscriptionsUnauthorized(t *testing.T) {
 
-	ftype := "following"
+	queryType := "following"
 	limit := 10
 	offset := 0
 	currentUsername := "testUser"
@@ -774,7 +769,7 @@ func TestGetSubscriptionsUnauthorized(t *testing.T) {
 		subscriptionController := controllers.NewSubscriptionController(subscriptionService)
 
 		// Setup HTTP request und recorder
-		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/subscriptions/%s?type=%s&limit=%d&offset=%d", currentUsername, ftype, limit, offset), nil)
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/subscriptions/%s?type=%s&limit=%d&offset=%d", currentUsername, queryType, limit, offset), nil)
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 		w := httptest.NewRecorder()
@@ -792,7 +787,7 @@ func TestGetSubscriptionsUnauthorized(t *testing.T) {
 		err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
 		assert.NoError(t, err)
 
-		expectedCustomError := customerrors.UserUnauthorized
+		expectedCustomError := customerrors.Unauthorized
 		assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 		assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 

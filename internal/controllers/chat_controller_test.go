@@ -17,6 +17,7 @@ import (
 	"gorm.io/gorm"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -67,6 +68,7 @@ func TestCreateChatSuccess(t *testing.T) {
 		Run(func(args mock.Arguments) {
 			capturedNotification = args.Get(0).(*models.Notification)
 		}).Return(nil)
+	mockNotificationRepo.On("GetNotificationById", mock.AnythingOfType("string")).Return(models.Notification{}, nil)
 	mockPushSubscriptionRepo.On("GetPushSubscriptionsByUsername", otherUser.Username).Return([]models.PushSubscription{}, nil)
 
 	// Setup HTTP request
@@ -211,7 +213,7 @@ func TestCreateChatUnauthorized(t *testing.T) {
 	err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
 
-	expectedCustomError := customerrors.UserUnauthorized
+	expectedCustomError := customerrors.Unauthorized
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
@@ -365,20 +367,42 @@ func TestGetChatsSuccess(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	imageId := uuid.New()
+	imageFormat := "png"
+	err = os.Setenv("SERVER_URL", "https://example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	expectedImageUrl := os.Getenv("SERVER_URL") + "/api/images/" + imageId.String() + "." + imageFormat
+
 	chats := []models.Chat{
 		{
 			Id: uuid.New(),
 			Users: []models.User{
-				{Username: "testUser2", Nickname: "Test User 2", ProfilePictureUrl: "https://example.com/testuser2.jpg"},
+				{
+					Username: "testUser2",
+					Nickname: "Test User 2",
+					ImageId:  &imageId,
+					Image: models.Image{
+						Id:     imageId,
+						Format: imageFormat,
+						Width:  100,
+						Height: 200,
+						Tag:    time.Now().UTC(),
+					},
+				},
 			},
-			CreatedAt: time.Now(),
+			CreatedAt: time.Now().UTC(),
 		},
 		{
 			Id: uuid.New(),
 			Users: []models.User{
-				{Username: "testUser3", Nickname: "Test User 3", ProfilePictureUrl: "https://example.com/testuser3.jpg"},
+				{
+					Username: "testUser3",
+					Nickname: "Test User 3",
+				},
 			},
-			CreatedAt: time.Now(),
+			CreatedAt: time.Now().UTC(),
 		},
 	}
 
@@ -410,7 +434,16 @@ func TestGetChatsSuccess(t *testing.T) {
 		assert.Equal(t, chat.Id.String(), response.Records[i].ChatId)
 		assert.Equal(t, chat.Users[0].Username, response.Records[i].User.Username)
 		assert.Equal(t, chat.Users[0].Nickname, response.Records[i].User.Nickname)
-		assert.Equal(t, chat.Users[0].ProfilePictureUrl, response.Records[i].User.ProfilePictureUrl)
+
+		if chat.Users[0].ImageId != nil {
+			assert.NotNil(t, response.Records[i].User.Picture)
+			assert.Equal(t, expectedImageUrl, response.Records[i].User.Picture.Url)
+			assert.Equal(t, chat.Users[0].Image.Width, response.Records[i].User.Picture.Width)
+			assert.Equal(t, chat.Users[0].Image.Height, response.Records[i].User.Picture.Height)
+			assert.True(t, chat.Users[0].Image.Tag.Equal(response.Records[i].User.Picture.Tag))
+		} else {
+			assert.Nil(t, response.Records[i].User.Picture)
+		}
 	}
 
 	mockChatRepo.AssertExpectations(t)
@@ -449,7 +482,7 @@ func TestGetChatsUnauthorized(t *testing.T) {
 	err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
 
-	expectedCustomError := customerrors.UserUnauthorized
+	expectedCustomError := customerrors.Unauthorized
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 

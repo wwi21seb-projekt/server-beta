@@ -178,9 +178,6 @@ func (service *PushSubscriptionService) sendWebPushNotification(pushSubscription
 
 	// Print response information
 	fmt.Println("Notification sent to", pushSubscription.Username, "with type web")
-	fmt.Println("Status:", resp.Status)
-	bodyBytes, _ := io.ReadAll(resp.Body)
-	fmt.Println("Response Body:", string(bodyBytes))
 
 	// If the subscription is deactivated or expired, delete it
 	if resp.StatusCode == http.StatusGone {
@@ -223,10 +220,8 @@ func (service *PushSubscriptionService) sendExpoPushNotification(pushSubscriptio
 
 	// Print response information
 	fmt.Println("Notification sent to", pushSubscription.Username, "with type expo")
-	fmt.Println("Status:", resp.Status)
-	bodyBytes, _ := io.ReadAll(resp.Body)
-	fmt.Println("Response Body:", string(bodyBytes))
 
+	// Check response from expo
 	type Response struct {
 		Data struct {
 			Status  string `json:"status"`
@@ -237,10 +232,10 @@ func (service *PushSubscriptionService) sendExpoPushNotification(pushSubscriptio
 		} `json:"data"`
 	}
 
+	bodyBytes, _ := io.ReadAll(resp.Body)
 	var response Response
 	err = json.Unmarshal(bodyBytes, &response)
 	if err != nil {
-		fmt.Println("Error response JSON:", err)
 		return
 	}
 

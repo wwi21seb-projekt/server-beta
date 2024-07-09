@@ -18,6 +18,8 @@ import (
 	"gorm.io/gorm"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -32,16 +34,31 @@ func TestCreateCommentSuccess(t *testing.T) {
 	commentService := services.NewCommentService(mockCommentRepository, mockPostRepository, mockUserRepository)
 	commentController := controllers.NewCommentController(commentService)
 
-	testUsername := "testuser"
+	testUsername := "testUser"
 	authenticationToken, err := utils.GenerateAccessToken(testUsername)
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	imageId := uuid.New()
+	imageFormat := "png"
+	err = os.Setenv("SERVER_URL", "https://example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	expectedImageUrl := os.Getenv("SERVER_URL") + "/api/images/" + imageId.String() + "." + imageFormat
+
 	user := models.User{
-		Username:          testUsername,
-		Nickname:          "test user",
-		ProfilePictureUrl: "https://example.com/profile.jpg",
+		Username: testUsername,
+		Nickname: "test user",
+		ImageId:  &imageId,
+		Image: models.Image{
+			Id:     imageId,
+			Format: imageFormat,
+			Width:  100,
+			Height: 100,
+			Tag:    time.Now().UTC(),
+		},
 	}
 
 	post := models.Post{
@@ -95,7 +112,12 @@ func TestCreateCommentSuccess(t *testing.T) {
 	assert.True(t, capturedComment.CreatedAt.Equal(responseComment.CreationDate))
 	assert.Equal(t, user.Username, responseComment.Author.Username)
 	assert.Equal(t, user.Nickname, responseComment.Author.Nickname)
-	assert.Equal(t, user.ProfilePictureUrl, responseComment.Author.ProfilePictureUrl)
+
+	assert.NotNil(t, responseComment.Author.Picture)
+	assert.Equal(t, expectedImageUrl, responseComment.Author.Picture.Url)
+	assert.Equal(t, user.Image.Width, responseComment.Author.Picture.Width)
+	assert.Equal(t, user.Image.Height, responseComment.Author.Picture.Height)
+	assert.Equal(t, user.Image.Tag, responseComment.Author.Picture.Tag)
 
 	mockCommentRepository.AssertExpectations(t)
 	mockPostRepository.AssertExpectations(t)
@@ -108,7 +130,7 @@ func TestCreateCommentBadRequest(t *testing.T) {
 		`{}`,                          // Empty body
 		`{"invalid": "Test comment"}`, // invalid field
 		`{"content": ""}`,             // Empty content
-		`{"content": "` + string(make([]rune, 129)) + `"}`, // Content exceeds 128 characters
+		`{"content": "` + strings.Repeat("A", 300) + `"}`, // Content exceeds 128 characters
 	}
 
 	for _, body := range invalidBodies {
@@ -120,7 +142,7 @@ func TestCreateCommentBadRequest(t *testing.T) {
 		commentService := services.NewCommentService(mockCommentRepository, mockPostRepository, mockUserRepository)
 		commentController := controllers.NewCommentController(commentService)
 
-		testUsername := "testuser"
+		testUsername := "testUser"
 		authenticationToken, err := utils.GenerateAccessToken(testUsername)
 		if err != nil {
 			t.Fatal(err)
@@ -191,7 +213,7 @@ func TestCreateCommentUnauthorized(t *testing.T) {
 	err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
 
-	expectedCustomError := customerrors.UserUnauthorized
+	expectedCustomError := customerrors.Unauthorized
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
@@ -210,7 +232,7 @@ func TestCreateCommentPostNotFound(t *testing.T) {
 	commentService := services.NewCommentService(mockCommentRepository, mockPostRepository, mockUserRepository)
 	commentController := controllers.NewCommentController(commentService)
 
-	testUsername := "testuser"
+	testUsername := "testUser"
 	authenticationToken, err := utils.GenerateAccessToken(testUsername)
 	if err != nil {
 		t.Fatal(err)
@@ -268,10 +290,18 @@ func TestGetCommentsByPostIdSuccess(t *testing.T) {
 	commentService := services.NewCommentService(mockCommentRepository, mockPostRepository, mockUserRepository)
 	commentController := controllers.NewCommentController(commentService)
 
-	authenticationToken, err := utils.GenerateAccessToken("myuser")
+	authenticationToken, err := utils.GenerateAccessToken("myUser")
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	imageId := uuid.New()
+	imageFormat := "png"
+	err = os.Setenv("SERVER_URL", "https://example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	expectedImageUrl := os.Getenv("SERVER_URL") + "/api/images/" + imageId.String() + "." + imageFormat
 
 	post := models.Post{
 		Id: uuid.New(),
@@ -280,26 +310,32 @@ func TestGetCommentsByPostIdSuccess(t *testing.T) {
 		{
 			Id:       uuid.New(),
 			PostID:   post.Id,
-			Username: "testuser",
+			Username: "testUser",
 			User: models.User{
-				Username:          "testuser",
-				Nickname:          "test user",
-				ProfilePictureUrl: "https://example.com/profile.jpg",
+				Username: "testUser",
+				Nickname: "test user",
+				ImageId:  &imageId,
+				Image: models.Image{
+					Id:     imageId,
+					Format: imageFormat,
+					Width:  100,
+					Height: 100,
+					Tag:    time.Now().UTC(),
+				},
 			},
 			Content:   "Test comment 1",
-			CreatedAt: time.Now(),
+			CreatedAt: time.Now().UTC(),
 		},
 		{
 			Id:       uuid.New(),
 			PostID:   post.Id,
-			Username: "testuser2",
+			Username: "testUser2",
 			User: models.User{
-				Username:          "testuser2",
-				Nickname:          "test user 2",
-				ProfilePictureUrl: "https://example.com/profile2.jpg",
+				Username: "testUser2",
+				Nickname: "test user 2",
 			},
 			Content:   "Test comment 2",
-			CreatedAt: time.Now(),
+			CreatedAt: time.Now().UTC(),
 		},
 	}
 
@@ -336,12 +372,24 @@ func TestGetCommentsByPostIdSuccess(t *testing.T) {
 	assert.Equal(t, limit, responseList.Pagination.Limit)
 
 	for i, comment := range comments {
+		fmt.Printf("Expected Comment User: %+v\n", comment.User)
+		fmt.Printf("Actual Comment User: %+v\n", responseList.Records[i].Author.Picture)
+		fmt.Printf("Actual Comment User: %+v\n", i)
 		assert.Equal(t, comment.Id, responseList.Records[i].CommentId)
 		assert.Equal(t, comment.Content, responseList.Records[i].Content)
 		assert.True(t, comment.CreatedAt.Equal(responseList.Records[i].CreationDate))
 		assert.Equal(t, comment.User.Username, responseList.Records[i].Author.Username)
 		assert.Equal(t, comment.User.Nickname, responseList.Records[i].Author.Nickname)
-		assert.Equal(t, comment.User.ProfilePictureUrl, responseList.Records[i].Author.ProfilePictureUrl)
+
+		if comment.User.ImageId != nil {
+			assert.NotNil(t, responseList.Records[i].Author.Picture)
+			assert.Equal(t, expectedImageUrl, responseList.Records[i].Author.Picture.Url)
+			assert.Equal(t, comment.User.Image.Width, responseList.Records[i].Author.Picture.Width)
+			assert.Equal(t, comment.User.Image.Height, responseList.Records[i].Author.Picture.Height)
+			assert.Equal(t, comment.User.Image.Tag, responseList.Records[i].Author.Picture.Tag)
+		} else {
+			assert.Nil(t, responseList.Records[i].Author.Picture)
+		}
 	}
 
 	mockCommentRepository.AssertExpectations(t)
@@ -381,7 +429,7 @@ func TestGetCommentsByPostIdUnauthorized(t *testing.T) {
 	err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
 
-	expectedCustomError := customerrors.UserUnauthorized
+	expectedCustomError := customerrors.Unauthorized
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
@@ -400,7 +448,7 @@ func TestGetCommentsByPostIdPostNotFound(t *testing.T) {
 	commentService := services.NewCommentService(mockCommentRepository, mockPostRepository, mockUserRepository)
 	commentController := controllers.NewCommentController(commentService)
 
-	authenticationToken, err := utils.GenerateAccessToken("myuser")
+	authenticationToken, err := utils.GenerateAccessToken("myUser")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -5,6 +5,7 @@ import (
 	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
 	"github.com/wwi21seb-projekt/server-beta/internal/models"
 	"github.com/wwi21seb-projekt/server-beta/internal/repositories"
+	"github.com/wwi21seb-projekt/server-beta/internal/utils"
 	"gorm.io/gorm"
 	"net/http"
 )
@@ -47,23 +48,31 @@ func (service *FeedService) GetPostsByUsername(username string, offset, limit in
 	}
 
 	// Create response dto and return
-	postDtos := []models.UserFeedRecordDTO{} // no empty slice declaration using array literal (suggested by Goland) because it would be nil when marshalled to json instead of []
+	postDtos := make([]models.UserFeedRecordDTO, 0)
 	for _, post := range posts {
-		var locationDTO *models.LocationDTO
-
 		likedByCurrentUser, likeCount, commentCount, err := service.getLikeAndCommentInformationByPost(post, currentUsername)
 		if err != nil {
 			return nil, customerrors.DatabaseError, http.StatusInternalServerError
 		}
 
+		var locationDto *models.LocationDTO
 		if post.LocationId != nil {
 			tempLatitude := post.Location.Latitude // need to use temp variables because the pointers change in the loop
 			tempLongitude := post.Location.Longitude
 			tempAccuracy := post.Location.Accuracy
-			locationDTO = &models.LocationDTO{
+			locationDto = &models.LocationDTO{
 				Longitude: &tempLongitude,
 				Latitude:  &tempLatitude,
 				Accuracy:  &tempAccuracy,
+			}
+		}
+		var imageDto *models.ImageMetadataDTO
+		if post.ImageId != nil {
+			imageDto = &models.ImageMetadataDTO{
+				Url:    utils.FormatImageUrl(post.ImageId.String(), post.Image.Format),
+				Width:  post.Image.Width,
+				Height: post.Image.Height,
+				Tag:    post.Image.Tag,
 			}
 		}
 
@@ -79,13 +88,14 @@ func (service *FeedService) GetPostsByUsername(username string, offset, limit in
 			Comments:     commentCount,
 			Likes:        likeCount,
 			Liked:        likedByCurrentUser,
-			Location:     locationDTO,
+			Location:     locationDto,
+			Picture:      imageDto,
 			Repost:       repostDto,
 		}
 		postDtos = append(postDtos, postDto)
 	}
 
-	paginationDto := models.UserFeedPaginationDTO{
+	paginationDto := models.OffsetPaginationDTO{
 		Offset:  offset,
 		Limit:   limit,
 		Records: totalPostsCount,
@@ -115,7 +125,7 @@ func (service *FeedService) GetPostsGlobalFeed(lastPostId string, limit int, cur
 				}
 				emptyFeed := models.GeneralFeedDTO{
 					Records: []models.PostResponseDTO{},
-					Pagination: &models.GeneralFeedPaginationDTO{
+					Pagination: &models.PostCursorPaginationDTO{
 						LastPostId: "",
 						Limit:      limit,
 						Records:    totalPostsCount,
@@ -161,7 +171,7 @@ func (service *FeedService) GetPostsPersonalFeed(username string, lastPostId str
 				}
 				emptyFeed := models.GeneralFeedDTO{
 					Records: []models.PostResponseDTO{},
-					Pagination: &models.GeneralFeedPaginationDTO{
+					Pagination: &models.PostCursorPaginationDTO{
 						LastPostId: "",
 						Limit:      limit,
 						Records:    totalPostsCount,
@@ -207,7 +217,7 @@ func (service *FeedService) GetPostsByHashtag(hashtag string, lastPostId string,
 				}
 				emptyFeed := models.GeneralFeedDTO{
 					Records: []models.PostResponseDTO{},
-					Pagination: &models.GeneralFeedPaginationDTO{
+					Pagination: &models.PostCursorPaginationDTO{
 						LastPostId: "",
 						Limit:      limit,
 						Records:    totalPostsCount,
@@ -246,7 +256,7 @@ func (service *FeedService) generatePostFeedWithAuthor(posts []models.Post, tota
 	}
 	feed := models.GeneralFeedDTO{
 		Records: []models.PostResponseDTO{},
-		Pagination: &models.GeneralFeedPaginationDTO{
+		Pagination: &models.PostCursorPaginationDTO{
 			LastPostId: newLastPostId,
 			Limit:      limit,
 			Records:    totalPostsCount,
@@ -259,20 +269,38 @@ func (service *FeedService) generatePostFeedWithAuthor(posts []models.Post, tota
 			return nil, err
 		}
 
-		authorDto := models.AuthorDTO{
-			Username:          post.User.Username,
-			Nickname:          post.User.Nickname,
-			ProfilePictureUrl: post.User.ProfilePictureUrl,
+		var authorImageDto *models.ImageMetadataDTO
+		if post.User.ImageId != nil {
+			authorImageDto = &models.ImageMetadataDTO{
+				Url:    utils.FormatImageUrl(post.User.ImageId.String(), post.User.Image.Format),
+				Width:  post.User.Image.Width,
+				Height: post.User.Image.Height,
+				Tag:    post.User.Image.Tag,
+			}
 		}
-		var locationDTO *models.LocationDTO = nil
+		authorDto := &models.UserDTO{
+			Username: post.User.Username,
+			Nickname: post.User.Nickname,
+			Picture:  authorImageDto,
+		}
+		var locationDto *models.LocationDTO = nil
 		if post.LocationId != nil {
 			tempLatitude := post.Location.Latitude // need to use temp variables because the pointers change in the loop
 			tempLongitude := post.Location.Longitude
 			tempAccuracy := post.Location.Accuracy
-			locationDTO = &models.LocationDTO{
+			locationDto = &models.LocationDTO{
 				Longitude: &tempLongitude,
 				Latitude:  &tempLatitude,
 				Accuracy:  &tempAccuracy,
+			}
+		}
+		var imageDto *models.ImageMetadataDTO
+		if post.ImageId != nil {
+			imageDto = &models.ImageMetadataDTO{
+				Url:    utils.FormatImageUrl(post.ImageId.String(), post.Image.Format),
+				Width:  post.Image.Width,
+				Height: post.Image.Height,
+				Tag:    post.Image.Tag,
 			}
 		}
 
@@ -283,13 +311,14 @@ func (service *FeedService) generatePostFeedWithAuthor(posts []models.Post, tota
 
 		postDto := models.PostResponseDTO{
 			PostId:       post.Id,
-			Author:       &authorDto,
+			Author:       authorDto,
 			CreationDate: post.CreatedAt,
 			Content:      post.Content,
+			Picture:      imageDto,
 			Comments:     commentCount,
 			Likes:        likeCount,
 			Liked:        likedByCurrentUser,
-			Location:     locationDTO,
+			Location:     locationDto,
 			Repost:       repostDto,
 		}
 		feed.Records = append(feed.Records, postDto)
@@ -332,7 +361,7 @@ func (service *FeedService) getRepostResponseDto(post models.Post, currentUserna
 	repost, err := service.postRepo.GetPostById(post.RepostId.String())
 	if err != nil {
 
-		// If repost is not found because it may have been deleted, return repost dto with only the repost id
+		// If repost is not found because it may have been deleted, return empty repost dto with only the repost id
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			repostDto = &models.PostResponseDTO{
 				PostId: *post.RepostId,
@@ -351,18 +380,37 @@ func (service *FeedService) getRepostResponseDto(post models.Post, currentUserna
 	}
 
 	// Create dto
-	authorDto := models.AuthorDTO{
-		Username:          repost.User.Username,
-		Nickname:          repost.User.Nickname,
-		ProfilePictureUrl: repost.User.ProfilePictureUrl,
+	var authorImageDto *models.ImageMetadataDTO
+	if repost.User.ImageId != nil {
+		authorImageDto = &models.ImageMetadataDTO{
+			Url:    utils.FormatImageUrl(repost.User.ImageId.String(), repost.User.Image.Format),
+			Width:  repost.User.Image.Width,
+			Height: repost.User.Image.Height,
+			Tag:    repost.User.Image.Tag,
+		}
+	}
+	authorDto := models.UserDTO{
+		Username: repost.User.Username,
+		Nickname: repost.User.Nickname,
+		Picture:  authorImageDto,
 	}
 
-	var locationDTO *models.LocationDTO = nil
+	var locationDto *models.LocationDTO
 	if repost.LocationId != nil {
-		locationDTO = &models.LocationDTO{
+		locationDto = &models.LocationDTO{
 			Longitude: &repost.Location.Longitude,
 			Latitude:  &repost.Location.Latitude,
 			Accuracy:  &repost.Location.Accuracy,
+		}
+	}
+
+	var imageDto *models.ImageMetadataDTO
+	if repost.ImageId != nil {
+		imageDto = &models.ImageMetadataDTO{
+			Url:    utils.FormatImageUrl(repost.ImageId.String(), repost.Image.Format),
+			Width:  repost.Image.Width,
+			Height: repost.Image.Height,
+			Tag:    repost.Image.Tag,
 		}
 	}
 
@@ -372,9 +420,10 @@ func (service *FeedService) getRepostResponseDto(post models.Post, currentUserna
 		CreationDate: repost.CreatedAt,
 		Content:      repost.Content,
 		Comments:     commentCount,
+		Picture:      imageDto,
 		Likes:        likeCount,
 		Liked:        likedByCurrentUser,
-		Location:     locationDTO,
+		Location:     locationDto,
 		Repost:       nil, // cannot have a repost of a repost, so always nil
 	}
 	return repostDto, nil

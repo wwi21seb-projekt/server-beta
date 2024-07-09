@@ -2,6 +2,7 @@ package controllers_test
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
@@ -18,6 +19,7 @@ import (
 	"gorm.io/gorm"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -36,6 +38,7 @@ func TestCreateUserSuccess(t *testing.T) {
 		mockActivationTokenRepository,
 		mockMailService,
 		mockValidator,
+		nil,
 		nil,
 		nil,
 	)
@@ -97,12 +100,15 @@ func TestCreateUserSuccess(t *testing.T) {
 
 	// Assert Response
 	assert.Equal(t, http.StatusCreated, w.Code) // Expect HTTP 201 Created status
-	var responseUser models.UserResponseDTO
+
+	// Assert response body
+	var responseUser models.UserCreateResponseDTO
 	err = json.Unmarshal(w.Body.Bytes(), &responseUser)
 	assert.NoError(t, err)
 	assert.Equal(t, username, responseUser.Username)
 	assert.Equal(t, nickname, responseUser.Nickname)
 	assert.Equal(t, email, responseUser.Email)
+	assert.Nil(t, responseUser.Picture)
 
 	// Assert user saved to database
 	assert.Equal(t, username, captor.User.Username) // Expect username to be saved to database
@@ -111,6 +117,130 @@ func TestCreateUserSuccess(t *testing.T) {
 	passwordCheck := utils.CheckPassword(password, captor.User.PasswordHash)
 	assert.True(t, passwordCheck)          // Expect password to be hashed and saved to database
 	assert.False(t, captor.User.Activated) // Expect user to be not activated
+	assert.Empty(t, captor.User.Image)     // Expect user to have no profile picture
+
+	// Assert token saved to database
+	assert.Equal(t, username, captor.Token.Username)          // Expect username to be saved to database
+	assert.Equal(t, 6, len(captor.Token.Token))               // Expect token to be 6 digits long
+	assert.Contains(t, capturedEmailBody, captor.Token.Token) // Expect token to be in email body
+
+	// Verify that all expectations are met
+	mockUserRepository.AssertExpectations(t)
+	mockActivationTokenRepository.AssertExpectations(t)
+	mockMailService.AssertExpectations(t)
+	mockValidator.AssertExpectations(t)
+}
+
+// TestCreateUserSuccessWithImage tests if CreateUser returns 201-Created when user is created successfully with image
+func TestCreateUserSuccessWithImage(t *testing.T) {
+	// Arrange
+	mockUserRepository := new(repositories.MockUserRepository)
+	mockActivationTokenRepository := new(repositories.MockActivationTokenRepository)
+	mockMailService := new(services.MockMailService)
+	mockValidator := new(utils.MockValidator)
+
+	userService := services.NewUserService(
+		mockUserRepository,
+		mockActivationTokenRepository,
+		mockMailService,
+		mockValidator,
+		nil,
+		nil,
+		nil,
+	)
+	userController := controllers.NewUserController(userService)
+
+	imageData, err := os.ReadFile("../../tests/resources/valid.jpeg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	imageBase64 := base64.StdEncoding.EncodeToString(imageData)
+
+	username := "testUser"
+	nickname := "Test User"
+	email := "test@domain.com"
+	password := "Password123!"
+
+	userRequest := models.UserCreateRequestDTO{
+		Username:       username,
+		Password:       password,
+		Nickname:       nickname,
+		Email:          email,
+		ProfilePicture: imageBase64,
+	}
+
+	// Mock expectations
+	mockTx := new(gorm.DB)
+	mockUserRepository.On("BeginTx").Return(mockTx)
+	mockUserRepository.On("CommitTx", mockTx).Return(nil)
+	mockUserRepository.On("CheckEmailExistsForUpdate", email, mockTx).Return(false, nil)       // Email does not exist
+	mockUserRepository.On("CheckUsernameExistsForUpdate", username, mockTx).Return(false, nil) // Username does not exist
+	var capturedEmailBody string
+	mockMailService.On("SendMail", email, "Verify your account", mock.AnythingOfType("string")).
+		Run(func(args mock.Arguments) {
+			capturedEmailBody = args.String(2)
+		}).Return(nil) // Send mail successfully
+	mockValidator.On("ValidateEmailExistance", email).Return(true) // Email exists
+
+	type ArgumentCaptor struct {
+		User  *models.User
+		Token *models.ActivationToken
+	}
+	var captor ArgumentCaptor
+	mockUserRepository.On("CreateUserTx", mock.AnythingOfType("*models.User"), mockTx).
+		Run(func(args mock.Arguments) {
+			captor.User = args.Get(0).(*models.User) // Save argument to captor
+		}).Return(nil) // Create user successfully
+	mockActivationTokenRepository.On("CreateActivationTokenTx", mock.AnythingOfType("*models.ActivationToken"), mockTx).
+		Run(func(args mock.Arguments) {
+			captor.Token = args.Get(0).(*models.ActivationToken) // Save argument to captor
+		}).Return(nil) // Create activation token successfully
+
+	// Setup HTTP request and recorder
+	requestBody, err := json.Marshal(userRequest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req, _ := http.NewRequest(http.MethodPost, "/users", bytes.NewBuffer(requestBody))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	// Act
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+	router.POST("/users", userController.CreateUser)
+	router.ServeHTTP(w, req)
+
+	// Assert Response
+	assert.Equal(t, http.StatusCreated, w.Code) // Expect HTTP 201 Created status
+	var responseUser models.UserCreateResponseDTO
+	err = json.Unmarshal(w.Body.Bytes(), &responseUser)
+	assert.NoError(t, err)
+	assert.Equal(t, username, responseUser.Username)
+	assert.Equal(t, nickname, responseUser.Nickname)
+	assert.Equal(t, email, responseUser.Email)
+	assert.NotNil(t, responseUser.Picture)
+	assert.Contains(t, responseUser.Picture.Url, ".jpeg")
+	assert.NotEmpty(t, responseUser.Picture.Tag)
+	assert.Equal(t, responseUser.Picture.Width, 670)
+	assert.Equal(t, responseUser.Picture.Height, 444)
+
+	// Assert user saved to database
+	assert.Equal(t, username, captor.User.Username) // Expect username to be saved to database
+	assert.Equal(t, nickname, captor.User.Nickname) // Expect nickname to be saved to database
+	assert.Equal(t, email, captor.User.Email)       // Expect email to be saved to database
+	passwordCheck := utils.CheckPassword(password, captor.User.PasswordHash)
+	assert.True(t, passwordCheck)          // Expect password to be hashed and saved to database
+	assert.False(t, captor.User.Activated) // Expect user to be not activated
+
+	// Assert user image saved to database
+	image := captor.User.Image
+	assert.NotNil(t, image) // Expect image to be saved to database
+	assert.Equal(t, imageData, image.ImageData)
+	assert.Equal(t, "jpeg", image.Format)
+	assert.Equal(t, 670, image.Width)
+	assert.Equal(t, 444, image.Height)
+	assert.True(t, responseUser.Picture.Tag.Equal(image.Tag))
 
 	// Assert token saved to database
 	assert.Equal(t, username, captor.Token.Username)          // Expect username to be saved to database
@@ -128,9 +258,9 @@ func TestCreateUserSuccess(t *testing.T) {
 func TestCreateUserBadRequest(t *testing.T) {
 	invalidBodies := []string{
 		`{"invalidField": "value"}`, // invalid body
-		`{"username": "", "nickname": "", "password": "Password123!", "email": "email_test@testdomain.de"}`,   // no username
-		`{"username": "testUser", "nickname": "", "password": "passwd", "email": "email_test@testdomain.de"}`, // password does not meet specifications
-		`{"username": "testUser", "nickname": "", "password": "passwd123!", "email": "testDomain.de"}`,        // invalid email syntax
+		`{"username": "", "nickname": "", "password": "Password123!", "email": "email_test@testdomain.de"}`,                         // no username
+		`{"username": "testUser", "nickname": "", "password": "passwd", "email": "email_test@testdomain.de"}`,                       // password does not meet specifications
+		`{"username": "testUser", "nickname": "", "password": "passwd123!", "email": "testDomain.de", "profilePicture": "bla bla"}`, // invalid image data
 	}
 
 	for _, body := range invalidBodies {
@@ -139,13 +269,16 @@ func TestCreateUserBadRequest(t *testing.T) {
 		mockActivationTokenRepository := new(repositories.MockActivationTokenRepository)
 		mockMailService := new(services.MockMailService)
 		mockValidator := new(utils.MockValidator)
-		mockValidator.On("ValidateEmailExistance", mock.AnythingOfType("string")).Return(true)
+
+		// Only called sometimes in the test --> Maybe()
+		mockValidator.On("ValidateEmailExistance", mock.AnythingOfType("string")).Maybe().Return(true)
 
 		userService := services.NewUserService(
 			mockUserRepository,
 			mockActivationTokenRepository,
 			mockMailService,
 			mockValidator,
+			nil,
 			nil,
 			nil,
 		)
@@ -175,6 +308,11 @@ func TestCreateUserBadRequest(t *testing.T) {
 		expectedCustomError := customerrors.BadRequest
 		assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 		assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
+
+		mockUserRepository.AssertExpectations(t)
+		mockActivationTokenRepository.AssertExpectations(t)
+		mockMailService.AssertExpectations(t)
+		mockValidator.AssertExpectations(t)
 	}
 }
 
@@ -191,6 +329,7 @@ func TestCreateUserUsernameExists(t *testing.T) {
 		mockActivationTokenRepository,
 		mockMailService,
 		mockValidator,
+		nil,
 		nil,
 		nil,
 	)
@@ -212,11 +351,9 @@ func TestCreateUserUsernameExists(t *testing.T) {
 	// Mock expectations
 	mockTx := new(gorm.DB)
 	mockUserRepository.On("BeginTx").Return(mockTx)
-	mockUserRepository.On("CommitTx", mockTx).Return(nil)
 	mockUserRepository.On("RollbackTx", mockTx).Return(nil)
 	mockUserRepository.On("CheckEmailExistsForUpdate", email, mockTx).Return(false, nil)      // Email does not exist
 	mockUserRepository.On("CheckUsernameExistsForUpdate", username, mockTx).Return(true, nil) // Username does exist
-	mockMailService.On("SendMail", email, "Verify your account", mock.Anything).Return(nil)   // Send mail successfully
 	mockValidator.On("ValidateEmailExistance", email).Return(true)                            // Email exists
 
 	// Setup HTTP request and recorder
@@ -243,10 +380,15 @@ func TestCreateUserUsernameExists(t *testing.T) {
 	expectedCustomError := customerrors.UsernameTaken
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
+
+	mockUserRepository.AssertExpectations(t)
+	mockActivationTokenRepository.AssertExpectations(t)
+	mockMailService.AssertExpectations(t)
+	mockValidator.AssertExpectations(t)
 }
 
-// TestCreateEmailExists tests if CreateUser returns 409-Conflict when email already exists
-func TestCreateEmailExists(t *testing.T) {
+// TestCreateUserEmailExists tests if CreateUser returns 409-Conflict when email already exists
+func TestCreateUserEmailExists(t *testing.T) {
 	// Setup mocks
 	mockUserRepository := new(repositories.MockUserRepository)
 	mockActivationTokenRepository := new(repositories.MockActivationTokenRepository)
@@ -258,6 +400,7 @@ func TestCreateEmailExists(t *testing.T) {
 		mockActivationTokenRepository,
 		mockMailService,
 		mockValidator,
+		nil,
 		nil,
 		nil,
 	)
@@ -279,12 +422,9 @@ func TestCreateEmailExists(t *testing.T) {
 	// Mock expectations
 	mockTx := new(gorm.DB)
 	mockUserRepository.On("BeginTx").Return(mockTx)
-	mockUserRepository.On("CommitTx", mockTx).Return(nil)
 	mockUserRepository.On("RollbackTx", mockTx).Return(nil)
-	mockUserRepository.On("CheckEmailExistsForUpdate", email, mockTx).Return(true, nil)        // Email does exist
-	mockUserRepository.On("CheckUsernameExistsForUpdate", username, mockTx).Return(false, nil) // Username does not exist
-	mockMailService.On("SendMail", email, mock.Anything, mock.Anything).Return(nil)            // Send mail successfully
-	mockValidator.On("ValidateEmailExistance", email).Return(true)                             // Email exists
+	mockUserRepository.On("CheckEmailExistsForUpdate", email, mockTx).Return(true, nil) // Email does exist
+	mockValidator.On("ValidateEmailExistance", email).Return(true)                      // Email exists
 
 	// Setup HTTP request and recorder
 	requestBody, err := json.Marshal(userRequest)
@@ -310,6 +450,11 @@ func TestCreateEmailExists(t *testing.T) {
 	expectedCustomError := customerrors.EmailTaken
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
+
+	mockUserRepository.AssertExpectations(t)
+	mockActivationTokenRepository.AssertExpectations(t)
+	mockMailService.AssertExpectations(t)
+	mockValidator.AssertExpectations(t)
 }
 
 // TestCreateEmailExistsRollback test if CreateUser does not block username when email already existed in previous request
@@ -327,6 +472,7 @@ func TestCreateEmailExistsRollback(t *testing.T) {
 		mockValidator,
 		nil,
 		nil,
+		nil,
 	)
 
 	userController := controllers.NewUserController(userService)
@@ -346,12 +492,9 @@ func TestCreateEmailExistsRollback(t *testing.T) {
 	// Mock expectations
 	mockTx := new(gorm.DB)
 	mockUserRepository.On("BeginTx").Return(mockTx)
-	mockUserRepository.On("CommitTx", mockTx).Return(nil)
 	mockUserRepository.On("RollbackTx", mockTx).Return(nil)
-	mockUserRepository.On("CheckEmailExistsForUpdate", email, mockTx).Return(true, nil)        // Email does exist
-	mockUserRepository.On("CheckUsernameExistsForUpdate", username, mockTx).Return(false, nil) // Username does not exist
-	mockMailService.On("SendMail", email, mock.Anything, mock.Anything).Return(nil)            // Send mail successfully
-	mockValidator.On("ValidateEmailExistance", email).Return(true)                             // Email exists
+	mockUserRepository.On("CheckEmailExistsForUpdate", email, mockTx).Return(true, nil) // Email does exist
+	mockValidator.On("ValidateEmailExistance", email).Return(true)                      // Email exists
 
 	// Setup HTTP request and recorder
 	requestBody, err := json.Marshal(userRequest)
@@ -378,32 +521,10 @@ func TestCreateEmailExistsRollback(t *testing.T) {
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
-	// Setup second request
-	userRequest.Email = "anothermail@mail.com"
-	requestBody, err = json.Marshal(userRequest)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	mockUserRepository.On("BeginTx").Return(mockTx)
-	mockUserRepository.On("CommitTx", mockTx).Return(nil)
-	mockUserRepository.On("RollbackTx", mockTx).Return(nil)
-	mockUserRepository.On("CheckEmailExistsForUpdate", userRequest.Email, mockTx).Return(false, nil) // New email does not exist
-	mockUserRepository.On("CheckUsernameExistsForUpdate", username, mockTx).Return(false, nil)       // Username does not exist
-	mockMailService.On("SendMail", userRequest.Email, mock.Anything, mock.Anything).Return(nil)      // Send mail successfully
-	mockValidator.On("ValidateEmailExistance", userRequest.Email).Return(true)
-	mockActivationTokenRepository.On("CreateActivationTokenTx", mock.AnythingOfType("*models.ActivationToken"), mockTx).Return(nil)
-	mockUserRepository.On("CreateUserTx", mock.AnythingOfType("*models.User"), mockTx).Return(nil)
-
-	req, _ = http.NewRequest(http.MethodPost, "/users", bytes.NewBuffer(requestBody))
-	req.Header.Set("Content-Type", "application/json")
-	w = httptest.NewRecorder()
-
-	// Act
-	router.ServeHTTP(w, req)
-
-	// Assert Response
-	assert.Equal(t, http.StatusCreated, w.Code) // Expect HTTP 201 Created status
+	mockUserRepository.AssertExpectations(t)
+	mockActivationTokenRepository.AssertExpectations(t)
+	mockMailService.AssertExpectations(t)
+	mockValidator.AssertExpectations(t)
 }
 
 // TestCreateUserEmailUnreachable tests if CreateUser returns 422-Unprocessable Entity when email is unreachable
@@ -419,6 +540,7 @@ func TestCreateUserEmailUnreachable(t *testing.T) {
 		mockActivationTokenRepository,
 		mockMailService,
 		mockValidator,
+		nil,
 		nil,
 		nil,
 	)
@@ -464,6 +586,10 @@ func TestCreateUserEmailUnreachable(t *testing.T) {
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
+	mockUserRepository.AssertExpectations(t)
+	mockActivationTokenRepository.AssertExpectations(t)
+	mockMailService.AssertExpectations(t)
+	mockValidator.AssertExpectations(t)
 }
 
 // TestCreateUserInternalServerErrorDatabase tests if CreateUser returns 500-Internal Server Error when database error occurs
@@ -479,6 +605,7 @@ func TestCreateUserInternalServerErrorDatabase(t *testing.T) {
 		mockActivationTokenRepository,
 		mockMailService,
 		mockValidator,
+		nil,
 		nil,
 		nil,
 	)
@@ -500,11 +627,9 @@ func TestCreateUserInternalServerErrorDatabase(t *testing.T) {
 	// Mock expectations
 	mockTx := new(gorm.DB)
 	mockUserRepository.On("BeginTx").Return(mockTx)
-	mockUserRepository.On("CommitTx", mockTx).Return(nil)
 	mockUserRepository.On("RollbackTx", mockTx).Return(nil)
 	mockUserRepository.On("CheckEmailExistsForUpdate", email, mockTx).Return(false, nil)                                // Email does not exist
 	mockUserRepository.On("CheckUsernameExistsForUpdate", username, mockTx).Return(false, nil)                          // Username does not exist
-	mockMailService.On("SendMail", email, mock.Anything, mock.Anything).Return(nil)                                     // Send mail successfully
 	mockValidator.On("ValidateEmailExistance", email).Return(true)                                                      // Email exists
 	mockUserRepository.On("CreateUserTx", mock.AnythingOfType("*models.User"), mockTx).Return(fmt.Errorf("test error")) // Create user fails
 
@@ -532,6 +657,11 @@ func TestCreateUserInternalServerErrorDatabase(t *testing.T) {
 	expectedCustomError := customerrors.DatabaseError
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
+
+	mockUserRepository.AssertExpectations(t)
+	mockActivationTokenRepository.AssertExpectations(t)
+	mockMailService.AssertExpectations(t)
+	mockValidator.AssertExpectations(t)
 }
 
 // TestCreateUserInternalServerErrorServer tests if CreateUser returns 500-Internal Server Error when email service fails
@@ -547,6 +677,7 @@ func TestCreateUserInternalServerErrorServer(t *testing.T) {
 		mockActivationTokenRepository,
 		mockMailService,
 		mockValidator,
+		nil,
 		nil,
 		nil,
 	)
@@ -568,7 +699,6 @@ func TestCreateUserInternalServerErrorServer(t *testing.T) {
 	// Mock expectations
 	mockTx := new(gorm.DB)
 	mockUserRepository.On("BeginTx").Return(mockTx)
-	mockUserRepository.On("CommitTx", mockTx).Return(nil)
 	mockUserRepository.On("RollbackTx", mockTx).Return(nil)
 	mockUserRepository.On("CheckEmailExistsForUpdate", email, mockTx).Return(false, nil)                                            // Email does not exist
 	mockUserRepository.On("CheckUsernameExistsForUpdate", username, mockTx).Return(false, nil)                                      // Username does not exist
@@ -601,6 +731,11 @@ func TestCreateUserInternalServerErrorServer(t *testing.T) {
 	expectedCustomError := customerrors.EmailNotSent
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
+
+	mockUserRepository.AssertExpectations(t)
+	mockActivationTokenRepository.AssertExpectations(t)
+	mockMailService.AssertExpectations(t)
+	mockValidator.AssertExpectations(t)
 }
 
 // TestLoginSuccess tests if Login returns 200-OK when user is logged in successfully
@@ -616,6 +751,7 @@ func TestLoginSuccess(t *testing.T) {
 		mockActivationTokenRepository,
 		mockMailService,
 		mockValidator,
+		nil,
 		nil,
 		nil,
 	)
@@ -637,7 +773,7 @@ func TestLoginSuccess(t *testing.T) {
 		Nickname:     nickname,
 		Email:        email,
 		Activated:    true,
-		CreatedAt:    time.Now(),
+		CreatedAt:    time.Now().UTC(),
 	}
 
 	userRequest := models.UserLoginRequestDTO{
@@ -684,6 +820,8 @@ func TestLoginSuccess(t *testing.T) {
 	// Verify that all expectations are met
 	mockUserRepository.AssertExpectations(t)
 	mockActivationTokenRepository.AssertExpectations(t)
+	mockMailService.AssertExpectations(t)
+	mockValidator.AssertExpectations(t)
 }
 
 // TestLoginBadRequest tests if Login returns 400-Bad Request when request body is invalid
@@ -738,6 +876,7 @@ func TestLoginInvalidCredentialsUserNotFound(t *testing.T) {
 		mockValidator,
 		nil,
 		nil,
+		nil,
 	)
 
 	userController := controllers.NewUserController(userService)
@@ -780,6 +919,9 @@ func TestLoginInvalidCredentialsUserNotFound(t *testing.T) {
 
 	// Verify that all expectations are met
 	mockUserRepository.AssertExpectations(t)
+	mockActivationTokenRepository.AssertExpectations(t)
+	mockMailService.AssertExpectations(t)
+	mockValidator.AssertExpectations(t)
 }
 
 // TestLoginInvalidCredentialsPasswordIncorrect tests if Login returns 401-Unauthorized when password is incorrect
@@ -795,6 +937,7 @@ func TestLoginInvalidCredentialsPasswordIncorrect(t *testing.T) {
 		mockActivationTokenRepository,
 		mockMailService,
 		mockValidator,
+		nil,
 		nil,
 		nil,
 	)
@@ -817,7 +960,7 @@ func TestLoginInvalidCredentialsPasswordIncorrect(t *testing.T) {
 		Nickname:     nickname,
 		Email:        email,
 		Activated:    true,
-		CreatedAt:    time.Now(),
+		CreatedAt:    time.Now().UTC(),
 	}
 
 	userRequest := models.UserLoginRequestDTO{
@@ -855,9 +998,12 @@ func TestLoginInvalidCredentialsPasswordIncorrect(t *testing.T) {
 
 	// Verify that all expectations are met
 	mockUserRepository.AssertExpectations(t)
+	mockActivationTokenRepository.AssertExpectations(t)
+	mockMailService.AssertExpectations(t)
+	mockValidator.AssertExpectations(t)
 }
 
-// TestLoginUserNotActivated tests if Login returns 403-PostDeleteForbidden when user is not activated
+// TestLoginUserNotActivated tests if Login returns 403-DeletePostForbidden when user is not activated
 func TestLoginUserNotActivated(t *testing.T) {
 	// Setup mocks
 	mockUserRepository := new(repositories.MockUserRepository)
@@ -870,6 +1016,7 @@ func TestLoginUserNotActivated(t *testing.T) {
 		mockActivationTokenRepository,
 		mockMailService,
 		mockValidator,
+		nil,
 		nil,
 		nil,
 	)
@@ -891,7 +1038,7 @@ func TestLoginUserNotActivated(t *testing.T) {
 		Nickname:     nickname,
 		Email:        email,
 		Activated:    false,
-		CreatedAt:    time.Now(),
+		CreatedAt:    time.Now().UTC(),
 	}
 
 	sixDigitToken := "123456"
@@ -900,7 +1047,7 @@ func TestLoginUserNotActivated(t *testing.T) {
 		Username:       username,
 		User:           user,
 		Token:          sixDigitToken,
-		ExpirationTime: time.Now().Add(time.Minute * 15),
+		ExpirationTime: time.Now().UTC().Add(time.Minute * 15),
 	}
 	activationTokenList := []models.ActivationToken{activationToken}
 
@@ -929,7 +1076,7 @@ func TestLoginUserNotActivated(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	// Assert Response
-	assert.Equal(t, http.StatusForbidden, w.Code) // Expect HTTP 403 PostDeleteForbidden status
+	assert.Equal(t, http.StatusForbidden, w.Code) // Expect HTTP 403 DeletePostForbidden status
 	var errorResponse customerrors.ErrorResponse
 	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
@@ -941,9 +1088,11 @@ func TestLoginUserNotActivated(t *testing.T) {
 	// Verify that all expectations are met
 	mockUserRepository.AssertExpectations(t)
 	mockActivationTokenRepository.AssertExpectations(t)
+	mockMailService.AssertExpectations(t)
+	mockValidator.AssertExpectations(t)
 }
 
-// TestLoginUserNotActivated tests if Login returns 403-PostDeleteForbidden when user is not activated and send new token if all are expired
+// TestLoginUserNotActivated tests if Login returns 403-DeletePostForbidden when user is not activated and send new token if all are expired
 func TestLoginUserNotActivatedExpiredToken(t *testing.T) {
 	// Setup mocks
 	mockUserRepository := new(repositories.MockUserRepository)
@@ -956,6 +1105,7 @@ func TestLoginUserNotActivatedExpiredToken(t *testing.T) {
 		mockActivationTokenRepository,
 		mockMailService,
 		mockValidator,
+		nil,
 		nil,
 		nil,
 	)
@@ -977,7 +1127,7 @@ func TestLoginUserNotActivatedExpiredToken(t *testing.T) {
 		Nickname:     nickname,
 		Email:        email,
 		Activated:    false,
-		CreatedAt:    time.Now(),
+		CreatedAt:    time.Now().UTC(),
 	}
 
 	sixDigitToken := "123456"
@@ -986,7 +1136,7 @@ func TestLoginUserNotActivatedExpiredToken(t *testing.T) {
 		Username:       username,
 		User:           user,
 		Token:          sixDigitToken,
-		ExpirationTime: time.Now().Add(time.Minute * -15), // Expired token
+		ExpirationTime: time.Now().UTC().Add(time.Minute * -15), // Expired token
 	}
 	activationTokenList := []models.ActivationToken{activationToken}
 
@@ -1018,7 +1168,7 @@ func TestLoginUserNotActivatedExpiredToken(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	// Assert Response
-	assert.Equal(t, http.StatusForbidden, w.Code) // Expect HTTP 403 PostDeleteForbidden status
+	assert.Equal(t, http.StatusForbidden, w.Code) // Expect HTTP 403 DeletePostForbidden status
 	var errorResponse customerrors.ErrorResponse
 	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
@@ -1031,6 +1181,7 @@ func TestLoginUserNotActivatedExpiredToken(t *testing.T) {
 	mockUserRepository.AssertExpectations(t)
 	mockActivationTokenRepository.AssertExpectations(t)
 	mockMailService.AssertExpectations(t)
+	mockValidator.AssertExpectations(t)
 }
 
 // TestActivateUserSuccess tests if ActivateUser returns 200-OK and tokens when user is activated successfully
@@ -1044,6 +1195,7 @@ func TestActivateUserSuccess(t *testing.T) {
 		mockUserRepository,
 		mockActivationTokenRepository,
 		mockMailService,
+		nil,
 		nil,
 		nil,
 		nil,
@@ -1066,7 +1218,7 @@ func TestActivateUserSuccess(t *testing.T) {
 		Nickname:     nickname,
 		Email:        email,
 		Activated:    false,
-		CreatedAt:    time.Now(),
+		CreatedAt:    time.Now().UTC(),
 	}
 
 	updatedUser := user
@@ -1078,7 +1230,7 @@ func TestActivateUserSuccess(t *testing.T) {
 		Username:       username,
 		User:           user,
 		Token:          sixDigitToken,
-		ExpirationTime: time.Now().Add(time.Minute * 15),
+		ExpirationTime: time.Now().UTC().Add(time.Minute * 15),
 	}
 
 	activationRequest := models.UserActivationRequestDTO{
@@ -1131,7 +1283,6 @@ func TestActivateUserSuccess(t *testing.T) {
 	mockUserRepository.AssertExpectations(t)
 	mockActivationTokenRepository.AssertExpectations(t)
 	mockMailService.AssertExpectations(t)
-
 }
 
 // TestActivateUserSuccess tests if ActivateUser returns 400-Bad Request when request body is invalid
@@ -1183,6 +1334,7 @@ func TestActivateUserAlreadyReported(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		nil,
 	)
 
 	userController := controllers.NewUserController(userService)
@@ -1202,7 +1354,7 @@ func TestActivateUserAlreadyReported(t *testing.T) {
 		Nickname:     nickname,
 		Email:        email,
 		Activated:    true,
-		CreatedAt:    time.Now(),
+		CreatedAt:    time.Now().UTC(),
 	}
 
 	sixDigitToken := "123456"
@@ -1258,6 +1410,7 @@ func TestActivateUserNotFound(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		nil,
 	)
 
 	userController := controllers.NewUserController(userService)
@@ -1302,7 +1455,7 @@ func TestActivateUserNotFound(t *testing.T) {
 	mockMailService.AssertExpectations(t)
 }
 
-// TestActivateUserTokenNotFound tests if ActivateUser returns 404-Not Found when token cannot be found
+// TestActivateUserTokenNotFound tests if ActivateUser returns 401-Unauthorized when token cannot be found
 func TestActivateUserTokenNotFound(t *testing.T) {
 	// Setup mocks
 	mockUserRepository := new(repositories.MockUserRepository)
@@ -1313,6 +1466,7 @@ func TestActivateUserTokenNotFound(t *testing.T) {
 		mockUserRepository,
 		mockActivationTokenRepository,
 		mockMailService,
+		nil,
 		nil,
 		nil,
 		nil,
@@ -1335,7 +1489,7 @@ func TestActivateUserTokenNotFound(t *testing.T) {
 		Nickname:     nickname,
 		Email:        email,
 		Activated:    false,
-		CreatedAt:    time.Now(),
+		CreatedAt:    time.Now().UTC(),
 	}
 
 	sixDigitToken := "123456"
@@ -1363,7 +1517,7 @@ func TestActivateUserTokenNotFound(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	// Assert Response
-	assert.Equal(t, http.StatusNotFound, w.Code) // Expect HTTP 404 Not Found status
+	assert.Equal(t, http.StatusUnauthorized, w.Code) // Expect HTTP 401 Unauthorized status
 	var errorResponse customerrors.ErrorResponse
 	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
@@ -1392,6 +1546,7 @@ func TestActivateUserTokenExpired(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		nil,
 	)
 
 	userController := controllers.NewUserController(userService)
@@ -1411,7 +1566,7 @@ func TestActivateUserTokenExpired(t *testing.T) {
 		Nickname:     nickname,
 		Email:        email,
 		Activated:    false,
-		CreatedAt:    time.Now(),
+		CreatedAt:    time.Now().UTC(),
 	}
 
 	sixDigitToken := "123456"
@@ -1420,7 +1575,7 @@ func TestActivateUserTokenExpired(t *testing.T) {
 		Username:       username,
 		User:           user,
 		Token:          sixDigitToken,
-		ExpirationTime: time.Now().Add(time.Minute * -15), // Expired token
+		ExpirationTime: time.Now().UTC().Add(time.Minute * -15), // Expired token
 	}
 	activationRequest := models.UserActivationRequestDTO{
 		Token: sixDigitToken,
@@ -1478,6 +1633,7 @@ func TestResendActivationTokenSuccess(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		nil,
 	)
 
 	userController := controllers.NewUserController(userService)
@@ -1497,7 +1653,7 @@ func TestResendActivationTokenSuccess(t *testing.T) {
 		Nickname:     nickname,
 		Email:        email,
 		Activated:    false,
-		CreatedAt:    time.Now(),
+		CreatedAt:    time.Now().UTC(),
 	}
 
 	// Mock expectations
@@ -1540,6 +1696,7 @@ func TestResendActivationTokenAlreadyReported(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		nil,
 	)
 
 	userController := controllers.NewUserController(userService)
@@ -1559,7 +1716,7 @@ func TestResendActivationTokenAlreadyReported(t *testing.T) {
 		Nickname:     nickname,
 		Email:        email,
 		Activated:    true,
-		CreatedAt:    time.Now(),
+		CreatedAt:    time.Now().UTC(),
 	}
 
 	// Mock expectations
@@ -1606,6 +1763,7 @@ func TestResendActivationTokenUserNotfound(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		nil,
 	)
 
 	userController := controllers.NewUserController(userService)
@@ -1648,6 +1806,7 @@ func TestResendActivationTokenUserNotfound(t *testing.T) {
 func TestRefreshTokenSuccess(t *testing.T) {
 	// Setup
 	userService := services.NewUserService(
+		nil,
 		nil,
 		nil,
 		nil,
@@ -1754,7 +1913,8 @@ func TestRefreshTokenInvalidToken(t *testing.T) {
 	}
 
 	for _, token := range invalidTokens {
-		service := services.NewUserService(nil, nil, nil, nil, nil, nil)
+		service := services.NewUserService(nil, nil, nil, nil, nil, nil,
+			nil)
 		controller := controllers.NewUserController(service)
 
 		gin.SetMode(gin.TestMode)
@@ -1803,20 +1963,37 @@ func TestSearchUserSuccess(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		nil,
 	)
 
 	userController := controllers.NewUserController(userService)
 
+	imageId := uuid.New()
+	imageFormat := "jpeg"
+	imageData := []byte{0x00, 0x01, 0x02, 0x03}
+	err := os.Setenv("SERVER_URL", "http://localhost:8080")
+	if err != nil {
+		t.Fatal()
+	}
+	expectedImageUrl := os.Getenv("SERVER_URL") + "/api/images/" + imageId.String() + "." + imageFormat
+
 	foundUsers := []models.User{
 		{
-			Username:          "testUser1",
-			Nickname:          "Test User 1",
-			ProfilePictureUrl: "",
+			Username: "testUser1",
+			Nickname: "Test User 1",
+			ImageId:  &imageId,
+			Image: models.Image{
+				Id:        imageId,
+				Format:    imageFormat,
+				ImageData: imageData,
+				Height:    100,
+				Width:     200,
+				Tag:       time.Now().UTC(),
+			},
 		},
 		{
-			Username:          "testUser2",
-			Nickname:          "Test User 2",
-			ProfilePictureUrl: "",
+			Username: "testUser2",
+			Nickname: "Test User 2", // no image
 		},
 	}
 
@@ -1859,7 +2036,15 @@ func TestSearchUserSuccess(t *testing.T) {
 	for i, user := range foundUsers {
 		assert.Equal(t, user.Username, responseDto.Records[i].Username)
 		assert.Equal(t, user.Nickname, responseDto.Records[i].Nickname)
-		assert.Equal(t, user.ProfilePictureUrl, responseDto.Records[i].ProfilePictureUrl)
+		if user.ImageId != nil {
+			assert.NotNil(t, responseDto.Records[i].Picture)
+			assert.Equal(t, expectedImageUrl, responseDto.Records[i].Picture.Url)
+			assert.Equal(t, user.Image.Height, responseDto.Records[i].Picture.Height)
+			assert.Equal(t, user.Image.Width, responseDto.Records[i].Picture.Width)
+			assert.Equal(t, user.Image.Tag, responseDto.Records[i].Picture.Tag)
+		} else {
+			assert.Nil(t, responseDto.Records[i].Picture)
+		}
 	}
 
 	mockUserRepository.AssertExpectations(t)
@@ -1900,20 +2085,20 @@ func TestSearchUserUnauthorized(t *testing.T) {
 		err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
 		assert.NoError(t, err)
 
-		expectedCustomError := customerrors.UserUnauthorized
+		expectedCustomError := customerrors.Unauthorized
 		assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 		assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 	}
 }
 
-// TestUpdateUserInformationSuccess tests if UpdateUserInformation returns 200-OK when user information is updated successfully
+// TestUpdateUserInformationSuccess tests if UpdateUserInformation returns 200-OK and updates user information correctly when new nickname and status are provided
 func TestUpdateUserInformationSuccess(t *testing.T) {
-	requests := []models.UserInformationUpdateDTO{
+	requests := []models.UserInformationUpdateRequestDTO{
 		{
 			Nickname: "New Nickname",
 			Status:   "New status",
+			// picture is nil --> no change
 		},
-
 		// Regression test
 		// No failures when either nickname or status is empty
 		{
@@ -1941,13 +2126,31 @@ func TestUpdateUserInformationSuccess(t *testing.T) {
 			validator,
 			nil,
 			nil,
+			nil,
 		)
 		userController := controllers.NewUserController(userService)
+
+		imageId := uuid.New()
+		imageFormat := "jpeg"
+		err := os.Setenv("SERVER_URL", "https://example.com")
+		if err != nil {
+			t.Fatal()
+		}
+		expectedImageUrl := os.Getenv("SERVER_URL") + "/api/images/" + imageId.String() + "." + imageFormat
 
 		user := models.User{
 			Username: "testUser",
 			Nickname: "Old Nickname",
 			Status:   "Old status",
+			ImageId:  &imageId,
+			Image: models.Image{
+				Id:        imageId,
+				Format:    "jpeg",
+				Height:    100,
+				Width:     200,
+				Tag:       time.Now().UTC(),
+				ImageData: []byte{0x00, 0x01, 0x02, 0x03},
+			},
 		}
 
 		authenticationToken, err := utils.GenerateAccessToken(user.Username)
@@ -1982,17 +2185,327 @@ func TestUpdateUserInformationSuccess(t *testing.T) {
 		// Assert
 		assert.Equal(t, http.StatusOK, w.Code) // Expect HTTP 200 OK status
 
-		var responseDto models.UserInformationUpdateDTO
+		var responseDto models.UserInformationUpdateResponseDTO
 		err = json.Unmarshal(w.Body.Bytes(), &responseDto)
 		assert.NoError(t, err)
 
 		assert.Equal(t, request.Nickname, responseDto.Nickname)
 		assert.Equal(t, request.Status, responseDto.Status)
+		assert.NotNil(t, responseDto.Picture) // Picture was not deleted
+		assert.Equal(t, expectedImageUrl, responseDto.Picture.Url)
+		assert.Equal(t, user.Image.Height, responseDto.Picture.Height)
+		assert.Equal(t, user.Image.Width, responseDto.Picture.Width)
+		assert.Equal(t, user.Image.Tag, responseDto.Picture.Tag)
+
 		assert.Equal(t, request.Nickname, capturedUpdatedUser.Nickname)
 		assert.Equal(t, request.Status, capturedUpdatedUser.Status)
+		assert.Equal(t, user.ImageId, capturedUpdatedUser.ImageId)
 
 		mockUserRepository.AssertExpectations(t)
 	}
+}
+
+// TestUpdateUserInformationSuccessWithNewPicture tests if UpdateUserInformation returns 200-OK and updates user information when new picture is provided and user has no image yet
+func TestUpdateUserInformationSuccessWithNewPicture(t *testing.T) {
+	// Arrange
+	mockUserRepository := new(repositories.MockUserRepository)
+	validator := utils.NewValidator()
+	userService := services.NewUserService(
+		mockUserRepository,
+		nil,
+		nil,
+		validator,
+		nil,
+		nil,
+		nil,
+	)
+	userController := controllers.NewUserController(userService)
+
+	imageData, err := os.ReadFile("../../tests/resources/valid.jpeg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	imageBase64 := base64.StdEncoding.EncodeToString(imageData)
+	expectedImageFormat := "jpeg"
+	expectedImageHeight := 444
+	expectedImageWidth := 670
+
+	err = os.Setenv("SERVER_URL", "https://example.com")
+	if err != nil {
+		t.Fatal()
+	}
+
+	user := models.User{
+		Username: "testUser",
+		Nickname: "Old Nickname",
+		Status:   "Old status",
+		ImageId:  nil, // user has no image yet
+	}
+
+	authenticationToken, err := utils.GenerateAccessToken(user.Username)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	request := models.UserInformationUpdateRequestDTO{
+		Nickname: "New Nickname",
+		Status:   "New status",
+		Picture:  &imageBase64,
+	}
+
+	// Mock expectations
+	var capturedUpdatedUser *models.User
+	mockUserRepository.On("FindUserByUsername", user.Username).Return(&user, nil) // Find user successfully
+	mockUserRepository.On("UpdateUser", mock.AnythingOfType("*models.User")).
+		Run(func(args mock.Arguments) {
+			capturedUpdatedUser = args.Get(0).(*models.User)
+		}).Return(nil) // Update user successfully
+
+	// Setup HTTP request and recorder
+	requestBody, err := json.Marshal(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req, _ := http.NewRequest(http.MethodPut, "/users", bytes.NewBuffer(requestBody))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", authenticationToken))
+	w := httptest.NewRecorder()
+
+	// Act
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+	router.PUT("/users", middleware.AuthorizeUser, userController.UpdateUserInformation)
+	router.ServeHTTP(w, req)
+
+	// Assert
+	assert.Equal(t, http.StatusOK, w.Code) // Expect HTTP 200 OK status
+
+	var responseDto models.UserInformationUpdateResponseDTO
+	err = json.Unmarshal(w.Body.Bytes(), &responseDto)
+	assert.NoError(t, err)
+
+	assert.Equal(t, request.Nickname, responseDto.Nickname)
+	assert.Equal(t, request.Status, responseDto.Status)
+	assert.NotNil(t, responseDto.Picture)
+	expectedImageUrl := os.Getenv("SERVER_URL") + "/api/images/" + capturedUpdatedUser.ImageId.String() + "." + expectedImageFormat
+	assert.Equal(t, expectedImageUrl, responseDto.Picture.Url)
+	assert.Equal(t, expectedImageHeight, responseDto.Picture.Height)
+	assert.Equal(t, expectedImageWidth, responseDto.Picture.Width)
+	assert.NotNil(t, responseDto.Picture.Tag)
+
+	assert.Equal(t, request.Nickname, capturedUpdatedUser.Nickname)
+	assert.Equal(t, request.Status, capturedUpdatedUser.Status)
+	assert.NotNil(t, capturedUpdatedUser.ImageId)
+	assert.Equal(t, capturedUpdatedUser.ImageId.String(), capturedUpdatedUser.Image.Id.String())
+	assert.Equal(t, expectedImageFormat, capturedUpdatedUser.Image.Format)
+	assert.Equal(t, expectedImageHeight, capturedUpdatedUser.Image.Height)
+	assert.Equal(t, expectedImageWidth, capturedUpdatedUser.Image.Width)
+	assert.NotEmpty(t, capturedUpdatedUser.Image.Tag)
+	assert.True(t, bytes.Equal(imageData, capturedUpdatedUser.Image.ImageData))
+	assert.True(t, responseDto.Picture.Tag.Equal(capturedUpdatedUser.Image.Tag))
+
+	mockUserRepository.AssertExpectations(t)
+}
+
+// TestUpdateUserInformationSuccessWithChangePicture tests if UpdateUserInformation returns 200-OK and updates user information when new picture is provided and user has an image already
+func TestUpdateUserInformationSuccessWithChangePicture(t *testing.T) {
+	// Arrange
+	mockUserRepository := new(repositories.MockUserRepository)
+	validator := utils.NewValidator()
+	userService := services.NewUserService(
+		mockUserRepository,
+		nil,
+		nil,
+		validator,
+		nil,
+		nil,
+		nil,
+	)
+	userController := controllers.NewUserController(userService)
+
+	imageData, err := os.ReadFile("../../tests/resources/valid.jpeg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	imageBase64 := base64.StdEncoding.EncodeToString(imageData)
+	expectedImageFormat := "jpeg"
+	expectedImageHeight := 444
+	expectedImageWidth := 670
+
+	err = os.Setenv("SERVER_URL", "https://example.com")
+	if err != nil {
+		t.Fatal()
+	}
+
+	imageId := uuid.New()
+	user := models.User{
+		Username: "testUser",
+		Nickname: "Old Nickname",
+		Status:   "Old status",
+		ImageId:  &imageId, // user has an image already
+		Image: models.Image{
+			Id:        imageId,
+			Format:    "png",
+			Height:    100,
+			Width:     200,
+			Tag:       time.Now().UTC(),
+			ImageData: []byte{0x00, 0x01, 0x02, 0x03},
+		},
+	}
+
+	authenticationToken, err := utils.GenerateAccessToken(user.Username)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	request := models.UserInformationUpdateRequestDTO{
+		Nickname: "New Nickname",
+		Status:   "New status",
+		Picture:  &imageBase64,
+	}
+
+	// Mock expectations
+	var capturedUpdatedUser *models.User
+	mockUserRepository.On("FindUserByUsername", user.Username).Return(&user, nil) // Find user successfully
+	mockUserRepository.On("UpdateUser", mock.AnythingOfType("*models.User")).
+		Run(func(args mock.Arguments) {
+			capturedUpdatedUser = args.Get(0).(*models.User)
+		}).Return(nil) // Update user successfully
+
+	// Setup HTTP request and recorder
+	requestBody, err := json.Marshal(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req, _ := http.NewRequest(http.MethodPut, "/users", bytes.NewBuffer(requestBody))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", authenticationToken))
+	w := httptest.NewRecorder()
+
+	// Act
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+	router.PUT("/users", middleware.AuthorizeUser, userController.UpdateUserInformation)
+	router.ServeHTTP(w, req)
+
+	// Assert
+	assert.Equal(t, http.StatusOK, w.Code) // Expect HTTP 200 OK status
+
+	var responseDto models.UserInformationUpdateResponseDTO
+	err = json.Unmarshal(w.Body.Bytes(), &responseDto)
+	assert.NoError(t, err)
+
+	assert.Equal(t, request.Nickname, responseDto.Nickname)
+	assert.Equal(t, request.Status, responseDto.Status)
+	assert.NotNil(t, responseDto.Picture)
+	expectedImageUrl := os.Getenv("SERVER_URL") + "/api/images/" + capturedUpdatedUser.ImageId.String() + "." + expectedImageFormat
+	assert.Equal(t, expectedImageUrl, responseDto.Picture.Url)
+	assert.Equal(t, expectedImageHeight, responseDto.Picture.Height)
+	assert.Equal(t, expectedImageWidth, responseDto.Picture.Width)
+	assert.NotNil(t, responseDto.Picture.Tag)
+
+	assert.Equal(t, request.Nickname, capturedUpdatedUser.Nickname)
+	assert.Equal(t, request.Status, capturedUpdatedUser.Status)
+	assert.NotNil(t, capturedUpdatedUser.ImageId)
+	assert.Equal(t, capturedUpdatedUser.ImageId.String(), capturedUpdatedUser.Image.Id.String())
+	assert.Equal(t, expectedImageFormat, capturedUpdatedUser.Image.Format)
+	assert.Equal(t, expectedImageHeight, capturedUpdatedUser.Image.Height)
+	assert.Equal(t, expectedImageWidth, capturedUpdatedUser.Image.Width)
+	assert.NotEmpty(t, capturedUpdatedUser.Image.Tag)
+	assert.True(t, bytes.Equal(imageData, capturedUpdatedUser.Image.ImageData))
+	assert.True(t, responseDto.Picture.Tag.Equal(capturedUpdatedUser.Image.Tag))
+
+	mockUserRepository.AssertExpectations(t)
+}
+
+// TestUpdateUserInformationSuccessWithDeletePicture tests if UpdateUserInformation returns 200-OK and updates user information when picture is deleted
+func TestUpdateUserInformationSuccessWithDeletePicture(t *testing.T) {
+	// Arrange
+	mockUserRepository := new(repositories.MockUserRepository)
+	mockImageRepository := new(repositories.MockImageRepository)
+	validator := utils.NewValidator()
+	userService := services.NewUserService(
+		mockUserRepository,
+		nil,
+		nil,
+		validator,
+		nil,
+		mockImageRepository,
+		nil,
+	)
+	userController := controllers.NewUserController(userService)
+
+	imageId := uuid.New()
+	user := models.User{
+		Username: "testUser",
+		Nickname: "Old Nickname",
+		Status:   "Old status",
+		ImageId:  &imageId, // user has an image to delete
+		Image: models.Image{
+			Id:        imageId,
+			Format:    "png",
+			Height:    100,
+			Width:     200,
+			Tag:       time.Now().UTC(),
+			ImageData: []byte{0x00, 0x01, 0x02, 0x03},
+		},
+	}
+
+	authenticationToken, err := utils.GenerateAccessToken(user.Username)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	emptyString := "" // "" meaning delete picture
+	request := models.UserInformationUpdateRequestDTO{
+		Nickname: "New Nickname",
+		Status:   "New status",
+		Picture:  &emptyString,
+	}
+
+	// Mock expectations
+	var capturedUpdatedUser *models.User
+	mockUserRepository.On("FindUserByUsername", user.Username).Return(&user, nil) // Find user successfully
+	mockImageRepository.On("DeleteImageById", imageId.String()).Return(nil)       // Delete image successfully
+	mockUserRepository.On("UpdateUser", mock.AnythingOfType("*models.User")).
+		Run(func(args mock.Arguments) {
+			capturedUpdatedUser = args.Get(0).(*models.User)
+		}).Return(nil) // Update user successfully
+
+	// Setup HTTP request and recorder
+	requestBody, err := json.Marshal(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req, _ := http.NewRequest(http.MethodPut, "/users", bytes.NewBuffer(requestBody))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", authenticationToken))
+	w := httptest.NewRecorder()
+
+	// Act
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+	router.PUT("/users", middleware.AuthorizeUser, userController.UpdateUserInformation)
+	router.ServeHTTP(w, req)
+
+	// Assert
+	assert.Equal(t, http.StatusOK, w.Code) // Expect HTTP 200 OK status
+
+	var responseDto models.UserInformationUpdateResponseDTO
+	err = json.Unmarshal(w.Body.Bytes(), &responseDto)
+	assert.NoError(t, err)
+
+	assert.Equal(t, request.Nickname, responseDto.Nickname)
+	assert.Equal(t, request.Status, responseDto.Status)
+	assert.Nil(t, responseDto.Picture)
+
+	assert.Equal(t, request.Nickname, capturedUpdatedUser.Nickname)
+	assert.Equal(t, request.Status, capturedUpdatedUser.Status)
+	assert.Nil(t, capturedUpdatedUser.ImageId)
+	assert.Empty(t, capturedUpdatedUser.Image)
+
+	mockUserRepository.AssertExpectations(t)
+	mockImageRepository.AssertExpectations(t)
 }
 
 // TestUpdateUserInformationBadRequest tests if UpdateUserInformation returns 400-Bad Request when request body is invalid
@@ -2015,6 +2528,7 @@ func TestUpdateUserInformationBadRequest(t *testing.T) {
 			nil,
 			nil,
 			validator,
+			nil,
 			nil,
 			nil,
 		)
@@ -2076,11 +2590,12 @@ func TestUpdateUserInformationUnauthorized(t *testing.T) {
 			validator,
 			nil,
 			nil,
+			nil,
 		)
 
 		userController := controllers.NewUserController(userService)
 
-		userRequest := models.UserInformationUpdateDTO{
+		userRequest := models.UserInformationUpdateRequestDTO{
 			Nickname: "New Nickname",
 			Status:   "New status",
 		}
@@ -2109,7 +2624,7 @@ func TestUpdateUserInformationUnauthorized(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		expectedCustomError := customerrors.UserUnauthorized
+		expectedCustomError := customerrors.Unauthorized
 		assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 		assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
@@ -2127,6 +2642,7 @@ func TestChangePasswordSuccess(t *testing.T) {
 		nil,
 		nil,
 		validator,
+		nil,
 		nil,
 		nil,
 	)
@@ -2207,6 +2723,7 @@ func TestChangePasswordBadRequest(t *testing.T) {
 			validator,
 			nil,
 			nil,
+			nil,
 		)
 		userController := controllers.NewUserController(userService)
 
@@ -2261,6 +2778,7 @@ func TestChangePasswordUnauthorized(t *testing.T) {
 			validator,
 			nil,
 			nil,
+			nil,
 		)
 
 		userController := controllers.NewUserController(userService)
@@ -2294,7 +2812,7 @@ func TestChangePasswordUnauthorized(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		expectedCustomError := customerrors.UserUnauthorized
+		expectedCustomError := customerrors.Unauthorized
 		assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 		assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
@@ -2302,7 +2820,7 @@ func TestChangePasswordUnauthorized(t *testing.T) {
 	}
 }
 
-// TestChangePasswordOldPasswordIncorrect tests if ChangePassword returns 403-PostDeleteForbidden when old password is incorrect
+// TestChangePasswordOldPasswordIncorrect tests if ChangePassword returns 403-DeletePostForbidden when old password is incorrect
 func TestChangePasswordOldPasswordIncorrect(t *testing.T) {
 	// Arrange
 	mockUserRepository := new(repositories.MockUserRepository)
@@ -2313,6 +2831,7 @@ func TestChangePasswordOldPasswordIncorrect(t *testing.T) {
 		nil,
 		nil,
 		validator,
+		nil,
 		nil,
 		nil,
 	)
@@ -2358,7 +2877,7 @@ func TestChangePasswordOldPasswordIncorrect(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	// Assert
-	assert.Equal(t, http.StatusForbidden, w.Code) // Expect HTTP 403 PostDeleteForbidden status
+	assert.Equal(t, http.StatusForbidden, w.Code) // Expect HTTP 403 DeletePostForbidden status
 	var errorResponse customerrors.ErrorResponse
 	err = json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
@@ -2382,15 +2901,31 @@ func TestGetUserProfileSuccess(t *testing.T) {
 		nil,
 		nil,
 		mockPostRepository,
+		nil,
 		mockSubscriptionRepository,
 	)
 	userController := controllers.NewUserController(userService)
 
+	imageId := uuid.New()
+	err := os.Setenv("SERVER_URL", "https://example.com")
+	if err != nil {
+		t.Fatal()
+	}
+	expectedImageUrl := os.Getenv("SERVER_URL") + "/api/images/" + imageId.String() + ".jpeg"
+
 	user := models.User{
-		Username:          "testUser",
-		Nickname:          "Test User",
-		Status:            "Test status",
-		ProfilePictureUrl: "",
+		Username: "testUser",
+		Nickname: "Test User",
+		Status:   "Test status",
+		ImageId:  &imageId,
+		Image: models.Image{
+			Id:        imageId,
+			Format:    "jpeg",
+			Height:    100,
+			Width:     200,
+			Tag:       time.Now().UTC(),
+			ImageData: []byte{0x00, 0x01, 0x02, 0x03},
+		},
 	}
 	postCount := int64(64)
 	followerCount := int64(1)
@@ -2404,7 +2939,7 @@ func TestGetUserProfileSuccess(t *testing.T) {
 
 	subscription := models.Subscription{
 		Id:                uuid.New(),
-		SubscriptionDate:  time.Now(),
+		SubscriptionDate:  time.Now().UTC(),
 		FollowerUsername:  currentUsername,
 		FollowingUsername: user.Username,
 	}
@@ -2437,17 +2972,22 @@ func TestGetUserProfileSuccess(t *testing.T) {
 	assert.Equal(t, user.Username, responseDto.Username)
 	assert.Equal(t, user.Nickname, responseDto.Nickname)
 	assert.Equal(t, user.Status, responseDto.Status)
-	assert.Equal(t, user.ProfilePictureUrl, responseDto.ProfilePictureUrl)
 	assert.Equal(t, postCount, responseDto.Posts)
 	assert.Equal(t, followerCount, responseDto.Follower)
 	assert.Equal(t, followingCount, responseDto.Following)
 	assert.Equal(t, subscription.Id.String(), *responseDto.SubscriptionId)
 
+	assert.NotNil(t, responseDto.Picture)
+	assert.Equal(t, expectedImageUrl, responseDto.Picture.Url)
+	assert.Equal(t, user.Image.Height, responseDto.Picture.Height)
+	assert.Equal(t, user.Image.Width, responseDto.Picture.Width)
+	assert.Equal(t, user.Image.Tag, responseDto.Picture.Tag)
+
 	mockUserRepository.AssertExpectations(t)
 	mockPostRepository.AssertExpectations(t)
 }
 
-// TestGetUserProfileSuccessNoSubscription tests if GetUserProfile returns 200-OK and nil subscription id
+// TestGetUserProfileSuccessNoSubscription tests if GetUserProfile returns 200-OK and nil subscription id if current user is not following
 func TestGetUserProfileSuccessNoSubscription(t *testing.T) {
 	// Arrange
 	mockUserRepository := new(repositories.MockUserRepository)
@@ -2459,15 +2999,16 @@ func TestGetUserProfileSuccessNoSubscription(t *testing.T) {
 		nil,
 		nil,
 		mockPostRepository,
+		nil,
 		mockSubscriptionRepository,
 	)
 	userController := controllers.NewUserController(userService)
 
 	user := models.User{
-		Username:          "testUser",
-		Nickname:          "Test User",
-		Status:            "Test status",
-		ProfilePictureUrl: "",
+		Username: "testUser",
+		Nickname: "Test User",
+		Status:   "Test status",
+		ImageId:  nil,
 	}
 	postCount := int64(64)
 	followerCount := int64(1)
@@ -2507,11 +3048,12 @@ func TestGetUserProfileSuccessNoSubscription(t *testing.T) {
 	assert.Equal(t, user.Username, responseDto.Username)
 	assert.Equal(t, user.Nickname, responseDto.Nickname)
 	assert.Equal(t, user.Status, responseDto.Status)
-	assert.Equal(t, user.ProfilePictureUrl, responseDto.ProfilePictureUrl)
 	assert.Equal(t, postCount, responseDto.Posts)
 	assert.Equal(t, followerCount, responseDto.Follower)
 	assert.Equal(t, followingCount, responseDto.Following)
 	assert.Nil(t, responseDto.SubscriptionId)
+
+	assert.Nil(t, responseDto.Picture)
 
 	mockUserRepository.AssertExpectations(t)
 	mockPostRepository.AssertExpectations(t)
@@ -2535,6 +3077,7 @@ func TestGetUserProfileUnauthorized(t *testing.T) {
 			nil,
 			mockPostRepository,
 			nil,
+			nil,
 		)
 		userController := controllers.NewUserController(userService)
 
@@ -2557,7 +3100,7 @@ func TestGetUserProfileUnauthorized(t *testing.T) {
 		err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
 		assert.NoError(t, err)
 
-		expectedCustomError := customerrors.UserUnauthorized
+		expectedCustomError := customerrors.Unauthorized
 		assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 		assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
@@ -2577,6 +3120,7 @@ func TestGetUserProfileUserNotFound(t *testing.T) {
 		nil,
 		nil,
 		mockPostRepository,
+		nil,
 		nil,
 	)
 	userController := controllers.NewUserController(userService)

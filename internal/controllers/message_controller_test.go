@@ -56,7 +56,7 @@ func TestGetMessagesByChatIdSuccess(t *testing.T) {
 			ChatId:    chatId,
 			Username:  currentUsername,
 			Content:   "Test message 1",
-			CreatedAt: time.Now(),
+			CreatedAt: time.Now().UTC(),
 		},
 		{
 			Id:       uuid.New(),
@@ -142,7 +142,7 @@ func TestGetMessagesByChatIdUnauthorized(t *testing.T) {
 	err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
 
-	expectedCustomError := customerrors.UserUnauthorized
+	expectedCustomError := customerrors.Unauthorized
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
@@ -262,6 +262,7 @@ func TestHandleWebSocketSuccess(t *testing.T) {
 		Run(func(args mock.Arguments) {
 			capturedNotification = args.Get(0).(*models.Notification)
 		}).Return(nil)
+	mockNotificationRepository.On("GetNotificationById", mock.AnythingOfType("string")).Return(models.Notification{}, nil)
 	mockPushSubscriptionRepository.On("GetPushSubscriptionsByUsername", otherUsername).Return([]models.PushSubscription{}, nil)
 
 	// Create test server
@@ -282,7 +283,7 @@ func TestHandleWebSocketSuccess(t *testing.T) {
 	defer func(ws *websocket.Conn) {
 		_ = ws.Close()
 	}(ws)
-	_ = ws.SetReadDeadline(time.Now().Add(10 * time.Second)) // set read deadline to avoid blocking
+	_ = ws.SetReadDeadline(time.Now().UTC().Add(10 * time.Second)) // set read deadline to avoid blocking
 
 	// Create WebSocket connection for second other user
 	url = "ws" + server.URL[4:] + "/chat?chatId=" + chat.Id.String()
@@ -292,7 +293,7 @@ func TestHandleWebSocketSuccess(t *testing.T) {
 	defer func(ws2 *websocket.Conn) {
 		_ = ws2.Close()
 	}(ws2)
-	_ = ws2.SetReadDeadline(time.Now().Add(10 * time.Second)) // set read deadline to avoid blocking
+	_ = ws2.SetReadDeadline(time.Now().UTC().Add(10 * time.Second)) // set read deadline to avoid blocking
 
 	// Wait for connections to establish
 	time.Sleep(1 * time.Second)
@@ -473,7 +474,7 @@ func TestHandleWebSocketUnauthorized(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Assert
-	expectedCustomError := customerrors.UserUnauthorized
+	expectedCustomError := customerrors.Unauthorized
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
 
@@ -596,6 +597,281 @@ func TestHandleWebSocketNotParticipant(t *testing.T) {
 	expectedCustomError := customerrors.ChatNotFound
 	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
+
+	mockMessageRepository.AssertExpectations(t)
+	mockChatRepository.AssertExpectations(t)
+	mockPushSubscriptionRepository.AssertExpectations(t)
+	mockNotificationRepository.AssertExpectations(t)
+}
+
+// Regression Test
+// TestHandleWebSocketGetNotificationsAfterClosing tests if a user receives a notification after closing the WebSocket connection
+func TestHandleWebSocketGetNotificationsAfterClosing(t *testing.T) {
+	// Arrange
+	mockChatRepository := new(repositories.MockChatRepository)
+	mockMessageRepository := new(repositories.MockMessageRepository)
+	mockNotificationRepository := new(repositories.MockNotificationRepository)
+	mockPushSubscriptionRepository := new(repositories.MockPushSubscriptionRepository)
+	pushSubscriptionService := services.NewPushSubscriptionService(mockPushSubscriptionRepository)
+	notificationService := services.NewNotificationService(mockNotificationRepository, pushSubscriptionService)
+	messageService := services.NewMessageService(mockMessageRepository, mockChatRepository, notificationService)
+	messageController := controllers.NewMessageController(messageService)
+
+	currentUsername := "myUser"
+	authenticationToken, err := utils.GenerateAccessToken(currentUsername)
+	if err != nil {
+		t.Fatal(err)
+	}
+	otherUsername := "otherUser"
+	authTokenSecondOther, err := utils.GenerateAccessToken(otherUsername)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	chat := models.Chat{
+		Id: uuid.New(),
+		Users: []models.User{
+			{Username: currentUsername},
+			{Username: otherUsername},
+		},
+	}
+
+	// Mock expectations
+	var capturedMessage *models.Message
+	var capturedNotification *models.Notification
+	mockChatRepository.On("GetChatById", chat.Id.String()).Return(chat, nil)
+	mockMessageRepository.On("CreateMessage", mock.AnythingOfType("*models.Message")).
+		Run(func(args mock.Arguments) {
+			capturedMessage = args.Get(0).(*models.Message)
+		}).Return(nil)
+
+	// Other user has no open connection --> expect notification
+	mockNotificationRepository.On("CreateNotification", mock.AnythingOfType("*models.Notification")).
+		Run(func(args mock.Arguments) {
+			capturedNotification = args.Get(0).(*models.Notification)
+		}).Return(nil)
+	mockNotificationRepository.On("GetNotificationById", mock.AnythingOfType("string")).Return(models.Notification{}, nil)
+	mockPushSubscriptionRepository.On("GetPushSubscriptionsByUsername", otherUsername).Return([]models.PushSubscription{}, nil)
+
+	// Create test server
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+	router.GET("/chat", messageController.HandleWebSocket)
+	server := httptest.NewServer(router)
+	defer server.Close()
+
+	// Wait for server to start
+	time.Sleep(1 * time.Second)
+
+	// Create WebSocket connection
+	url := "ws" + server.URL[4:] + "/chat?chatId=" + chat.Id.String()
+	headers := http.Header{"Sec-WebSocket-Protocol": []string{authenticationToken}}
+	ws, _, err := websocket.DefaultDialer.Dial(url, headers)
+	assert.NoError(t, err)
+	defer func(ws *websocket.Conn) {
+		_ = ws.Close()
+	}(ws)
+	_ = ws.SetReadDeadline(time.Now().UTC().Add(10 * time.Second)) // set read deadline to avoid blocking
+
+	// Create WebSocket connection for other user
+	url = "ws" + server.URL[4:] + "/chat?chatId=" + chat.Id.String()
+	headers = http.Header{"Sec-WebSocket-Protocol": []string{authTokenSecondOther}}
+	ws2, _, err := websocket.DefaultDialer.Dial(url, headers)
+	assert.NoError(t, err)
+	defer func(ws2 *websocket.Conn) {
+		_ = ws2.Close()
+	}(ws2)
+	_ = ws2.SetReadDeadline(time.Now().UTC().Add(10 * time.Second)) // set read deadline to avoid blocking
+
+	// Wait for connections to establish
+	time.Sleep(1 * time.Second)
+
+	// Directly close the connection for other user
+	_ = ws2.Close()
+
+	// Send message from current user
+	message := models.MessageCreateRequestDTO{
+		Content: "Test message",
+	}
+	messageJSON, err := json.Marshal(message)
+	assert.NoError(t, err)
+
+	err = ws.WriteMessage(websocket.TextMessage, messageJSON)
+	assert.NoError(t, err)
+
+	//Wait for message to send
+	time.Sleep(1 * time.Second)
+
+	// Read message from current user
+	_, receivedMessage, err := ws.ReadMessage()
+	assert.NoError(t, err)
+	var response models.MessageRecordDTO
+	err = json.Unmarshal(receivedMessage, &response)
+	assert.NoError(t, err)
+
+	// Assertions
+	// Current user response
+	assert.Equal(t, message.Content, response.Content)
+	assert.Equal(t, currentUsername, response.Username)
+	assert.NotEmpty(t, response.CreationDate)
+
+	// Captured message
+	assert.NotNil(t, capturedMessage)
+	assert.Equal(t, message.Content, capturedMessage.Content)
+	assert.Equal(t, currentUsername, capturedMessage.Username)
+	assert.Equal(t, chat.Id, capturedMessage.ChatId)
+	assert.NotEmpty(t, capturedMessage.Id)
+	assert.True(t, capturedMessage.CreatedAt.Equal(response.CreationDate))
+
+	// Captured notification
+	assert.NotNil(t, capturedNotification)
+	assert.Equal(t, "message", capturedNotification.NotificationType)
+	assert.Equal(t, otherUsername, capturedNotification.ForUsername)
+	assert.Equal(t, currentUsername, capturedNotification.FromUsername)
+	assert.NotEmpty(t, capturedNotification.Id)
+	assert.NotEmpty(t, capturedNotification.Timestamp)
+
+	mockMessageRepository.AssertExpectations(t)
+	mockChatRepository.AssertExpectations(t)
+	mockPushSubscriptionRepository.AssertExpectations(t)
+	mockNotificationRepository.AssertExpectations(t)
+}
+
+// Regression Test
+// TestHandleWebSocketGetNotificationsForOtherChats test the HandleWebSocket function if it sends notifications for a chat while the user is connected to other chats
+func TestHandleWebSocketGetNotificationsForOtherChats(t *testing.T) {
+	// Arrange
+	mockChatRepository := new(repositories.MockChatRepository)
+	mockMessageRepository := new(repositories.MockMessageRepository)
+	mockNotificationRepository := new(repositories.MockNotificationRepository)
+	mockPushSubscriptionRepository := new(repositories.MockPushSubscriptionRepository)
+	pushSubscriptionService := services.NewPushSubscriptionService(mockPushSubscriptionRepository)
+	notificationService := services.NewNotificationService(mockNotificationRepository, pushSubscriptionService)
+	messageService := services.NewMessageService(mockMessageRepository, mockChatRepository, notificationService)
+	messageController := controllers.NewMessageController(messageService)
+
+	currentUsername := "myUser"
+	authenticationToken, err := utils.GenerateAccessToken(currentUsername)
+	if err != nil {
+		t.Fatal(err)
+	}
+	otherUsername := "otherUser"
+	authTokenSecondOther, err := utils.GenerateAccessToken(otherUsername)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	firstChat := models.Chat{
+		Id: uuid.New(),
+		Users: []models.User{
+			{Username: currentUsername},
+			{Username: otherUsername},
+		},
+	}
+
+	secondChat := models.Chat{
+		Id: uuid.New(),
+		Users: []models.User{
+			{Username: otherUsername},
+		},
+	}
+
+	// Mock expectations
+	var capturedMessage *models.Message
+	var capturedNotification *models.Notification
+	mockChatRepository.On("GetChatById", firstChat.Id.String()).Return(firstChat, nil)
+	mockChatRepository.On("GetChatById", secondChat.Id.String()).Return(secondChat, nil)
+	mockMessageRepository.On("CreateMessage", mock.AnythingOfType("*models.Message")).
+		Run(func(args mock.Arguments) {
+			capturedMessage = args.Get(0).(*models.Message)
+		}).Return(nil)
+
+	// Other user is only connected to secondChat by Websocket --> expect notification for firstChat
+	mockNotificationRepository.On("CreateNotification", mock.AnythingOfType("*models.Notification")).
+		Run(func(args mock.Arguments) {
+			capturedNotification = args.Get(0).(*models.Notification)
+		}).Return(nil)
+	mockNotificationRepository.On("GetNotificationById", mock.AnythingOfType("string")).Return(models.Notification{}, nil)
+	mockPushSubscriptionRepository.On("GetPushSubscriptionsByUsername", otherUsername).Return([]models.PushSubscription{}, nil)
+
+	// Create test server
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+	router.GET("/firstChat", messageController.HandleWebSocket)
+	server := httptest.NewServer(router)
+	defer server.Close()
+
+	// Wait for server to start
+	time.Sleep(1 * time.Second)
+
+	// Create WebSocket connection for first user
+	url := "ws" + server.URL[4:] + "/firstChat?chatId=" + firstChat.Id.String()
+	headers := http.Header{"Sec-WebSocket-Protocol": []string{authenticationToken}}
+	ws, _, err := websocket.DefaultDialer.Dial(url, headers)
+	assert.NoError(t, err)
+	defer func(ws *websocket.Conn) {
+		_ = ws.Close()
+	}(ws)
+	_ = ws.SetReadDeadline(time.Now().UTC().Add(10 * time.Second)) // set read deadline to avoid blocking
+
+	// Create WebSocket connection for other user to secondChat
+	url = "ws" + server.URL[4:] + "/firstChat?chatId=" + secondChat.Id.String()
+	headers = http.Header{"Sec-WebSocket-Protocol": []string{authTokenSecondOther}}
+	ws2, _, err := websocket.DefaultDialer.Dial(url, headers)
+	assert.NoError(t, err)
+	defer func(ws2 *websocket.Conn) {
+		_ = ws2.Close()
+	}(ws2)
+	_ = ws2.SetReadDeadline(time.Now().UTC().Add(10 * time.Second)) // set read deadline to avoid blocking
+
+	// Wait for connections to establish
+	time.Sleep(1 * time.Second)
+
+	// Send message from current user
+	message := models.MessageCreateRequestDTO{
+		Content: "Test message",
+	}
+	messageJSON, err := json.Marshal(message)
+	assert.NoError(t, err)
+
+	err = ws.WriteMessage(websocket.TextMessage, messageJSON)
+	assert.NoError(t, err)
+
+	//Wait for message to send
+	time.Sleep(1 * time.Second)
+
+	// Read message from current user
+	_, receivedMessage, err := ws.ReadMessage()
+	assert.NoError(t, err)
+	var response models.MessageRecordDTO
+	err = json.Unmarshal(receivedMessage, &response)
+	assert.NoError(t, err)
+
+	// No message received for other user via websocket
+	_, _, err = ws2.ReadMessage()
+	assert.Error(t, err)
+
+	// Assertions
+	// Current user response
+	assert.Equal(t, message.Content, response.Content)
+	assert.Equal(t, currentUsername, response.Username)
+	assert.NotEmpty(t, response.CreationDate)
+
+	// Captured message
+	assert.NotNil(t, capturedMessage)
+	assert.Equal(t, message.Content, capturedMessage.Content)
+	assert.Equal(t, currentUsername, capturedMessage.Username)
+	assert.Equal(t, firstChat.Id, capturedMessage.ChatId)
+	assert.NotEmpty(t, capturedMessage.Id)
+	assert.True(t, capturedMessage.CreatedAt.Equal(response.CreationDate))
+
+	// Captured notification
+	assert.NotNil(t, capturedNotification)
+	assert.Equal(t, "message", capturedNotification.NotificationType)
+	assert.Equal(t, otherUsername, capturedNotification.ForUsername)
+	assert.Equal(t, currentUsername, capturedNotification.FromUsername)
+	assert.NotEmpty(t, capturedNotification.Id)
+	assert.NotEmpty(t, capturedNotification.Timestamp)
 
 	mockMessageRepository.AssertExpectations(t)
 	mockChatRepository.AssertExpectations(t)

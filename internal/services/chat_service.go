@@ -7,6 +7,7 @@ import (
 	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
 	"github.com/wwi21seb-projekt/server-beta/internal/models"
 	"github.com/wwi21seb-projekt/server-beta/internal/repositories"
+	"github.com/wwi21seb-projekt/server-beta/internal/utils"
 	"gorm.io/gorm"
 	"net/http"
 	"strings"
@@ -65,7 +66,7 @@ func (service *ChatService) CreateChat(req *models.ChatCreateRequestDTO, current
 	currentUser, err := service.userRepo.FindUserByUsername(currentUsername)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, customerrors.UserUnauthorized, http.StatusUnauthorized
+			return nil, customerrors.Unauthorized, http.StatusUnauthorized
 		}
 		return nil, customerrors.DatabaseError, http.StatusInternalServerError
 	}
@@ -97,7 +98,7 @@ func (service *ChatService) CreateChat(req *models.ChatCreateRequestDTO, current
 	// Create response
 	response := &models.ChatCreateResponseDTO{
 		ChatId: newChat.Id.String(),
-		Message: &models.FirstMessageResponseDTO{
+		Message: &models.MessageRecordDTO{
 			Content:      firstMessage.Content,
 			Username:     firstMessage.Username,
 			CreationDate: firstMessage.CreatedAt,
@@ -120,13 +121,22 @@ func (service *ChatService) GetChatsByUsername(username string) (*models.ChatsRe
 	for _, chat := range chats {
 
 		// Currently, we only have two users in a chat --> find the other user
-		var chatUserDto models.ChatUserDTO
+		var chatUserDto models.UserDTO
 		for _, user := range chat.Users {
+			var imageDto *models.ImageMetadataDTO
+			if user.ImageId != nil {
+				imageDto = &models.ImageMetadataDTO{
+					Url:    utils.FormatImageUrl(user.ImageId.String(), user.Image.Format),
+					Width:  user.Image.Width,
+					Height: user.Image.Height,
+					Tag:    user.Image.Tag,
+				}
+			}
 			if user.Username != username {
-				chatUserDto = models.ChatUserDTO{
-					Username:          user.Username,
-					Nickname:          user.Nickname,
-					ProfilePictureUrl: user.ProfilePictureUrl,
+				chatUserDto = models.UserDTO{
+					Username: user.Username,
+					Nickname: user.Nickname,
+					Picture:  imageDto,
 				}
 				break
 			}

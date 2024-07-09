@@ -3,132 +3,174 @@ package controllers_test
 import (
 	"encoding/json"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/wwi21seb-projekt/server-beta/internal/controllers"
 	"github.com/wwi21seb-projekt/server-beta/internal/customerrors"
+	"github.com/wwi21seb-projekt/server-beta/internal/models"
 	"github.com/wwi21seb-projekt/server-beta/internal/repositories"
 	"github.com/wwi21seb-projekt/server-beta/internal/services"
-	"github.com/wwi21seb-projekt/server-beta/internal/utils"
-	"io/fs"
+	"gorm.io/gorm"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
-// TestGetImageSuccess tests the GetImage function
+// TestGetImageSuccess tests the GetImageById function
 func TestGetImageSuccess(t *testing.T) {
-	filenames := []string{
-		"test.jpeg",
-		"test.webp",
+	fileTypes := []string{
+		"jpeg",
+		"png",
+		"webp",
 	}
-
-	for _, filename := range filenames {
+	for _, fileType := range fileTypes {
 		// Arrange
-		mockFileSystem := new(repositories.MockFileSystem)
-		mockValidator := new(utils.MockValidator)
-
-		// Mock expectations
-		var pathCaptor string
-		mockFileSystem.On("CreateDirectory", mock.AnythingOfType("string"), mock.AnythingOfType("fs.FileMode")).Return(nil)
-		mockFileSystem.On("ReadFile", mock.AnythingOfType("string")).
-			Run(func(args mock.Arguments) {
-				pathCaptor = args.Get(0).(string) // Save argument to captor
-			}).Return([]byte("test"), nil)
-
-		// Arrange
-		imageService := services.NewImageService(mockFileSystem, mockValidator)
+		mockImageRepo := new(repositories.MockImageRepository)
+		imageService := services.NewImageService(mockImageRepo)
 		imageController := controllers.NewImageController(imageService)
 
+		imageId := uuid.New()
+		image := models.Image{
+			Id:        imageId,
+			Format:    fileType,
+			ImageData: []byte("test"),
+			Width:     100,
+			Height:    200,
+			Tag:       time.Now().UTC(),
+		}
+
+		mockImageRepo.On("GetImageById", imageId.String()).Return(&image, nil) // Expect image to be found
+
 		// Setup HTTP request
-		req, _ := http.NewRequest("GET", "/images/"+filename, nil)
+		url := "/images/" + imageId.String() + "." + fileType
+		req := httptest.NewRequest("GET", url, nil)
 		w := httptest.NewRecorder()
 
 		// Act
 		gin.SetMode(gin.TestMode)
 		router := gin.Default()
-		router.GET("/images/:filename", imageController.GetImage)
+		router.GET("/images/:imageId", imageController.GetImageById)
 		router.ServeHTTP(w, req)
 
 		// Assert
-		assert.Equal(t, http.StatusOK, w.Code) // Expect HTTP 200 OK
+		assert.Equal(t, http.StatusOK, w.Code) // Expect 200 OK
 
-		assert.Contains(t, pathCaptor, filename)
+		contentType := w.Header().Get("Content-Type")
+		assert.Equal(t, "image/"+fileType, contentType)
+		assert.Equal(t, image.ImageData, w.Body.Bytes())
 
-		mockFileSystem.AssertExpectations(t)
+		mockImageRepo.AssertExpectations(t)
 	}
+
 }
 
-// TestGetImagePathTraversal tests if the GetImage function prevents path traversal and removes relative paths
-func TestGetImagePathTraversal(t *testing.T) {
-	filenames := []string{
-		"../test.jpeg",
-		"../test.webp",
-		"../../test.jpeg",
-		"../../../test.webp",
-	}
-
-	for _, filename := range filenames {
-		// Arrange
-		mockFileSystem := new(repositories.MockFileSystem)
-		mockValidator := new(utils.MockValidator)
-
-		// Mock expectations
-		var pathCaptor string
-		mockFileSystem.On("CreateDirectory", mock.AnythingOfType("string"), mock.AnythingOfType("fs.FileMode")).Return(nil)
-		mockFileSystem.On("ReadFile", mock.AnythingOfType("string")).
-			Run(func(args mock.Arguments) {
-				pathCaptor = args.Get(0).(string) // Save argument to captor
-			}).Return([]byte("test"), nil)
-
-		// Arrange
-		imageService := services.NewImageService(mockFileSystem, mockValidator)
-
-		// Act
-		imageData, err, statusCode := imageService.GetImage(filename)
-
-		// Assert
-		assert.Equal(t, http.StatusNotFound, statusCode) // Expect HTTP 404 Not Found
-		assert.Equal(t, customerrors.FileNotFound, err)
-		assert.Nil(t, imageData)
-
-		assert.NotContains(t, pathCaptor, "..", "Path contains directory traversal characters")
-	}
-}
-
-// TestGetImageNotFound tests if the GetImage function returns a 404 error when the image does not exist
+// TestGetImageNotFound tests if the GetImageById function returns a 404 error when the image does not exist
 func TestGetImageNotFound(t *testing.T) {
 	// Arrange
-	mockFileSystem := new(repositories.MockFileSystem)
-	mockValidator := new(utils.MockValidator)
-
-	// Mock expectations
-	mockFileSystem.On("CreateDirectory", mock.AnythingOfType("string"), mock.AnythingOfType("fs.FileMode")).Return(nil)
-	mockFileSystem.On("ReadFile", mock.AnythingOfType("string")).Return([]byte{}, fs.ErrNotExist)
-
-	// Arrange
-	imageService := services.NewImageService(mockFileSystem, mockValidator)
+	mockImageRepo := new(repositories.MockImageRepository)
+	imageService := services.NewImageService(mockImageRepo)
 	imageController := controllers.NewImageController(imageService)
 
+	imageId := uuid.New()
+
+	mockImageRepo.On("GetImageById", imageId.String()).Return(&models.Image{}, gorm.ErrRecordNotFound) // Expect image not to be found
+
 	// Setup HTTP request
-	req, _ := http.NewRequest("GET", "/images/test.jpeg", nil)
+	req := httptest.NewRequest("GET", "/images/"+imageId.String(), nil)
 	w := httptest.NewRecorder()
 
 	// Act
 	gin.SetMode(gin.TestMode)
 	router := gin.Default()
-	router.GET("/images/:filename", imageController.GetImage)
+	router.GET("/images/:imageId", imageController.GetImageById)
 	router.ServeHTTP(w, req)
 
 	// Assert
-	assert.Equal(t, http.StatusNotFound, w.Code) // Expect HTTP 404 Not Found
+	assert.Equal(t, http.StatusNotFound, w.Code)
 	var errorResponse customerrors.ErrorResponse
 	err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
 	assert.NoError(t, err)
 
-	expectedCustomError := customerrors.FileNotFound
-	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
+	expectedCustomError := customerrors.ImageNotFound
 	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
+	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
 
-	mockFileSystem.AssertExpectations(t)
+	mockImageRepo.AssertExpectations(t)
+}
+
+// TestGetImageNotFoundNoFormat tests if the GetImageById function returns a 404 error when no format is provided in the image id
+func TestGetImageNotFoundNoFormat(t *testing.T) {
+	// Arrange
+	mockImageRepo := new(repositories.MockImageRepository)
+	imageService := services.NewImageService(mockImageRepo)
+	imageController := controllers.NewImageController(imageService)
+
+	imageId := uuid.New()
+
+	mockImageRepo.On("GetImageById", imageId.String()).Return(&models.Image{}, nil) // Expect image to be found
+
+	// Setup HTTP request
+	req := httptest.NewRequest("GET", "/images/"+imageId.String(), nil)
+	w := httptest.NewRecorder()
+
+	// Act
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+	router.GET("/images/:imageId", imageController.GetImageById)
+	router.ServeHTTP(w, req)
+
+	// Assert
+	assert.Equal(t, http.StatusNotFound, w.Code)
+	var errorResponse customerrors.ErrorResponse
+	err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
+	assert.NoError(t, err)
+
+	expectedCustomError := customerrors.ImageNotFound
+	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
+	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
+
+	mockImageRepo.AssertExpectations(t)
+}
+
+// TestGetImageNotFoundWrongFormat tests if the GetImageById function returns a 404 error when the format of the image is not the same as the requested format
+func TestGetImageNotFoundWrongFormat(t *testing.T) {
+	// Arrange
+	mockImageRepo := new(repositories.MockImageRepository)
+	imageService := services.NewImageService(mockImageRepo)
+	imageController := controllers.NewImageController(imageService)
+
+	imageId := uuid.New()
+	image := models.Image{
+		Id:        imageId,
+		Format:    "jpeg",
+		ImageData: []byte("test"),
+		Width:     100,
+		Height:    200,
+		Tag:       time.Now().UTC(),
+	}
+
+	mockImageRepo.On("GetImageById", imageId.String()).Return(&image, nil) // Expect image to be found
+
+	// Setup HTTP request
+	req := httptest.NewRequest("GET", "/images/"+imageId.String()+".png", nil)
+	w := httptest.NewRecorder()
+
+	// Act
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+	router.GET("/images/:imageId", imageController.GetImageById)
+	router.ServeHTTP(w, req)
+
+	// Assert
+	assert.Equal(t, http.StatusNotFound, w.Code)
+	var errorResponse customerrors.ErrorResponse
+	err := json.Unmarshal(w.Body.Bytes(), &errorResponse)
+	assert.NoError(t, err)
+
+	expectedCustomError := customerrors.ImageNotFound
+	assert.Equal(t, expectedCustomError.Code, errorResponse.Error.Code)
+	assert.Equal(t, expectedCustomError.Message, errorResponse.Error.Message)
+
+	mockImageRepo.AssertExpectations(t)
 }
