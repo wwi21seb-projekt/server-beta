@@ -450,21 +450,7 @@ func (service *UserService) SearchUser(username string, limit int, offset int, c
 	}
 
 	for _, user := range users {
-		var imageDto *models.ImageMetadataDTO
-		if user.ImageId != nil {
-			imageDto = &models.ImageMetadataDTO{
-				Url:    utils.FormatImageUrl(user.ImageId.String(), user.Image.Format),
-				Width:  user.Image.Width,
-				Height: user.Image.Height,
-				Tag:    user.Image.Tag,
-			}
-		}
-
-		record := models.UserDTO{
-			Username: user.Username,
-			Nickname: user.Nickname,
-			Picture:  imageDto,
-		}
+		record := *utils.GenerateUserDTOFromUser(&user)
 		response.Records = append(response.Records, record)
 	}
 

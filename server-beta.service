@@ -1,0 +1,9 @@
+[Unit]
+Description=Service Beta
+
+[Service]
+WorkingDirectory=/home/
+ExecStart=/home/server-beta
+
+[Install]
+WantedBy=multi-user.target

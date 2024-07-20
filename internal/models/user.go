@@ -15,7 +15,7 @@ type User struct {
 	ImageId      *uuid.UUID `gorm:"column:image_id;null"`
 	Image        Image      `gorm:"foreignKey:image_id;references:id"`
 	Status       string     `gorm:"column:status;type:varchar(128)"`
-	Chats        []Chat     `gorm:"many2many:chat_users;"` // gorm handles the join table
+	Chats        []Chat     `gorm:"many2many:chat_users;onDelete:CASCADE"` // gorm handles the join table
 }
 
 type UserDTO struct { // General dto for user, also used as author dto

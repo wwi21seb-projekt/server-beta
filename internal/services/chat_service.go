@@ -123,21 +123,8 @@ func (service *ChatService) GetChatsByUsername(username string) (*models.ChatsRe
 		// Currently, we only have two users in a chat --> find the other user
 		var chatUserDto models.UserDTO
 		for _, user := range chat.Users {
-			var imageDto *models.ImageMetadataDTO
-			if user.ImageId != nil {
-				imageDto = &models.ImageMetadataDTO{
-					Url:    utils.FormatImageUrl(user.ImageId.String(), user.Image.Format),
-					Width:  user.Image.Width,
-					Height: user.Image.Height,
-					Tag:    user.Image.Tag,
-				}
-			}
 			if user.Username != username {
-				chatUserDto = models.UserDTO{
-					Username: user.Username,
-					Nickname: user.Nickname,
-					Picture:  imageDto,
-				}
+				chatUserDto = *utils.GenerateUserDTOFromUser(&user)
 				break
 			}
 		}

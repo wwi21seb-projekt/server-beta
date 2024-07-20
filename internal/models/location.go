@@ -13,6 +13,6 @@ type Location struct {
 
 type LocationDTO struct {
 	Longitude *float64 `json:"longitude" binding:"required"` // using pointer to allow values to be zero
-	Latitude  *float64 `json:"latitude" binding:"required"`
+	Latitude  *float64 `json:"latitude" binding:"required"`  // thus Go would not differentiate between nil and 0
 	Accuracy  *uint    `json:"accuracy" binding:"required"`
 }

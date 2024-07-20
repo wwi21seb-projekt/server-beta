@@ -50,7 +50,7 @@ func TestGetPostsByUsernameSuccess(t *testing.T) {
 		Tag:       time.Now().UTC(),
 		ImageData: []byte("some image data"),
 	}
-	//expectedUserImageUrl := os.Getenv("SERVER_URL") + "/api/images/" + userImage.Id.String() + "." + userImage.Format
+	expectedUserImageUrl := os.Getenv("SERVER_URL") + "/api/images/" + userImage.Id.String() + "." + userImage.Format
 
 	postImage := models.Image{
 		Id:        uuid.New(),
@@ -79,21 +79,14 @@ func TestGetPostsByUsernameSuccess(t *testing.T) {
 		Image:    userImage,
 	}
 
-	originalPostLocation := models.Location{
-		Id:        uuid.New(),
-		Longitude: 4,
-		Latitude:  5,
-	}
 	originalPost := models.Post{
-		Id:         uuid.New(),
-		Username:   user.Username,
-		User:       user,
-		Content:    "This is a original post",
-		CreatedAt:  time.Now().UTC().Add(time.Hour * -1),
-		ImageId:    &originalPostImage.Id,
-		Image:      originalPostImage,
-		LocationId: &originalPostLocation.Id,
-		Location:   originalPostLocation,
+		Id:        uuid.New(),
+		Username:  user.Username,
+		User:      user,
+		Content:   "This is a original post",
+		CreatedAt: time.Now().UTC().Add(time.Hour * -1),
+		ImageId:   &originalPostImage.Id,
+		Image:     originalPostImage,
 	}
 
 	locationId := uuid.New()
@@ -105,6 +98,7 @@ func TestGetPostsByUsernameSuccess(t *testing.T) {
 			CreatedAt:  time.Now().UTC(),
 			LocationId: &locationId,
 			Location: models.Location{
+				Id:        locationId,
 				Longitude: 11.1,
 				Latitude:  22.2,
 				Accuracy:  50,
@@ -202,15 +196,15 @@ func TestGetPostsByUsernameSuccess(t *testing.T) {
 	assert.Equal(t, originalPostComments, repost.Comments)
 	assert.Equal(t, originalPostLikes, repost.Likes)
 	assert.Equal(t, false, repost.Liked)
-	assert.NotNil(t, repost.Location)
-	assert.Equal(t, originalPostLocation.Latitude, *repost.Location.Latitude)
-	assert.Equal(t, originalPostLocation.Longitude, *repost.Location.Longitude)
-	assert.Equal(t, originalPostLocation.Accuracy, *repost.Location.Accuracy)
+	assert.Nil(t, repost.Location)
 	assert.NotNil(t, repost.Picture)
 	assert.Equal(t, originalPostImage.Width, repost.Picture.Width)
 	assert.Equal(t, originalPostImage.Height, repost.Picture.Height)
 	assert.Equal(t, originalPostImage.Tag, repost.Picture.Tag)
 	assert.Equal(t, expectedOriginalPostImageUrl, repost.Picture.Url)
+	assert.Equal(t, user.Username, repost.Author.Username)
+	assert.Equal(t, user.Nickname, repost.Author.Nickname)
+	assert.Equal(t, expectedUserImageUrl, repost.Author.Picture.Url)
 
 	// Assert second post in response body
 	assert.Equal(t, posts[1].Id.String(), response.Records[1].PostId)
@@ -376,6 +370,7 @@ func TestGetGlobalPostFeedSuccess(t *testing.T) {
 				CreatedAt:  time.Now().UTC().Add(time.Hour * -2),
 				LocationId: &locationId,
 				Location: models.Location{
+					Id:        locationId,
 					Longitude: 11.1,
 					Latitude:  22.2,
 					Accuracy:  50,
@@ -524,6 +519,74 @@ func TestGetGlobalPostFeedDefaultParameters(t *testing.T) {
 	mockPostRepository.AssertExpectations(t)
 }
 
+// TestGetGlobalFeedRepostNotFound tests if the GetPostFeed function returns an empty repost wrapper when original post is not found (deleted)
+func TestGetGlobalFeedRepostNotFound(t *testing.T) {
+	// Arrange
+	mockUserRepository := new(repositories.MockUserRepository)
+	mockPostRepository := new(repositories.MockPostRepository)
+	mockLikeRepository := new(repositories.MockLikeRepository)
+	mockCommentRepository := new(repositories.MockCommentRepository)
+
+	feedService := services.NewFeedService(
+		mockPostRepository,
+		mockUserRepository,
+		mockLikeRepository,
+		mockCommentRepository,
+	)
+	feedController := controllers.NewFeedController(feedService)
+
+	repostId := uuid.New()
+	post := models.Post{
+		Id:        uuid.New(),
+		Username:  "someUserTest",
+		User:      models.User{},
+		Content:   "last post",
+		CreatedAt: time.Now().UTC().Add(time.Hour * -1),
+		RepostId:  &repostId,
+	}
+	totalRecords := int64(1)
+
+	expectedRepostResponse := models.PostResponseDTO{}
+	expectedRepostResponse.PostId = *post.RepostId
+
+	// Mock expectations
+	mockPostRepository.On("GetPostsGlobalFeed", mock.AnythingOfType("*models.Post"), 10).Return([]models.Post{post}, totalRecords, nil)
+	mockPostRepository.On("GetPostById", post.RepostId.String()).Return(models.Post{}, gorm.ErrRecordNotFound) // Repost not found
+
+	mockLikeRepository.On("CountLikes", post.Id.String()).Return(int64(20), nil)
+	mockCommentRepository.On("CountComments", post.Id.String()).Return(int64(30), nil)
+	mockLikeRepository.On("FindLike", post.Id.String(), mock.AnythingOfType("string")).Return(&models.Like{}, gorm.ErrRecordNotFound)
+
+	// Setup HTTP request
+	req, _ := http.NewRequest("GET", "/feed", nil)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	// Act
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+	router.GET("/feed", feedController.GetPostFeed)
+	router.ServeHTTP(w, req)
+
+	// Assert
+	assert.Equal(t, http.StatusOK, w.Code) // Expect 200 OK
+
+	var response models.GeneralFeedDTO
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(t, err)
+
+	assert.True(t, len(response.Records) == 1)
+	assert.Equal(t, totalRecords, response.Pagination.Records)
+	assert.Equal(t, 10, response.Pagination.Limit)
+	assert.Equal(t, post.Id.String(), response.Pagination.LastPostId)
+
+	assert.Equal(t, post.Id, response.Records[0].PostId)
+	assert.Equal(t, *post.RepostId, response.Records[0].Repost.PostId)
+	assert.Equal(t, expectedRepostResponse, *response.Records[0].Repost)
+
+	mockPostRepository.AssertExpectations(t)
+}
+
 // TestGetPersonalPostFeedSuccess tests if the GetPostFeed function returns a post feed and 200 ok if the request is valid
 func TestGetPersonalPostFeedSuccess(t *testing.T) {
 	// Arrange
@@ -567,6 +630,7 @@ func TestGetPersonalPostFeedSuccess(t *testing.T) {
 			CreatedAt:  time.Now().UTC().Add(time.Hour * -2),
 			LocationId: &locationId,
 			Location: models.Location{
+				Id:        locationId,
 				Longitude: 11.1,
 				Latitude:  22.2,
 				Accuracy:  50,
@@ -665,7 +729,7 @@ func TestGetPersonalPostFeedSuccess(t *testing.T) {
 }
 
 // TestGetPersonalPostFeedDefaultParameters tests if the GetPostFeed function returns a 200 OK and an empty list when last post is not found and default parameters are used
-func TestGetPersonalPostFeeDefaultParameters(t *testing.T) {
+func TestGetPersonalPostFeedDefaultParameters(t *testing.T) {
 	// Arrange
 	mockUserRepository := new(repositories.MockUserRepository)
 	mockPostRepository := new(repositories.MockPostRepository)
@@ -793,6 +857,7 @@ func TestGetPostsByHashtagSuccess(t *testing.T) {
 			CreatedAt:  time.Now().UTC(),
 			LocationId: &locationId,
 			Location: models.Location{
+				Id:        locationId,
 				Longitude: 11.1,
 				Latitude:  22.2,
 				Accuracy:  50,
