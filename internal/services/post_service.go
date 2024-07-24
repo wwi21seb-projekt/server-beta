@@ -228,24 +228,11 @@ func createPostResponseFromPostObject(
 			Tag:    image.Tag,
 		}
 	}
-	var userImageDto *models.ImageMetadataDTO
-	if user.ImageId != nil {
-		userImageDto = &models.ImageMetadataDTO{
-			Url:    utils.FormatImageUrl(user.ImageId.String(), user.Image.Format),
-			Width:  user.Image.Width,
-			Height: user.Image.Height,
-			Tag:    user.Image.Tag,
-		}
-	}
 
 	// Create post dto
 	postDto := models.PostResponseDTO{
-		PostId: post.Id,
-		Author: &models.UserDTO{
-			Username: user.Username,
-			Nickname: user.Nickname,
-			Picture:  userImageDto,
-		},
+		PostId:       post.Id,
+		Author:       utils.GenerateUserDTOFromUser(user),
 		CreationDate: post.CreatedAt,
 		Content:      post.Content,
 		Picture:      imageDto,

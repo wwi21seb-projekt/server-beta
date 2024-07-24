@@ -136,6 +136,10 @@ func (repo *UserRepository) DeleteUserByUsername(username string) error {
 
 		// Delete user's profile picture if image_id is not nil
 		if user.ImageId != nil {
+			// Remove foreign key constraint first, then delete the image
+			if err := tx.Model(&models.User{}).Where("username = ?", username).Update("image_id", nil).Error; err != nil {
+				return err
+			}
 			if err := tx.Where("id = ?", user.ImageId.String()).Delete(&models.Image{}).Error; err != nil {
 				if !errors.Is(err, gorm.ErrRecordNotFound) {
 					return err
@@ -152,6 +156,13 @@ func (repo *UserRepository) DeleteUserByUsername(username string) error {
 
 		// Delete token
 		if err := tx.Where("username_fk = ?", username).Delete(&models.ActivationToken{}).Error; err != nil {
+			if !errors.Is(err, gorm.ErrRecordNotFound) {
+				return err
+			}
+		}
+
+		// Delete notifications
+		if err := tx.Where("username_fk = ?", username).Delete(&models.Notification{}).Error; err != nil {
 			if !errors.Is(err, gorm.ErrRecordNotFound) {
 				return err
 			}

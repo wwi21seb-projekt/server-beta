@@ -53,24 +53,11 @@ func (service *NotificationService) CreateNotification(notificationType string, 
 	}
 
 	// Send push message to client if push service is registered
-	var fromUserImageDto *models.ImageMetadataDTO
-	if createdNotification.FromUser.ImageId != nil {
-		fromUserImageDto = &models.ImageMetadataDTO{
-			Url:    utils.FormatImageUrl(createdNotification.FromUser.ImageId.String(), createdNotification.FromUser.Image.Format),
-			Width:  createdNotification.FromUser.Image.Width,
-			Height: createdNotification.FromUser.Image.Height,
-			Tag:    createdNotification.FromUser.Image.Tag,
-		}
-	}
 	notificationDto := models.NotificationRecordDTO{
 		NotificationId:   createdNotification.Id.String(),
 		Timestamp:        createdNotification.Timestamp,
 		NotificationType: createdNotification.NotificationType,
-		User: &models.UserDTO{
-			Username: createdNotification.FromUsername,
-			Nickname: createdNotification.FromUser.Nickname,
-			Picture:  fromUserImageDto,
-		},
+		User:             utils.GenerateUserDTOFromUser(&createdNotification.FromUser),
 	}
 	service.PushSubscriptionService.SendPushMessages(&notificationDto, forUsername) // send push message in background
 
@@ -88,24 +75,11 @@ func (service *NotificationService) GetNotifications(username string) (*models.N
 	// Create response dto
 	notificationResponseDTOs := make([]models.NotificationRecordDTO, 0)
 	for _, notification := range notifications {
-		var userImageDto *models.ImageMetadataDTO
-		if notification.FromUser.ImageId != nil {
-			userImageDto = &models.ImageMetadataDTO{
-				Url:    utils.FormatImageUrl(notification.FromUser.ImageId.String(), notification.FromUser.Image.Format),
-				Width:  notification.FromUser.Image.Width,
-				Height: notification.FromUser.Image.Height,
-				Tag:    notification.FromUser.Image.Tag,
-			}
-		}
 		notificationResponseDTO := models.NotificationRecordDTO{
 			NotificationId:   notification.Id.String(),
 			Timestamp:        notification.Timestamp,
 			NotificationType: notification.NotificationType,
-			User: &models.UserDTO{
-				Username: notification.FromUsername,
-				Nickname: notification.FromUser.Nickname,
-				Picture:  userImageDto,
-			},
+			User:             utils.GenerateUserDTOFromUser(&notification.FromUser),
 		}
 		notificationResponseDTOs = append(notificationResponseDTOs, notificationResponseDTO)
 	}

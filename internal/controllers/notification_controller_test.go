@@ -89,7 +89,7 @@ func TestGetNotificationsSuccess(t *testing.T) {
 	for i, notification := range foundNotifications {
 		assert.Equal(t, notification.Id.String(), responseDto.Records[i].NotificationId)
 		assert.Equal(t, notification.NotificationType, responseDto.Records[i].NotificationType)
-		assert.Equal(t, notification.FromUsername, responseDto.Records[i].User.Username)
+		assert.Equal(t, notification.FromUser.Username, responseDto.Records[i].User.Username)
 		assert.Equal(t, notification.FromUser.Nickname, responseDto.Records[i].User.Nickname)
 		assert.True(t, notification.Timestamp.Equal(responseDto.Records[i].Timestamp))
 	}
