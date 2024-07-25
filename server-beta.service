@@ -2,8 +2,8 @@
 Description=Service Beta
 
 [Service]
-WorkingDirectory=/home/
-ExecStart=/home/server-beta
+WorkingDirectory=/
+ExecStart=/server-beta/bin/server-beta
 
 [Install]
 WantedBy=multi-user.target
