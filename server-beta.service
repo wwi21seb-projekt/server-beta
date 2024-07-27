@@ -2,7 +2,7 @@
 Description=Service Beta
 
 [Service]
-WorkingDirectory=/
+WorkingDirectory=/server-beta/
 ExecStart=/server-beta/bin/server-beta
 
 [Install]
