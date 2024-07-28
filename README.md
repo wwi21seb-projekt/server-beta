@@ -25,7 +25,7 @@ Make sure you have the following tools and services installed, configured and ru
 - [PostgreSQL](https://www.postgresql.org/)
 ````cmd
     apt-get install postgresql
-    -u postgres psql
+    sudo -u postgres psql
 ````
 ````sql
     CREATE DATABASE serverbetadb;
